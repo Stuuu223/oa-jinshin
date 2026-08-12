@@ -1,4 +1,4 @@
-"""金石管理系统 · 客户与公海模型."""
+"""金石管理系统 · 客户与公海模型（v2：客户池广场 + 撤销栈式设计）."""
 from django.conf import settings
 from django.db import models
 
@@ -12,11 +12,22 @@ class CustomerStatus(models.TextChoices):
     LOST = "lost", "已流失"
 
 
+class PoolType(models.TextChoices):
+    """公海进入方式——v2 claim 新增：区分自动掉入 vs 客户池广场手动释放.
+
+    两者并行不冲突：AUTO 是后台 cron 30 天未跟进自动掉入；
+    SQUARE 是销售/主管/总经办主动释放到客户池广场。
+    """
+    AUTO = "auto", "自动掉入公海"
+    SQUARE = "square", "客户池广场（手动释放）"
+
+
 class Source(models.TextChoices):
     """客户来源."""
     REFERRAL = "referral", "转介绍"
     INBOUND = "inbound", "主动咨询"
     AD = "ad", "广告投放"
+    SQUARE = "square", "客户池广场"
     OTHER = "other", "其他"
 
 
@@ -48,11 +59,28 @@ class Customer(models.Model):
         blank=True,
     )
     source = models.CharField("来源", max_length=16, choices=Source.choices, default=Source.OTHER)
-    note = models.TextField("客户情况", blank=True)
+    quote_amount = models.DecimalField(
+        "报价金额", max_digits=12, decimal_places=2, null=True, blank=True,
+        help_text="v2 claim 新增：第一页客户信息字段",
+    )
+    note = models.TextField("客户情况/备注", blank=True)
     consulted_at = models.DateField("咨询时间", null=True, blank=True)
 
     status = models.CharField(
         "状态", max_length=16, choices=CustomerStatus.choices, default=CustomerStatus.LEAD
+    )
+    pool_type = models.CharField(
+        "公海类型", max_length=16, choices=PoolType.choices, null=True, blank=True,
+        help_text="仅 status=pool 时有意义：区分自动掉入/客户池广场释放",
+    )
+    square_released_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="square_released_customers",
+        verbose_name="广场释放人",
+        help_text="客户池广场来源署名用：来源栏展示'客户池广场-XX'",
     )
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -90,6 +118,94 @@ class Customer(models.Model):
 
     def __str__(self) -> str:
         return self.company
+
+
+class CustomerAttachment(models.Model):
+    """客户附图——v2 claim 新增：第一页/第二页均要求'附图'字段.
+
+    Mock 阶段用本地 FileField 占位；生产环境切腾讯云 COS 时只需换 storage backend。
+    """
+    customer = models.ForeignKey(
+        Customer, on_delete=models.CASCADE, related_name="attachments", verbose_name="客户"
+    )
+    file = models.FileField("附图", upload_to="customer_attachments/%Y/%m/")
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, verbose_name="上传人"
+    )
+    uploaded_at = models.DateTimeField("上传时间", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "客户附图"
+        verbose_name_plural = verbose_name
+
+    def __str__(self) -> str:
+        return f"{self.customer.company} 附图 #{self.pk}"
+
+
+class OwnerHistorySourceType(models.TextChoices):
+    """归属流转来源类型."""
+    DIRECT_INPUT = "direct_input", "销售直接建档"
+    SQUARE = "square", "客户池广场获取"
+    MANAGER_ASSIGN = "manager_assign", "销售主管分配"
+    BOSS_ASSIGN = "boss_assign", "总经办分配"
+    SALES_CLAIM = "sales_claim", "销售自主领取（旧公海通道）"
+
+
+class CustomerOwnerHistory(models.Model):
+    """客户归属变更历史——栈式设计，一表三用.
+
+    用途 1：第一页'跟进人员'多次署名+时间（seq 驱动一次/二次/三次展示）
+    用途 2：撤销分配——撤销 = 标记最新一条 revoked_at，owner 恢复为 from_user
+    用途 3：客户详情页时间线（建档→分配→转手→撤销→成交），纠纷仲裁依据
+
+    详见 14-老板最新Claim与变更执行清单-v2.md §三 决策 2。
+    """
+    customer = models.ForeignKey(
+        Customer, on_delete=models.CASCADE, related_name="owner_history", verbose_name="客户"
+    )
+    from_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="上一持有人",
+        help_text="为空表示这是栈底（首次建档/首次分配）",
+    )
+    to_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="+",
+        verbose_name="本次持有人",
+    )
+    source_type = models.CharField(
+        "来源类型", max_length=20, choices=OwnerHistorySourceType.choices
+    )
+    source_note = models.CharField(
+        "来源备注", max_length=64, blank=True,
+        help_text="广场场景记录释放人姓名，分配场景记录操作人姓名",
+    )
+    operator = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="+",
+        verbose_name="操作人",
+        help_text="谁触发的这次流转（主管/总经办/销售本人）",
+    )
+    seq = models.PositiveSmallIntegerField("第几次流转", default=1)
+    assigned_at = models.DateTimeField("流转时间", auto_now_add=True)
+    revoked_at = models.DateTimeField("撤销时间", null=True, blank=True)
+
+    class Meta:
+        verbose_name = "客户归属变更历史"
+        verbose_name_plural = verbose_name
+        ordering = ["customer_id", "seq"]
+
+    def __str__(self) -> str:
+        target = self.to_user.real_name if self.to_user else "未知"
+        return f"{self.customer.company} 第{self.seq}次 → {target}"
 
 
 class FollowUp(models.Model):

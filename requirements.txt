@@ -1,0 +1,8 @@
+Django~=5.2
+psycopg2-binary
+django-simpleui
+django-guardian
+django-fsm-2
+django-simple-history
+openpyxl
+django-environ

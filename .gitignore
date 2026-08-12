@@ -1,0 +1,46 @@
+# === Python / Django ===
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+
+# === Django 运行产物 ===
+db.sqlite3
+*.log
+media/
+staticfiles/
+
+# === 敏感:环境变量与密钥(绝不入库) ===
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+secrets/
+
+# === IDE / OS ===
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# === 打包备份 ===
+*.zip
+*.gz
+*.sql.gz
+*.dump
+backup/
+
+# === 系统临时 ===
+*.tmp
+*.bak
+*.orig

@@ -1,21 +1,47 @@
-"""金石管理系统 · 客户管理后台——M1 核心 + v2 客户池广场/撤销栈 + 成交联动 M2."""
-from django.contrib import admin
-from django.contrib import messages
+"""金石管理系统 · 客户管理后台——M1 核心 + v2 客户池广场/撤销栈 + 回收站 + 撞单预检.
+
+对照《金石企服客户管理系统搭建细则》第一页:
+- 三、权限:销售看自己/主管看组员+自己/总经办看全部
+- 四、分配:主管/总经办可分配管辖内客户（不限公海）并撤回
+- 五、客户池广场:释放后全员可见,获取后归属到获取人,来源栏署名"客户池广场-XX"
+- 六、撞单:录入前 JS 预检弹窗 + 录入后标识 + 送总经办信息箱
+- 七、回收站:删除进回收站（软删）,总经办可查看已删客户及全部修改记录
+"""
+import threading
+
+from django.contrib import admin, messages
+from django.db.models import Q
+from django.http import JsonResponse
 from django.template.response import TemplateResponse
+from django.urls import path
 from django.utils import timezone
 from django.utils.html import format_html
 
-from apps.accounts.models import LEAD_ROLES, Role
+from apps.accounts.admin_mixins import FIRST_PAGE_ROLES, RolePermissionsMixin
+from apps.accounts.models import Notification, Role, User
+from simple_history.admin import SimpleHistoryAdmin
 
 from .models import (
     Customer,
+    CustomerAttachment,
     CustomerOwnerHistory,
     CustomerStatus,
     FollowUp,
     OwnerHistorySourceType,
     PoolType,
+    RecycledCustomer,
     Source,
 )
+
+# phone_masked 列需要感知请求者角色；ModelAdmin 实例多线程共享，
+# 存在 self 上会串号，改存 thread-local
+_request_local = threading.local()
+
+
+def _next_seq(history_qs):
+    """栈式归属历史的下一次 seq——统一收敛,原先 4 处复制粘贴."""
+    last = history_qs.order_by("-seq").first()
+    return (last.seq + 1) if last else 1
 
 
 class StatusFilter(admin.SimpleListFilter):
@@ -52,24 +78,44 @@ class QualificationFilter(admin.SimpleListFilter):
         return queryset
 
 
+class OwnerFilter(admin.SimpleListFilter):
+    """归属销售筛选——细则第一页·二"暂时做销售人员筛选、搜索筛选"."""
+    title = "销售人员"
+    parameter_name = "owner"
+
+    def lookups(self, request, model_admin):
+        users = User.objects.filter(
+            role__in=[Role.SALES, Role.SALES_LEAD], is_active=True,
+        ).order_by("real_name")
+        return [(u.pk, u.real_name) for u in users]
+
+    def queryset(self, request, queryset):
+        if self.value():
+            return queryset.filter(owner__pk=self.value())
+        return queryset
+
+
 class FollowUpInline(admin.TabularInline):
+    """跟进记录——跟进时间可选（默认当前）、下次跟进提醒可选填."""
     model = FollowUp
-    extra = 0
-    fields = ("content", "created_at")
-    readonly_fields = ("created_at",)
+    extra = 1
+    fields = ("content", "created_at", "next_follow_at")
     can_delete = True
     verbose_name_plural = "跟进记录"
 
     def formfield_for_dbfield(self, db_field, **kwargs):
         if db_field.name == "content":
-            kwargs["widget"] = admin.widgets.AdminTextInputWidget()
+            kwargs["widget"] = admin.widgets.AdminTextareaWidget(attrs={"rows": 2})
         return super().formfield_for_dbfield(db_field, **kwargs)
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related("user")
 
 
 class OwnerHistoryInline(admin.TabularInline):
     model = CustomerOwnerHistory
     extra = 0
-    fields = ("seq", "from_user", "to_user", "source_type", "source_note", "operator", "assigned_at", "revoked_at")
+    fields = ("seq", "transfer_display", "source_type", "source_note", "assigned_at")
     readonly_fields = fields
     can_delete = False
     verbose_name_plural = "归属变更历史（署名/撤销依据）"
@@ -77,36 +123,123 @@ class OwnerHistoryInline(admin.TabularInline):
     def has_add_permission(self, request, obj=None):
         return False
 
+    @admin.display(description="流转", ordering="seq")
+    def transfer_display(self, obj: CustomerOwnerHistory) -> str:
+        """合并 from→to 为紧凑文案,撤销标记可见,避免多列挤压."""
+        from_user = obj.from_user.real_name if obj.from_user else "（首次/公海）"
+        to_user = obj.to_user.real_name if obj.to_user else "（释放到广场）"
+        revoked = " ↩️已撤销" if obj.revoked_at else ""
+        return f"{from_user} → {to_user}{revoked}"
+
+    class Media:
+        css = {"all": ("admin/css/owner_history.css",)}
+
+
+class CustomerAttachmentInline(admin.TabularInline):
+    """客户附图——细则第一页·一"附图"字段（此前模型存在但 admin 未暴露,实际传不了图）."""
+    model = CustomerAttachment
+    extra = 0
+    fields = ("file", "uploaded_by", "uploaded_at")
+    readonly_fields = ("uploaded_by", "uploaded_at")
+    verbose_name_plural = "附图"
+
+    def has_add_permission(self, request, obj=None):
+        return getattr(request.user, "role", None) in FIRST_PAGE_ROLES or request.user.is_superuser
+
+    def has_delete_permission(self, request, obj=None):
+        return getattr(request.user, "role", None) in FIRST_PAGE_ROLES or request.user.is_superuser
+
+
+# 各角色可用动作白名单——get_actions 按此过滤,默认 delete_selected(硬删)一并不再暴露
+_ROLE_ACTIONS = {
+    Role.SALES: {"mark_deal", "move_to_pool", "mark_lost", "claim_from_pool", "release_to_square", "soft_delete"},
+    Role.SALES_LEAD: {"mark_deal", "move_to_pool", "mark_lost", "claim_from_pool", "release_to_square",
+                      "soft_delete", "assign_pool", "revoke_assignment"},
+    Role.ADMIN: {"mark_deal", "move_to_pool", "mark_lost", "release_to_square",
+                 "soft_delete", "assign_pool", "revoke_assignment"},
+}
+
 
 @admin.register(Customer)
-class CustomerAdmin(admin.ModelAdmin):
-    list_display = ("summary", "phone_masked", "owner", "quote_amount", "last_follow_at")
-    list_filter = (StatusFilter, SourceFilter, QualificationFilter)
+class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
+    list_display = ("summary", "phone_masked", "owner", "source_signature", "quote_amount", "last_follow_at")
+    list_filter = (OwnerFilter, StatusFilter, SourceFilter, QualificationFilter)
     search_fields = ("company", "contact_name", "phone")
-    readonly_fields = ("created_at", "updated_at", "pool_entered_at", "created_by", "square_released_by")
-    inlines = [FollowUpInline, OwnerHistoryInline]
+    readonly_fields = (
+        "source_signature", "created_at", "updated_at", "pool_entered_at", "created_by", "square_released_by",
+        "duplicate_flagged_at",
+    )
+    inlines = [FollowUpInline, OwnerHistoryInline, CustomerAttachmentInline]
 
     fieldsets = (
-        (None, {"fields": ("company", "contact_name", "phone", ("qualification_interest", "source"), "quote_amount", "consulted_at", "note")}),
-        ("状态与归属", {"fields": ("status", "pool_type", "owner", "square_released_by", "pool_entered_at", "last_follow_at", "lost_reason")}),
+        ("📋 基本信息", {
+            "fields": (
+                ("company", "contact_name"),
+                ("phone", "qualification_interest"),
+                ("source", "quote_amount"),
+                ("source_signature", "consulted_at"),
+                "note",
+            ),
+        }),
+        ("👤 归属与状态", {
+            "fields": (
+                ("status", "owner"),
+                ("pool_type", "square_released_by"),
+                ("pool_entered_at", "last_follow_at"),
+                ("lost_reason", "duplicate_flagged_at"),
+            ),
+            "classes": ("collapse",),
+        }),
+    )
+
+    # 新建客户页只显示建档必填/常用字段;归属/状态在编辑页为只读,流转必须走
+    # 分配/释放/领取等 action——避免手改字段绕过署名与归属历史
+    add_fieldsets = (
+        ("📋 客户基本信息", {
+            "fields": (
+                ("company", "contact_name"),
+                ("phone", "qualification_interest"),
+                ("source", "quote_amount"),
+                "consulted_at", "note",
+            ),
+        }),
+        ("👤 归属销售", {
+            "fields": ("owner",),
+        }),
     )
 
     actions = [
         "mark_deal", "move_to_pool", "mark_lost",
         "claim_from_pool", "assign_pool",
-        "release_to_square", "revoke_assignment",
+        "release_to_square", "revoke_assignment", "soft_delete",
     ]
+
+    class Media:
+        css = {"all": ("admin/css/change_form_inline_fix.css",)}
+
+    VIEW_ROLES = FIRST_PAGE_ROLES
+    ADD_ROLES = FIRST_PAGE_ROLES
+    CHANGE_ROLES = FIRST_PAGE_ROLES
+    DELETE_ROLES = FIRST_PAGE_ROLES
+
+    # ---------- 表单结构 ----------
+
+    def get_fieldsets(self, request, obj=None):
+        if obj is None:
+            return self.add_fieldsets
+        return super().get_fieldsets(request, obj)
+
+    def get_readonly_fields(self, request, obj=None):
+        base = list(super().get_readonly_fields(request, obj))
+        if obj is not None:
+            # 编辑态:归属与状态字段一律只读,防止绕过署名/历史旁路
+            base += ["owner", "status", "pool_type", "last_follow_at", "lost_reason"]
+        return base
 
     def get_actions(self, request):
         actions = super().get_actions(request)
-        role = getattr(request.user, "role", None)
-        if role == Role.ADMIN:
-            actions.pop("claim_from_pool", None)
-        if role == Role.SALES:
-            actions.pop("assign_pool", None)
-        if role not in LEAD_ROLES and role != Role.ADMIN:
-            actions.pop("assign_pool", None)
-        return actions
+        allowed = _ROLE_ACTIONS.get(getattr(request.user, "role", None), set())
+        return {name: fn for name, fn in actions.items() if name in allowed}
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
@@ -115,117 +248,220 @@ class CustomerAdmin(admin.ModelAdmin):
         if role == Role.SALES:
             return qs.filter(owner=user)
         if role == Role.SALES_LEAD:
+            # 主管看组员+自己（细则第一页·三）,不依赖主管本人是否填在 team 里
             team = getattr(user, "team", None)
             if team:
-                return qs.filter(models_q_owner_in_team(team))
+                return qs.filter(Q(owner__team=team) | Q(owner=user))
             return qs.filter(owner=user)
-        if role in (Role.CONSULTANT, Role.TECH):
-            return qs.none()
-        if role == Role.FINANCE:
-            return qs.filter(status=CustomerStatus.DEAL)
-        return qs
+        if role == Role.ADMIN:
+            return qs
+        # 咨询/技术/财务不看第一页客户（v2 细则第一页仅销售序列与总经办）
+        return qs.none()
 
     def get_changelist_instance(self, request):
         cl = super().get_changelist_instance(request)
-        self._current_request = request
+        _request_local.request = request
         return cl
 
+    # ---------- 保存与软删 ----------
+
     def save_model(self, request, obj, form, change):
+        # 注意顺序:必须先落库拿到 pk,再写归属历史（旧代码反着来,新增客户直接 500）
         if not change:
             obj.created_by = request.user
+        super().save_model(request, obj, form, change)
+        if not change:
             CustomerOwnerHistory.objects.create(
                 customer=obj, from_user=None, to_user=obj.owner or request.user,
                 source_type=OwnerHistorySourceType.DIRECT_INPUT,
                 operator=request.user, seq=1,
             )
-            # 撞单提醒（细则第一页·六）：查重弹窗 + 送总经办信息箱
-            duplicates = obj.find_duplicates()
-            if duplicates.exists():
-                dups = "、".join(dups.company for dups in duplicates[:3])
-                self.message_user(
-                    request,
-                    f"⚠️ 与同事录入相同信息：{dups}（本条已录入并做标识，请联系总经办）",
-                    level=messages.WARNING,
+        # 撞单提醒（细则第一页·六）：软查重不拦截,录入后做标识并送总经办信息箱
+        duplicates = obj.find_duplicates()
+        if duplicates.exists():
+            now = timezone.now()
+            if not obj.duplicate_flagged_at:
+                Customer.objects.filter(pk=obj.pk).update(duplicate_flagged_at=now)
+                obj.duplicate_flagged_at = now
+            dup_names = "、".join(d.company for d in duplicates[:3])
+            self.message_user(
+                request,
+                f"⚠️ 与同事录入相同信息：{dup_names}（本条已录入并做标识，请与公司总经办联系）",
+                level=messages.WARNING,
+            )
+            admins = User.objects.filter(role=Role.ADMIN, is_active=True)
+            for admin_user in admins:
+                Notification.objects.create(
+                    recipient=admin_user,
+                    title="撞单提醒",
+                    content=f"客户「{obj.company}」与「{dup_names}」疑似重复（录入人:{request.user.real_name}），请核查归属。",
+                    link="/admin/customers/customer/",
                 )
-                from apps.accounts.models import Notification, Role as RoleEnum, User
-                admins = User.objects.filter(role=RoleEnum.ADMIN, is_active=True)
-                for admin_user in admins:
-                    Notification.objects.create(
-                        recipient=admin_user,
-                        title="撞单提醒",
-                        content=f"客户「{obj.company}」与「{dups}」疑似重复，请核查归属。",
-                        link="/admin/customers/customer/",
-                    )
-        super().save_model(request, obj, form, change)
+
+    def save_formset(self, request, form, formset, change):
+        """补齐 inline 署名;跟进记录落库后联动客户 last_follow_at（30天掉公海的数据源）."""
+        instances = formset.save(commit=False)
+        for obj in formset.deleted_objects:
+            obj.delete()
+        for obj in instances:
+            if isinstance(obj, CustomerAttachment) and not obj.uploaded_by_id:
+                obj.uploaded_by = request.user
+            obj.save()
+        formset.save_m2m()
+        customer = form.instance
+        latest_follow = customer.follow_ups.order_by("-created_at").first()
+        if latest_follow and (not customer.last_follow_at or latest_follow.created_at > customer.last_follow_at):
+            Customer.objects.filter(pk=customer.pk).update(last_follow_at=latest_follow.created_at)
+
+    def delete_model(self, request, obj):
+        # 单个删除也走软删（细则第一页·七:删除的客户信息要能在回收站查看）
+        obj.deleted_at = timezone.now()
+        obj.save(update_fields=["deleted_at", "updated_at"])
+
+    def delete_queryset(self, request, queryset):
+        # 批量删除兜底走软删
+        queryset.update(deleted_at=timezone.now(), updated_at=timezone.now())
+
+    # ---------- 撞单预检（录入前弹窗的数据接口） ----------
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom = [
+            path(
+                "check-duplicates/",
+                self.admin_site.admin_view(self.check_duplicates_view),
+                name="customers_customer_check_duplicates",
+            ),
+        ]
+        return custom + urls
+
+    def check_duplicates_view(self, request):
+        """按公司名/联系人/电话做录入前查重,返回 JSON 供前端弹窗展示."""
+        conditions = Q()
+        has_condition = False
+        for field, value in (
+            ("company", request.GET.get("company", "")),
+            ("contact_name", request.GET.get("contact", "")),
+            ("phone", request.GET.get("phone", "")),
+        ):
+            value = value.strip()
+            if value:
+                conditions |= Q(**{f"{field}__iexact": value})
+                has_condition = True
+        if not has_condition:
+            return JsonResponse({"duplicates": []})
+        qs = Customer.objects.filter(conditions)
+        exclude_pk = request.GET.get("exclude")
+        if exclude_pk:
+            qs = qs.exclude(pk=exclude_pk)
+        data = [
+            {
+                "company": c.company,
+                "owner": c.owner.real_name if c.owner else "公海/无归属",
+            }
+            for c in qs.select_related("owner")[:5]
+        ]
+        return JsonResponse({"duplicates": data})
+
+    # ---------- 列表展示 ----------
 
     def summary(self, obj: Customer) -> str:
         qual = (obj.qualification_interest or "未填").replace("（组合套餐）", "")
-        status_label = obj.get_status_display()
-        return format_html(
-            "{}  <span style='padding:1px 7px;border-radius:6px;background:#E8EDFB;"
-            "color:#3B5098;font-size:11px'>{}</span>  "
-            "<span style='padding:1px 8px;border-radius:6px;background:#E8F5E9;"
+        badges = format_html(
+            "<span style='padding:1px 7px;border-radius:6px;background:#E8EDFB;"
+            "color:#3B5098;font-size:11px'>{}</span>"
+            " <span style='padding:1px 8px;border-radius:6px;background:#E8F5E9;"
             "color:#2E7D32;font-size:11px'>{}</span>",
-            obj.company, qual, status_label,
+            qual, obj.get_status_display(),
         )
+        if obj.duplicate_flagged_at:
+            badges += format_html(
+                " <span style='padding:1px 8px;border-radius:6px;background:#FDE8E8;"
+                "color:#C0392B;font-size:11px' title='{}'>撞单</span>",
+                obj.duplicate_flagged_at.strftime("%Y-%m-%d %H:%M"),
+            )
+        return format_html("{}  {}", obj.company, badges)
     summary.short_description = "公司 / 业务 / 进度"  # type: ignore[attr-defined]
     summary.admin_order_field = "company"  # type: ignore[attr-defined]
+
+    @admin.display(description="来源（含广场署名）")
+    def source_signature(self, obj: Customer) -> str:
+        return obj.source_label
 
     def phone_masked(self, obj: Customer) -> str:
         phone = obj.phone
         if obj.status == CustomerStatus.POOL and len(phone) >= 7:
-            request = getattr(self, "_current_request", None)
+            request = getattr(_request_local, "request", None)
             viewer_role = getattr(getattr(request, "user", None), "role", None)
             if viewer_role != Role.ADMIN:
                 return f"{phone[:3]}****{phone[-4:]}"
         return phone
     phone_masked.short_description = "电话"  # type: ignore[attr-defined]
 
+    # ---------- 状态与流转 Actions ----------
+
     @admin.action(description="✅ 成交（自动创建项目）")
     def mark_deal(self, request, queryset):
-        """成交时：客户状态改 DEAL + 自动创建 Project 并做字段快照."""
+        """成交时：客户状态改 DEAL + 自动创建 Project 并做字段快照（幂等,不会重复建项目）."""
         from apps.projects.models import Project
-        now = timezone.now()
+        role = getattr(request.user, "role", None)
+        if role not in (Role.SALES, Role.SALES_LEAD, Role.ADMIN):
+            self.message_user(request, "仅销售序列/总经办可操作成交", messages.ERROR)
+            return
         candidates = list(queryset.filter(status__in=[CustomerStatus.LEAD, CustomerStatus.FOLLOWING]))
         cnt = 0
         for customer in candidates:
             customer.status = CustomerStatus.DEAL
-            customer.updated_at = now
+            customer.updated_at = timezone.now()
             customer.save(update_fields=["status", "updated_at"])
-            Project.objects.create(
+            Project.objects.get_or_create(
                 customer=customer,
-                company_snapshot=customer.company,
-                contact_name_snapshot=customer.contact_name,
-                phone_snapshot=customer.phone,
-                source_snapshot=customer.get_source_display(),
-                quote_amount=customer.quote_amount,
-                sales=customer.owner,
-                consultant=None,
+                defaults=dict(
+                    company_snapshot=customer.company,
+                    contact_name_snapshot=customer.contact_name,
+                    phone_snapshot=customer.phone,
+                    source_snapshot=customer.source_label,
+                    quote_amount=customer.quote_amount,
+                    sales=customer.owner,
+                    consultant=None,
+                ),
             )
             cnt += 1
         self.message_user(request, f"{cnt} 个客户已成交，已自动创建对应项目，等待嘉茵分配咨询师。", messages.SUCCESS)
 
-    @admin.action(description="🌊 掉入公海（自动/手动）")
+    @admin.action(description="🌊 掉入公海（手动）")
     def move_to_pool(self, request, queryset):
-        now = timezone.now()
-        if getattr(request.user, "role", None) == Role.SALES:
+        role = getattr(request.user, "role", None)
+        if role not in (Role.SALES, Role.SALES_LEAD, Role.ADMIN):
+            self.message_user(request, "无权限执行该操作", messages.ERROR)
+            return
+        if role == Role.SALES:
             queryset = queryset.filter(owner=request.user)
         updated = queryset.filter(status=CustomerStatus.FOLLOWING).update(
             status=CustomerStatus.POOL, pool_type=PoolType.AUTO, owner=None,
-            pool_entered_at=now, updated_at=now,
+            pool_entered_at=timezone.now(), updated_at=timezone.now(),
         )
-        cnt = updated if isinstance(updated, int) else 0
-        self.message_user(request, f"{cnt} 个客户已掉入公海", messages.SUCCESS)
+        self.message_user(request, f"{updated} 个客户已掉入公海", messages.SUCCESS)
 
     @admin.action(description="❌ 标记流失")
     def mark_lost(self, request, queryset):
-        if getattr(request.user, "role", None) == Role.SALES:
+        role = getattr(request.user, "role", None)
+        if role not in (Role.SALES, Role.SALES_LEAD, Role.ADMIN):
+            self.message_user(request, "无权限执行该操作", messages.ERROR)
+            return
+        if role == Role.SALES:
             queryset = queryset.filter(owner=request.user)
         updated = queryset.filter(status__in=[CustomerStatus.FOLLOWING, CustomerStatus.POOL]).update(
             status=CustomerStatus.LOST, updated_at=timezone.now()
         )
-        cnt = updated if isinstance(updated, int) else 0
-        self.message_user(request, f"{cnt} 个客户已标记流失", messages.SUCCESS)
+        self.message_user(request, f"{updated} 个客户已标记流失", messages.SUCCESS)
+
+    @admin.action(description="🗑️ 删除（进入回收站）")
+    def soft_delete(self, request, queryset):
+        updated = queryset.update(deleted_at=timezone.now(), updated_at=timezone.now())
+        self.message_user(
+            request, f"{updated} 个客户已移入回收站（总经办可查看/恢复）", messages.SUCCESS,
+        )
 
     @admin.action(description="📥 领取公海客户")
     def claim_from_pool(self, request, queryset):
@@ -233,10 +469,13 @@ class CustomerAdmin(admin.ModelAdmin):
             self.message_user(request, "仅销售/销售主管可领取公海客户", messages.ERROR)
             return
         now = timezone.now()
+        cnt = 0
         for customer in queryset.filter(status=CustomerStatus.POOL):
-            last = customer.owner_history.order_by("-seq").first()
-            next_seq = (last.seq + 1) if last else 1
-            square_source_note = customer.source if customer.pool_type == PoolType.SQUARE else ""
+            releaser_name = (
+                customer.square_released_by.real_name
+                if customer.pool_type == PoolType.SQUARE and customer.square_released_by
+                else ""
+            )
             customer.status = CustomerStatus.FOLLOWING
             customer.owner = request.user
             customer.pool_entered_at = None
@@ -246,50 +485,74 @@ class CustomerAdmin(admin.ModelAdmin):
             customer.save()
             CustomerOwnerHistory.objects.create(
                 customer=customer, from_user=None, to_user=request.user,
-                source_type=(OwnerHistorySourceType.SQUARE if square_source_note else OwnerHistorySourceType.SALES_CLAIM),
-                operator=request.user, seq=next_seq,
+                source_type=(OwnerHistorySourceType.SQUARE if releaser_name else OwnerHistorySourceType.SALES_CLAIM),
+                source_note=releaser_name,
+                operator=request.user, seq=_next_seq(customer.owner_history),
             )
-        self.message_user(request, f"已领取 {queryset.count()} 个公海客户", messages.SUCCESS)
+            cnt += 1
+        self.message_user(request, f"已领取 {cnt} 个公海客户", messages.SUCCESS)
 
-    @admin.action(description="👑 调配公海客户（指定销售+理由弹窗）")
+    @admin.action(description="👑 分配客户（指定人员+理由弹窗）")
     def assign_pool(self, request, queryset):
+        """细则第一页·四:主管/总经办分配自己管辖池的客户（不限公海状态）给指定人员."""
+        role = getattr(request.user, "role", None)
+        if role not in (Role.SALES_LEAD, Role.ADMIN):
+            self.message_user(request, "仅销售主管/总经办可分配客户", messages.ERROR)
+            return None
+        candidates = queryset.exclude(status=CustomerStatus.DEAL)
         if "apply" in request.POST:
             new_owner_id = request.POST.get("new_owner")
             reason = request.POST.get("reason", "").strip()
             if not new_owner_id or not reason:
                 self.message_user(request, "请选择目标销售并填写调配理由", messages.ERROR)
                 return None
-            from apps.accounts.models import User
-            new_owner = User.objects.get(id=new_owner_id)
+            from apps.accounts.models import Role as RoleEnum
+            new_owner = User.objects.filter(
+                id=new_owner_id, is_active=True, role__in=[RoleEnum.SALES, RoleEnum.SALES_LEAD],
+            ).first()
+            if new_owner is None:
+                self.message_user(request, "目标人员无效（需为在职销售/销售主管）", messages.ERROR)
+                return None
             now = timezone.now()
-            role = getattr(request.user, "role", None)
-            source_type = OwnerHistorySourceType.BOSS_ASSIGN if role == Role.ADMIN else OwnerHistorySourceType.MANAGER_ASSIGN
+            source_type = (
+                OwnerHistorySourceType.BOSS_ASSIGN if role == Role.ADMIN
+                else OwnerHistorySourceType.MANAGER_ASSIGN
+            )
             cnt = 0
-            for customer in queryset.filter(status=CustomerStatus.POOL):
-                last = customer.owner_history.order_by("-seq").first()
-                next_seq = (last.seq + 1) if last else 1
-                customer.status = CustomerStatus.FOLLOWING
+            for customer in candidates:
+                prev_owner = customer.owner
                 customer.owner = new_owner
-                customer.pool_entered_at = None
-                customer.pool_type = None
-                customer.last_follow_at = now
+                if customer.status == CustomerStatus.POOL:
+                    customer.pool_entered_at = None
+                    customer.pool_type = None
+                customer.status = CustomerStatus.FOLLOWING
                 customer.updated_at = now
                 customer.save()
                 CustomerOwnerHistory.objects.create(
-                    customer=customer, from_user=None, to_user=new_owner,
+                    customer=customer, from_user=prev_owner, to_user=new_owner,
                     source_type=source_type, source_note=reason,
-                    operator=request.user, seq=next_seq,
+                    operator=request.user, seq=_next_seq(customer.owner_history),
                 )
                 cnt += 1
-            self.message_user(request, f"已将 {cnt} 个公海客户调配给 {new_owner.real_name}（理由: {reason}）", messages.SUCCESS)
+            Notification.objects.create(
+                recipient=new_owner,
+                title="客户分配通知",
+                content=f"{request.user.real_name} 将 {cnt} 个客户分配给你（理由:{reason}），请及时跟进。",
+                link="/admin/customers/customer/",
+            )
+            self.message_user(
+                request,
+                f"已将 {cnt} 个客户分配给 {new_owner.real_name}（理由: {reason}），已通知对方",
+                messages.SUCCESS,
+            )
             return None
-        from apps.accounts.models import Role as RoleEnum, User
+        from apps.accounts.models import Role as RoleEnum
         sales_users = User.objects.filter(role__in=[RoleEnum.SALES, RoleEnum.SALES_LEAD], is_active=True)
         context = dict(
             self.admin_site.each_context(request),
-            title="调配公海客户",
+            title="分配客户",
             action_checkbox_name=admin.helpers.ACTION_CHECKBOX_NAME,
-            queryset=queryset.filter(status=CustomerStatus.POOL),
+            queryset=candidates,
             sales_users=sales_users,
         )
         return TemplateResponse(request, "admin/customers/assign_pool.html", context)
@@ -297,28 +560,51 @@ class CustomerAdmin(admin.ModelAdmin):
     @admin.action(description="🏟️ 释放到客户池广场")
     def release_to_square(self, request, queryset):
         role = getattr(request.user, "role", None)
+        if role not in (Role.SALES, Role.SALES_LEAD, Role.ADMIN):
+            self.message_user(request, "无权限执行该操作", messages.ERROR)
+            return None
         if role == Role.SALES:
             queryset = queryset.filter(owner=request.user)
-        now = timezone.now()
-        cnt = 0
-        for customer in queryset.filter(status=CustomerStatus.FOLLOWING):
-            releaser_name = request.user.real_name
-            customer.status = CustomerStatus.POOL
-            customer.pool_type = PoolType.SQUARE
-            customer.square_released_by = request.user
-            customer.source = f"客户池广场-{releaser_name}"
-            customer.owner = None
-            customer.pool_entered_at = now
-            customer.updated_at = now
-            customer.save()
-            cnt += 1
-        self.message_user(request, f"已释放 {cnt} 个客户到客户池广场", messages.SUCCESS)
+        if "apply" in request.POST:
+            reason = request.POST.get("reason", "").strip()
+            if not reason:
+                self.message_user(request, "请填写释放理由", messages.ERROR)
+                return None
+            now = timezone.now()
+            cnt = 0
+            for customer in queryset.filter(status__in=[CustomerStatus.LEAD, CustomerStatus.FOLLOWING]):
+                customer.status = CustomerStatus.POOL
+                customer.pool_type = PoolType.SQUARE
+                customer.square_released_by = request.user
+                # 来源署名展示由 source=SQUARE + square_released_by 组合承担,
+                # 不再直接改写 source 字符串（旧写法会写爆 choices/max_length）
+                customer.source = Source.SQUARE
+                customer.owner = None
+                customer.pool_entered_at = now
+                customer.updated_at = now
+                customer.save()
+                CustomerOwnerHistory.objects.create(
+                    customer=customer, from_user=request.user, to_user=None,
+                    source_type=OwnerHistorySourceType.SQUARE, operator=request.user,
+                    seq=_next_seq(customer.owner_history), source_note=reason,
+                )
+                cnt += 1
+            self.message_user(request, f"已释放 {cnt} 个客户到客户池广场（理由: {reason}）", messages.SUCCESS)
+            return None
+        candidates = queryset.filter(status__in=[CustomerStatus.LEAD, CustomerStatus.FOLLOWING])
+        context = dict(
+            self.admin_site.each_context(request),
+            title="释放到客户池广场",
+            action_checkbox_name=admin.helpers.ACTION_CHECKBOX_NAME,
+            queryset=candidates,
+        )
+        return TemplateResponse(request, "admin/customers/release_to_square.html", context)
 
     @admin.action(description="↩️ 撤销分配（回退到上一持有人）")
     def revoke_assignment(self, request, queryset):
         role = getattr(request.user, "role", None)
-        if role not in (list(LEAD_ROLES) + [Role.ADMIN]):
-            self.message_user(request, "仅销售主管/咨询主管/总经办可撤销分配", messages.ERROR)
+        if role not in (Role.SALES_LEAD, Role.ADMIN):
+            self.message_user(request, "仅销售主管/总经办可撤销分配", messages.ERROR)
             return
         cnt, skipped = 0, 0
         now = timezone.now()
@@ -349,15 +635,56 @@ class CustomerAdmin(admin.ModelAdmin):
         self.message_user(request, msg, messages.SUCCESS if cnt else messages.WARNING)
 
 
-def models_q_owner_in_team(team):
-    from django.db.models import Q
-    return Q(owner__team=team)
+@admin.register(RecycledCustomer)
+class RecycledCustomerAdmin(RolePermissionsMixin, admin.ModelAdmin):
+    """回收站（细则第一页·七）:总经办查看已删除客户 + 全部修改记录 + 恢复/彻底删除."""
+    list_display = ("company", "contact_name", "phone", "owner", "created_by", "deleted_at", "history_link")
+    search_fields = ("company", "contact_name", "phone")
+    list_filter = ("deleted_at",)
+    actions = ["restore", "purge"]
+
+    VIEW_ROLES = {Role.ADMIN}
+    CHANGE_ROLES = {Role.ADMIN}
+    DELETE_ROLES = {Role.ADMIN}
+
+    def get_queryset(self, request):
+        return RecycledCustomer.objects.filter(deleted_at__isnull=False)
+
+    def has_add_permission(self, request):
+        return False
+
+    def get_fields(self, request, obj=None):
+        return [f.name for f in obj._meta.fields if f.name != "id"]
+
+    def get_readonly_fields(self, request, obj=None):
+        if obj is None:
+            return []
+        return [f.name for f in obj._meta.fields if f.name != "id"]
+
+    @admin.display(description="修改记录")
+    def history_link(self, obj: RecycledCustomer):
+        return format_html('<a href="/admin/customers/customer/{}/history/">查看全部修改记录</a>', obj.pk)
+
+    @admin.action(description="♻️ 恢复到客户列表")
+    def restore(self, request, queryset):
+        updated = queryset.update(deleted_at=None, updated_at=timezone.now())
+        self.message_user(request, f"已恢复 {updated} 个客户到客户列表", messages.SUCCESS)
+
+    @admin.action(description="🗑️ 彻底删除（不可恢复）")
+    def purge(self, request, queryset):
+        count, _ = queryset.delete()
+        self.message_user(request, f"已彻底删除 {count} 个客户（含跟进/归属/附图数据）", messages.WARNING)
 
 
 @admin.register(FollowUp)
-class FollowUpAdmin(admin.ModelAdmin):
+class FollowUpAdmin(RolePermissionsMixin, admin.ModelAdmin):
     list_display = ("customer", "user", "content_preview", "created_at")
     search_fields = ("customer__company", "content")
+
+    VIEW_ROLES = FIRST_PAGE_ROLES
+    CHANGE_ROLES = set()
+    ADD_ROLES = set()
+    DELETE_ROLES = FIRST_PAGE_ROLES
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
@@ -367,7 +694,7 @@ class FollowUpAdmin(admin.ModelAdmin):
         if role == Role.SALES_LEAD:
             team = getattr(request.user, "team", None)
             if team:
-                return qs.filter(customer__owner__team=team)
+                return qs.filter(Q(customer__owner__team=team) | Q(customer__owner=request.user))
         return qs
 
     def content_preview(self, obj: FollowUp) -> str:

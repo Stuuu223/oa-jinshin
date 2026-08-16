@@ -1,0 +1,60 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+{% block extrastyle %}<link rel="stylesheet" href="{% static 'admin/css/action_dialog.css' %}">{% endblock %}
+{% block content %}
+<form method="post">
+  {% csrf_token %}
+  {% for obj in queryset %}
+    <input type="hidden" name="{{ action_checkbox_name }}" value="{{ obj.pk }}">
+  {% endfor %}
+  <input type="hidden" name="action" value="release_to_square">
+  <input type="hidden" name="apply" value="1">
+
+  <div class="release-wrap">
+    <div class="release-card">
+      <div class="release-head">
+        <h2>🏟️ 释放到客户池广场 <span class="count-pill">{{ queryset|length }} 个</span></h2>
+        <p class="lead">释放后客户进入客户池广场,所有销售可见可获取;来源栏自动署名「客户池广场-释放人」</p>
+      </div>
+      <div class="release-body">
+        {% if queryset %}
+        <table class="q-table">
+          <thead>
+            <tr><th>公司名称</th><th>需求资质</th><th>当前归属</th><th>报价</th></tr>
+          </thead>
+          <tbody>
+            {% for obj in queryset %}
+            <tr>
+              <td>{{ obj.company }}</td>
+              <td><span class="tag tag-qual">{{ obj.qualification_interest|default:"未填" }}</span></td>
+              <td>{% if obj.owner %}<span class="tag tag-owner">{{ obj.owner.real_name }}</span>{% else %}—{% endif %}</td>
+              <td>{{ obj.quote_amount|default:"—" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+
+        <div class="assign-row">
+          <label for="reason">释放理由（必填）</label>
+          <input type="text" name="reason" id="reason" placeholder="如: 客户暂无意向,释放到广场供其他销售跟进" required>
+          <div class="assign-hint">理由将写入客户归属历史,供后续追溯</div>
+        </div>
+
+        <div class="assign-actions">
+          <button type="submit" class="btn-primary">✅ 确认释放</button>
+          <a href="." class="btn-cancel">取消</a>
+        </div>
+        {% else %}
+        <div class="empty-tip">
+          所选客户中没有可释放的（仅「线索 / 跟进中」状态的客户可释放到广场）。
+          <br>已成交、已流失或已在公海的客户不可释放。
+        </div>
+        <div class="assign-actions">
+          <a href="." class="btn-cancel">返回</a>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</form>
+{% endblock %}

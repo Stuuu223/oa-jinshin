@@ -1,0 +1,28 @@
+/* 金石系统 · 客户表单 inline 修复（simpleui 环境）
+   根因① stock Django 在 tabular inline 每行 td.original 渲染模型 __str__，
+          simpleui 把该列宽压为 0 但 <p> 文本仍绘制 → "TEST丙传媒 第1次 → …"漂出表单。
+          修复：本页所有 inline 隐藏 td.original 的 <p>（隐藏输入框保留）。
+   根因② 表格内容缺少统一换行策略，长公司名/备注在窄屏把 inline 横向撑爆。 */
+
+/* 1) inline 首列(原始对象字符串)隐藏文本,保留隐藏 pk 输入 */
+.inline-group td.original p {
+    display: none;
+}
+
+/* 2) 本页所有 inline 表格统一溢出策略:单元格内换行,不再外溢 */
+#customer_form .inline-group .tabular td,
+#customer_form .inline-group .tabular th {
+    word-break: break-word;
+    overflow-wrap: anywhere;
+}
+
+/* 3) 归属历史流转列允许在极窄屏换行(撤掉 nowrap 引起的组内横向滚动) */
+#owner_history-group td.field-transfer_display {
+    white-space: normal;
+    min-width: 140px;
+}
+
+/* 4) 跟进内容列给足宽度 */
+#follow_ups-group textarea {
+    min-width: 320px;
+}

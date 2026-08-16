@@ -78,6 +78,11 @@ SIMPLEUI_HOME_TITLE = "金石管理系统"
 SIMPLEUI_HOME_INFO = False
 SIMPLEUI_LOGO = ""
 SIMPLEUI_DEFAULT_THEME = "light"
+# 首页跳转到老板总览面板(simpleui 官方配置)
+SIMPLEUI_HOME_PAGE = "/admin/dashboard/"
+SIMPLEUI_HOME_ICON = "fa fa-dashboard"
+SIMPLEUI_HOME_QUICK = False
+SIMPLEUI_HOME_ACTION = False
 
 ANONYMOUS_USER_NAME = None
 

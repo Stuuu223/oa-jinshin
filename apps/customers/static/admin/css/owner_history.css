@@ -1,0 +1,52 @@
+/* 金石企服 · 归属变更历史 inline 样式适配 simpleui
+   解决"字小飞出表单":统一字号、控制溢出、流转列紧凑显示 */
+
+/* inline 表格整体字号与行高 */
+#ownerhistory-group .inline-group .tabular {
+    font-size: 13px;
+}
+
+#ownerhistory-group .inline-group .tabular th,
+#ownerhistory-group .inline-group .tabular td {
+    padding: 6px 10px;
+    vertical-align: middle;
+    word-break: break-word;
+}
+
+/* 流转列(从 → 到)加底色标签感 */
+#ownerhistory-group td.field-transfer_display {
+    font-weight: 600;
+    color: #1E293B;
+    white-space: nowrap;
+}
+
+/* 来源类型列 */
+#ownerhistory-group td.field-source_type {
+    color: #2563EB;
+}
+
+/* 理由列允许换行,防止横向撑爆 */
+#ownerhistory-group td.field-source_note {
+    max-width: 220px;
+    word-break: break-word;
+    color: #475569;
+}
+
+/* 序号列 */
+#ownerhistory-group td.field-seq {
+    text-align: center;
+    color: #94A3B8;
+    font-weight: 500;
+}
+
+/* 撤销标记 */
+#ownerhistory-group td.field-transfer_display {
+    color: #B45309;
+}
+
+/* 小屏不挤压 */
+@media (max-width: 900px) {
+    #ownerhistory-group td.field-source_note {
+        max-width: 120px;
+    }
+}

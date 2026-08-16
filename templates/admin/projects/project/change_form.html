@@ -1,0 +1,11 @@
+{% extends "admin/change_form.html" %}
+{% load static %}
+{# simpleui 的块名是 after_field_sets(带下划线), stock Django 是 after_fieldsets; 两个都挂,静默兼容 #}
+{% block after_field_sets %}
+  {{ block.super }}
+  <script src="{% static 'admin/js/form_draft.js' %}" defer></script>
+{% endblock %}
+{% block after_fieldsets %}
+  {{ block.super }}
+  <script src="{% static 'admin/js/form_draft.js' %}" defer></script>
+{% endblock %}

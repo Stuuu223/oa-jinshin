@@ -1,0 +1,41 @@
+/* Admin Action 弹窗共享样式——原先 3 个模板各自内联复制 ~28 行,现统一提取 */
+.dialog-wrap { max-width: 720px; margin: 24px auto; }
+.dialog-card { border: 1px solid #E5E7EB; border-radius: 12px; background: #fff; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
+.dialog-head { padding: 20px 24px 16px; border-bottom: 1px solid #F1F5F9; background: linear-gradient(135deg,#F8FAFC,#fff); }
+.dialog-head h2 { margin: 0 0 6px; font-size: 17px; color: #1E293B; }
+.dialog-head .lead { margin: 0; color: #64748B; font-size: 13px; }
+.dialog-body { padding: 20px 24px 24px; }
+
+.assign-pool-wrap, .release-wrap, .assign-wrap { max-width: 720px; margin: 24px auto; }
+.assign-pool-card, .release-card, .assign-card { border: 1px solid #E5E7EB; border-radius: 12px; background: #fff; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
+.assign-pool-head, .release-head, .assign-head { padding: 20px 24px 16px; border-bottom: 1px solid #F1F5F9; background: linear-gradient(135deg,#F8FAFC,#fff); }
+.assign-pool-head h2, .release-head h2, .assign-head h2 { margin: 0 0 6px; font-size: 17px; color: #1E293B; }
+.assign-pool-head .lead, .release-head .lead, .assign-head .lead { margin: 0; color: #64748B; font-size: 13px; }
+.assign-pool-body, .release-body, .assign-body { padding: 20px 24px 24px; }
+
+.q-table { width: 100%; border-collapse: collapse; margin: 12px 0 20px; font-size: 13px; }
+.q-table th { text-align: left; padding: 8px 10px; background: #F8FAFC; color: #475569; font-weight: 600; border-bottom: 2px solid #E2E8F0; }
+.q-table td { padding: 8px 10px; border-bottom: 1px solid #F1F5F9; color: #334155; }
+.q-table tr:hover td { background: #F8FAFC; }
+
+.tag { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 500; }
+.tag-qual { background: #EFF6FF; color: #2563EB; }
+.tag-pool { background: #FFF7ED; color: #C2410C; }
+.tag-owner { background: #F0FDF4; color: #15803D; }
+.tag-proj { background: #F0FDF4; color: #15803D; }
+.tag-cur { background: #EFF6FF; color: #2563EB; }
+
+.assign-row { margin-bottom: 16px; }
+.assign-row label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 13px; color: #334155; }
+.assign-row select, .assign-row input[type=text] { width: 100%; padding: 9px 12px; border: 1px solid #CBD5E1; border-radius: 8px; font-size: 14px; transition: border-color .15s; box-sizing: border-box; }
+.assign-row select:focus, .assign-row input[type=text]:focus { outline: none; border-color: #3B82F6; box-shadow: 0 0 0 3px rgba(59,130,246,.12); }
+.assign-hint { color: #94A3B8; font-size: 12px; margin-top: 4px; }
+
+.assign-actions { display: flex; align-items: center; gap: 12px; margin-top: 24px; }
+.btn-primary { padding: 10px 24px; background: #2563EB; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; }
+.btn-primary:hover { background: #1D4ED8; }
+.btn-cancel { padding: 10px 20px; background: #fff; color: #64748B; border: 1px solid #CBD5E1; border-radius: 8px; text-decoration: none; font-size: 14px; }
+.btn-cancel:hover { background: #F8FAFC; }
+
+.count-pill { display: inline-block; padding: 2px 10px; background: #DBEAFE; color: #1D4ED8; border-radius: 999px; font-size: 12px; font-weight: 600; margin-left: 6px; }
+.empty-tip { padding: 20px; text-align: center; color: #94A3B8; font-size: 13px; background: #F8FAFC; border-radius: 8px; margin-bottom: 16px; }

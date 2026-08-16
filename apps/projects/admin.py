@@ -1,12 +1,28 @@
-"""金石管理系统 · 成交项目管理后台——角色分层字段隐藏是本模块核心."""
-from django.contrib import admin
-from django.contrib import messages
-from django.template.response import TemplateResponse
-from django.utils import timezone
+"""金石管理系统 · 成交项目管理后台——角色分层字段隐藏是本模块核心.
 
-from apps.accounts.models import LEAD_ROLES, Role
+对照细则第二页:
+- 权限:销售可见除建站类目/信息外的自己客户;咨询隐藏客户来源;
+  技术仅六字段（公司名/成交时间/咨询师/建站类目/信息/进度）
+- 收款/支出由咨询师填写,利润自动计算
+- 嘉茵（咨询主管）/总经办分配咨询师,二次调配留痕
+"""
+from decimal import Decimal
+
+from django.contrib import admin, messages
+from django.db.models import DecimalField, OuterRef, Q, Subquery, Sum
+from django.db.models.functions import Coalesce
+from django.template.response import TemplateResponse
+
+from apps.accounts.admin_mixins import PROJECT_EDIT_ROLES, PROJECT_VIEW_ROLES, RolePermissionsMixin
+from apps.accounts.models import Role, User
+from simple_history.admin import SimpleHistoryAdmin
 
 from .models import Project, ProjectAttachment, ProjectConsultantHistory, ProjectExpense, ProjectPayment
+
+
+def _next_seq(history_qs):
+    last = history_qs.order_by("-seq").first()
+    return (last.seq + 1) if last else 1
 
 
 class ProjectPaymentInline(admin.TabularInline):
@@ -16,6 +32,17 @@ class ProjectPaymentInline(admin.TabularInline):
     fields = ("amount", "note", "recorded_by", "recorded_at")
     readonly_fields = ("recorded_by", "recorded_at")
 
+    def has_add_permission(self, request, obj=None):
+        return request.user.is_superuser or getattr(request.user, "role", None) in (
+            Role.CONSULTANT, Role.CONSULTANT_LEAD, Role.ADMIN,
+        )
+
+    def has_change_permission(self, request, obj=None):
+        return self.has_add_permission(request, obj)
+
+    def has_delete_permission(self, request, obj=None):
+        return self.has_add_permission(request, obj)
+
 
 class ProjectExpenseInline(admin.TabularInline):
     """支出记录——咨询师可新增多条."""
@@ -23,6 +50,17 @@ class ProjectExpenseInline(admin.TabularInline):
     extra = 1
     fields = ("amount", "note", "recorded_by", "recorded_at")
     readonly_fields = ("recorded_by", "recorded_at")
+
+    def has_add_permission(self, request, obj=None):
+        return request.user.is_superuser or getattr(request.user, "role", None) in (
+            Role.CONSULTANT, Role.CONSULTANT_LEAD, Role.ADMIN,
+        )
+
+    def has_change_permission(self, request, obj=None):
+        return self.has_add_permission(request, obj)
+
+    def has_delete_permission(self, request, obj=None):
+        return self.has_add_permission(request, obj)
 
 
 class ConsultantHistoryInline(admin.TabularInline):
@@ -43,8 +81,16 @@ class ProjectAttachmentInline(admin.TabularInline):
     fields = ("file", "uploaded_by", "uploaded_at")
     readonly_fields = ("uploaded_by", "uploaded_at")
 
+    def has_add_permission(self, request, obj=None):
+        return request.user.is_superuser or getattr(request.user, "role", None) in (
+            Role.CONSULTANT, Role.CONSULTANT_LEAD, Role.ADMIN,
+        )
 
-# 各角色字段集合定义——对应 claim 第二页 · 二、权限功能
+    def has_delete_permission(self, request, obj=None):
+        return self.has_add_permission(request, obj)
+
+
+# 各角色字段集合定义——对应细则第二页 · 权限功能
 ALL_FIELDS = [
     "company_snapshot", "contact_name_snapshot", "phone_snapshot", "deal_business",
     "contract_entity", "is_invoiced", "is_tax_included", "quote_amount",
@@ -52,7 +98,7 @@ ALL_FIELDS = [
     "site_category", "site_info", "site_progress",
 ]
 
-# 销售：隐藏建站类目/信息
+# 销售：隐藏建站类目/信息（细则原文只隐藏这两项,建站进度可见）
 SALES_HIDDEN = {"site_category", "site_info"}
 
 # 普通咨询：隐藏客户来源（咨询主管嘉茵不受此限制）
@@ -61,15 +107,45 @@ CONSULTANT_HIDDEN = {"source_snapshot"}
 # 技术：仅可见六字段
 TECH_VISIBLE = {"company_snapshot", "deal_at", "consultant", "site_category", "site_info", "site_progress"}
 
+# 收支/利润三个只读汇总展示字段
+MONEY_FIELDS = ["total_income_display", "total_expense_display", "profit_display"]
+
+# 列表页各角色可见列——此前列表列固定,销售/技术在列表页能看到详情页已隐藏的字段
+LIST_COLUMNS_DEFAULT = ("company_snapshot", "deal_business", "sales", "consultant", "site_progress", "profit_display")
+LIST_COLUMNS_TECH = ("company_snapshot", "deal_at", "consultant", "site_category", "site_progress")
+
 
 @admin.register(Project)
-class ProjectAdmin(admin.ModelAdmin):
-    list_display = ("company_snapshot", "deal_business", "sales", "consultant", "site_progress", "profit_display")
+class ProjectAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
     search_fields = ("company_snapshot", "contact_name_snapshot", "phone_snapshot")
     list_filter = ("site_progress", "is_invoiced")
-    readonly_fields = ("created_at", "deal_at", "profit_display", "total_income_display", "total_expense_display")
+    readonly_fields = ("created_at", "deal_at") + tuple(MONEY_FIELDS)
 
     actions = ["assign_consultant"]
+
+    VIEW_ROLES = PROJECT_VIEW_ROLES
+    CHANGE_ROLES = PROJECT_EDIT_ROLES  # 销售 view-only（细则:销售对成交信息只看）
+    ADD_ROLES = set()  # 项目由成交动作自动创建,不开放手工新增
+    DELETE_ROLES = {Role.ADMIN}
+
+    # ---------- 权限与展示 ----------
+
+    def get_actions(self, request):
+        actions = super().get_actions(request)
+        role = getattr(request.user, "role", None)
+        if role not in (Role.CONSULTANT_LEAD, Role.ADMIN):
+            actions.pop("assign_consultant", None)
+        return actions
+
+    def get_list_display(self, request):
+        if getattr(request.user, "role", None) == Role.TECH:
+            return LIST_COLUMNS_TECH
+        return LIST_COLUMNS_DEFAULT
+
+    def get_search_fields(self, request):
+        if getattr(request.user, "role", None) == Role.TECH:
+            return ("company_snapshot",)  # 技术无权按联系人/电话检索
+        return self.search_fields
 
     def get_inlines(self, request, obj):
         role = getattr(request.user, "role", None)
@@ -81,19 +157,24 @@ class ProjectAdmin(admin.ModelAdmin):
         return inlines
 
     # ---------- 按角色过滤可见字段 ----------
+
     def get_fields(self, request, obj=None):
         role = getattr(request.user, "role", None)
         if role == Role.TECH:
             return [f for f in ALL_FIELDS if f in TECH_VISIBLE]
+        fields = list(ALL_FIELDS)
         if role == Role.SALES:
-            return [f for f in ALL_FIELDS if f not in SALES_HIDDEN]
-        if role == Role.CONSULTANT:
-            return [f for f in ALL_FIELDS if f not in CONSULTANT_HIDDEN]
-        # 咨询主管（嘉茵）/总经办：全字段可见
-        return ALL_FIELDS
+            fields = [f for f in fields if f not in SALES_HIDDEN]
+        elif role == Role.CONSULTANT:
+            fields = [f for f in fields if f not in CONSULTANT_HIDDEN]
+        else:
+            pass  # 咨询主管（嘉茵）/总经办：全字段
+        # 收支/利润汇总列——此前只声明在 readonly_fields 里、未进 get_fields,
+        # 详情页实际从不展示,收款/支出/利润在表单页不可见
+        return fields + MONEY_FIELDS
 
     def get_readonly_fields(self, request, obj=None):
-        base = list(self.readonly_fields)
+        base = list(super().get_readonly_fields(request, obj))
         role = getattr(request.user, "role", None)
         if role == Role.SALES:
             # 销售只读，不能改成交项目字段
@@ -103,38 +184,72 @@ class ProjectAdmin(admin.ModelAdmin):
             return base + [f for f in TECH_VISIBLE if f != "site_progress"]
         return base
 
+    @admin.display(description="利润")
     def profit_display(self, obj: Project):
+        # 列表页优先用 get_queryset 预聚合的注解值（修复每行 2 次 aggregate 的 N+1）
+        income = getattr(obj, "income_annotated", None)
+        expense = getattr(obj, "expense_annotated", None)
+        if income is not None and expense is not None:
+            return income - expense
         return obj.profit
-    profit_display.short_description = "利润"  # type: ignore[attr-defined]
 
+    @admin.display(description="收款汇总")
     def total_income_display(self, obj: Project):
-        return obj.total_income
-    total_income_display.short_description = "收款汇总"  # type: ignore[attr-defined]
+        value = getattr(obj, "income_annotated", None)
+        return value if value is not None else obj.total_income
 
+    @admin.display(description="支出汇总")
     def total_expense_display(self, obj: Project):
-        return obj.total_expense
-    total_expense_display.short_description = "支出汇总"  # type: ignore[attr-defined]
+        value = getattr(obj, "expense_annotated", None)
+        return value if value is not None else obj.total_expense
 
     # ---------- 行级权限 ----------
+
     def get_queryset(self, request):
         qs = super().get_queryset(request)
         user = request.user
         role = getattr(user, "role", None)
         if role == Role.SALES:
-            return qs.filter(sales=user)
-        if role == Role.SALES_LEAD:
+            qs = qs.filter(sales=user)
+        elif role == Role.SALES_LEAD:
             team = getattr(user, "team", None)
             if team:
-                return qs.filter(sales__team=team)
-            return qs.filter(sales=user)
-        if role == Role.CONSULTANT:
-            return qs.filter(consultant=user)
-        if role == Role.TECH:
-            return qs  # 技术看全部项目，仅字段级限制，不按 assignee 行级过滤
-        return qs  # 咨询主管/总经办看全部
+                qs = qs.filter(Q(sales__team=team) | Q(sales=user))
+            else:
+                qs = qs.filter(sales=user)
+        elif role == Role.CONSULTANT:
+            qs = qs.filter(consultant=user)
+        elif role in (Role.FINANCE,):
+            return qs.none()  # v2 细则无财务角色
+        # TECH / CONSULTANT_LEAD / ADMIN：全部项目（细则只限字段,不限行）
+        income_sub = ProjectPayment.objects.filter(project=OuterRef("pk")).values(
+            "project"
+        ).annotate(s=Sum("amount")).values("s")
+        expense_sub = ProjectExpense.objects.filter(project=OuterRef("pk")).values(
+            "project"
+        ).annotate(s=Sum("amount")).values("s")
+        return qs.annotate(
+            income_annotated=Coalesce(
+                Subquery(income_sub), Decimal("0"), output_field=DecimalField(),
+            ),
+            expense_annotated=Coalesce(
+                Subquery(expense_sub), Decimal("0"), output_field=DecimalField(),
+            ),
+        )
+
+    def save_model(self, request, obj, form, change):
+        """技术仅可更新 site_progress（表单层已只读其余字段,这里只落这一个字段）."""
+        role = getattr(request.user, "role", None)
+        if role == Role.TECH and change:
+            Project.objects.filter(pk=obj.pk).update(site_progress=obj.site_progress)
+            return
+        super().save_model(request, obj, form, change)
 
     def save_formset(self, request, form, formset, change):
         instances = formset.save(commit=False)
+        # 此前未处理 deleted_objects:在 inline 里勾删收款/支出行实际不生效
+        for obj in formset.deleted_objects:
+            obj.delete()
         for instance in instances:
             if isinstance(instance, (ProjectPayment, ProjectExpense)) and not instance.recorded_by_id:
                 instance.recorded_by = request.user
@@ -144,6 +259,7 @@ class ProjectAdmin(admin.ModelAdmin):
         formset.save_m2m()
 
     # ---------- 分配咨询师 Action（嘉茵/总经办专用） ----------
+
     @admin.action(description="🎯 分配/调配咨询师")
     def assign_consultant(self, request, queryset):
         role = getattr(request.user, "role", None)
@@ -155,23 +271,24 @@ class ProjectAdmin(admin.ModelAdmin):
             if not new_consultant_id:
                 self.message_user(request, "请选择目标咨询师", messages.ERROR)
                 return None
-            from apps.accounts.models import User
-            new_consultant = User.objects.get(id=new_consultant_id)
+            new_consultant = User.objects.filter(
+                id=new_consultant_id, is_active=True, role=Role.CONSULTANT,
+            ).first()
+            if new_consultant is None:
+                self.message_user(request, "目标人员无效（需为在职咨询师）", messages.ERROR)
+                return None
             cnt = 0
             for project in queryset:
-                last = project.consultant_history.order_by("-seq").first()
-                next_seq = (last.seq + 1) if last else 1
                 ProjectConsultantHistory.objects.create(
                     project=project, from_consultant=project.consultant, to_consultant=new_consultant,
-                    assigned_by=request.user, seq=next_seq,
+                    assigned_by=request.user, seq=_next_seq(project.consultant_history),
                 )
                 project.consultant = new_consultant
                 project.save(update_fields=["consultant"])
                 cnt += 1
             self.message_user(request, f"已将 {cnt} 个项目分配给 {new_consultant.real_name}", messages.SUCCESS)
             return None
-        from apps.accounts.models import Role as RoleEnum, User
-        consultants = User.objects.filter(role=RoleEnum.CONSULTANT, is_active=True)
+        consultants = User.objects.filter(role=Role.CONSULTANT, is_active=True)
         context = dict(
             self.admin_site.each_context(request),
             title="分配/调配咨询师",

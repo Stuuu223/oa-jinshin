@@ -17,7 +17,7 @@ from simple_history.models import HistoricalRecords
 
 
 class SiteProgress(models.TextChoices):
-    """网站搭建进度——状态化，不用自由文本，便于后续驾驶驾驶驾驶驾驶驶驶驶驶仿真统计."""
+    """网站搭建进度——状态化，不用自由文本，便于后续统计."""
     NOT_STARTED = "not_started", "待开始"
     IN_PROGRESS = "in_progress", "进行中"
     DONE = "done", "已完成"
@@ -27,7 +27,7 @@ class Project(models.Model):
     """成交客户/项目——对应第二页管理页面.
 
     从 Customer 成交时自动创建，公司名/联系人/电话/来源/报价金额/销售 做快照，
-    无需悄鉤临时客户信息变动影响已成交项目。
+    避免临时客户信息变动影响已成交项目。
     """
     customer = models.ForeignKey(
         "customers.Customer", on_delete=models.PROTECT, related_name="projects", verbose_name="客户"

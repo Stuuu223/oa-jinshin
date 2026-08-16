@@ -17,6 +17,10 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 
+from apps.accounts import views
+
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    # 注意顺序:dashboard 必须在 admin/ 之前,否则被 admin 内部 catch_all 吞掉
+    path("admin/dashboard/", views.dashboard, name="dashboard"),
+    path("admin/", admin.site.urls),
 ]

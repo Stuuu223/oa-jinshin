@@ -1,6 +1,7 @@
 """金石管理系统 · 客户与公海模型（v2：客户池广场 + 撤销栈式设计）."""
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 from simple_history.models import HistoricalRecords
 
 
@@ -102,6 +103,10 @@ class Customer(models.Model):
         related_name="created_customers",
         verbose_name="建档人",
     )
+    duplicate_flagged_at = models.DateTimeField(
+        "撞单标识时间", null=True, blank=True, editable=False,
+        help_text="细则第一页·六：录入时与其他同事客户疑似重复，已做标识待总经办核查",
+    )
     created_at = models.DateTimeField("创建时间", auto_now_add=True)
     updated_at = models.DateTimeField("更新时间", auto_now=True)
     deleted_at = models.DateTimeField("删除时间", null=True, blank=True, db_index=True)
@@ -135,6 +140,30 @@ class Customer(models.Model):
             | Q(phone__iexact=self.phone)
         ).exclude(pk=self.pk)
 
+    @property
+    def source_label(self) -> str:
+        """来源展示（含广场署名）——细则第一页·五:来源栏自动署名"客户池广场-XX".
+
+        署名由 square_released_by 承担,不污染 source 枚举本身。
+        """
+        if self.source == Source.SQUARE and self.square_released_by:
+            return f"客户池广场-{self.square_released_by.real_name}"
+        return self.get_source_display()
+
+
+class RecycledCustomer(Customer):
+    """回收站视图（代理模型）——细则第一页·七:总经办查看已删除客户.
+
+    代理模型不建表,仅提供"只看已软删客户"的管理入口;objects 覆盖为全量
+    Manager,避免继承 SoftDeleteManager 把已删除行又过滤掉。
+    """
+    objects = models.Manager()
+
+    class Meta:
+        proxy = True
+        verbose_name = "回收站客户"
+        verbose_name_plural = "回收站（已删除客户）"
+
 
 class CustomerAttachment(models.Model):
     """客户附图——v2 claim 新增：第一页/第二页均要求'附图'字段.
@@ -165,6 +194,7 @@ class OwnerHistorySourceType(models.TextChoices):
     MANAGER_ASSIGN = "manager_assign", "销售主管分配"
     BOSS_ASSIGN = "boss_assign", "总经办分配"
     SALES_CLAIM = "sales_claim", "销售自主领取（旧公海通道）"
+    AUTO_POOL = "auto_pool", "30天未跟进自动掉入公海"
 
 
 class CustomerOwnerHistory(models.Model):
@@ -235,7 +265,9 @@ class FollowUp(models.Model):
     )
     content = models.TextField("跟进内容")
     next_follow_at = models.DateTimeField("下次跟进提醒", null=True, blank=True)
-    created_at = models.DateTimeField("跟进时间", auto_now_add=True)
+    # 跟进时间允许手动选（补录早前的电话/微信沟通），默认当前时刻；
+    # 旧字段是 auto_now_add 不可编辑,导致"添加跟进没法选时间"
+    created_at = models.DateTimeField("跟进时间", default=timezone.now)
 
     class Meta:
         verbose_name = "跟进记录"

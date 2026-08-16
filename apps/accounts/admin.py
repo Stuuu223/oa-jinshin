@@ -2,7 +2,38 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
-from .models import Department, Team, User
+from .models import Department, Notification, Team, User
+
+
+@admin.register(Notification)
+class NotificationAdmin(admin.ModelAdmin):
+    """总经办信息箱——未读数量徽标 + 列表置顶未读."""
+    list_display = ("title", "recipient", "is_read", "created_at")
+    list_filter = ("recipient", "read_at")
+    search_fields = ("title", "content")
+    readonly_fields = ("recipient", "title", "content", "link", "created_at", "read_at")
+    date_hierarchy = "created_at"
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        role = getattr(request.user, "role", None)
+        if role == "admin":
+            return qs
+        return qs.none()
+
+    def is_read(self, obj: Notification) -> bool:
+        return obj.is_read
+    is_read.short_description = "已读"  # type: ignore[attr-defined]
+    is_read.boolean = True  # type: ignore[attr-defined]
 
 
 @admin.register(Department)

@@ -98,3 +98,37 @@ class User(AbstractUser):
 
     def __str__(self) -> str:
         return f"{self.real_name} ({self.get_role_display()})"
+
+
+class Notification(models.Model):
+    """站内信息箱——对应细则第一页·六"且发送到总经办信息箱（明显的未读数量标识）".
+
+    用途:撞单提醒/分配/撤销等系统事件推送给接收人。ADMIN 首页徽标按 unread_count 展示。
+    """
+    recipient = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="notifications", verbose_name="接收人"
+    )
+    title = models.CharField("标题", max_length=128)
+    content = models.CharField("内容", max_length=500)
+    link = models.CharField("跳转链接", max_length=255, blank=True)
+    created_at = models.DateTimeField("创建时间", auto_now_add=True)
+    read_at = models.DateTimeField("已读时间", null=True, blank=True)
+
+    class Meta:
+        verbose_name = "站内通知"
+        verbose_name_plural = verbose_name
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"[{self.recipient.real_name}] {self.title}"
+
+    @property
+    def is_read(self) -> bool:
+        return self.read_at is not None
+
+    def mark_read(self) -> None:
+        if not self.read_at:
+            from django.utils import timezone
+
+            self.read_at = timezone.now()
+            self.save(update_fields=["read_at"])

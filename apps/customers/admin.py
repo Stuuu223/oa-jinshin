@@ -138,6 +138,24 @@ class CustomerAdmin(admin.ModelAdmin):
                 source_type=OwnerHistorySourceType.DIRECT_INPUT,
                 operator=request.user, seq=1,
             )
+            # 撞单提醒（细则第一页·六）：查重弹窗 + 送总经办信息箱
+            duplicates = obj.find_duplicates()
+            if duplicates.exists():
+                dups = "、".join(dups.company for dups in duplicates[:3])
+                self.message_user(
+                    request,
+                    f"⚠️ 与同事录入相同信息：{dups}（本条已录入并做标识，请联系总经办）",
+                    level=messages.WARNING,
+                )
+                from apps.accounts.models import Notification, Role as RoleEnum, User
+                admins = User.objects.filter(role=RoleEnum.ADMIN, is_active=True)
+                for admin_user in admins:
+                    Notification.objects.create(
+                        recipient=admin_user,
+                        title="撞单提醒",
+                        content=f"客户「{obj.company}」与「{dups}」疑似重复，请核查归属。",
+                        link="/admin/customers/customer/",
+                    )
         super().save_model(request, obj, form, change)
 
     def summary(self, obj: Customer) -> str:

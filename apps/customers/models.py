@@ -1,6 +1,7 @@
 """金石管理系统 · 客户与公海模型（v2：客户池广场 + 撤销栈式设计）."""
 from django.conf import settings
 from django.db import models
+from simple_history.models import HistoricalRecords
 
 
 class CustomerStatus(models.TextChoices):
@@ -107,6 +108,7 @@ class Customer(models.Model):
 
     objects = SoftDeleteManager()
     all_objects = models.Manager()
+    history = HistoricalRecords()
 
     class Meta:
         verbose_name = "客户"
@@ -118,6 +120,20 @@ class Customer(models.Model):
 
     def __str__(self) -> str:
         return self.company
+
+    def find_duplicates(self) -> models.QuerySet:
+        """撞单查重——按公司名/联系人/电话任一相同匹配,排除自己.
+
+        对应细则第一页·六、提醒功能:不同销售录入相同公司名/联系人/联系方式时弹窗提醒。
+        软查重不拦截,仅提示,并送总经办信息箱。
+        """
+        from django.db.models import Q
+
+        return type(self).objects.filter(
+            Q(company__iexact=self.company)
+            | Q(contact_name__iexact=self.contact_name)
+            | Q(phone__iexact=self.phone)
+        ).exclude(pk=self.pk)
 
 
 class CustomerAttachment(models.Model):
@@ -197,6 +213,7 @@ class CustomerOwnerHistory(models.Model):
     seq = models.PositiveSmallIntegerField("第几次流转", default=1)
     assigned_at = models.DateTimeField("流转时间", auto_now_add=True)
     revoked_at = models.DateTimeField("撤销时间", null=True, blank=True)
+    history = HistoricalRecords()
 
     class Meta:
         verbose_name = "客户归属变更历史"

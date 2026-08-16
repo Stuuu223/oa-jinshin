@@ -13,6 +13,7 @@ from decimal import Decimal
 
 from django.conf import settings
 from django.db import models
+from simple_history.models import HistoricalRecords
 
 
 class SiteProgress(models.TextChoices):
@@ -67,6 +68,7 @@ class Project(models.Model):
     site_progress = models.CharField(
         "网站搭建进度", max_length=16, choices=SiteProgress.choices, default=SiteProgress.NOT_STARTED
     )
+    history = HistoricalRecords()
 
     class Meta:
         verbose_name = "成交项目"
@@ -110,6 +112,7 @@ class ProjectPayment(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, verbose_name="填写人（咨询师）"
     )
     recorded_at = models.DateTimeField("填写时间", auto_now_add=True)
+    history = HistoricalRecords()
 
     class Meta:
         verbose_name = "项目收款记录"
@@ -129,6 +132,7 @@ class ProjectExpense(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, verbose_name="填写人（咨询师）"
     )
     recorded_at = models.DateTimeField("填写时间", auto_now_add=True)
+    history = HistoricalRecords()
 
     class Meta:
         verbose_name = "项目支出记录"
@@ -161,6 +165,7 @@ class ProjectConsultantHistory(models.Model):
     )
     seq = models.PositiveSmallIntegerField("第几次分配", default=1)
     assigned_at = models.DateTimeField("分配时间", auto_now_add=True)
+    history = HistoricalRecords()
 
     class Meta:
         verbose_name = "咨询师分配历史"

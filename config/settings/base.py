@@ -22,6 +22,7 @@ INSTALLED_APPS = [
     # 自有 app
     "apps.accounts",
     "apps.customers",
+    "apps.projects",
 ]
 
 MIDDLEWARE = [
@@ -73,16 +74,13 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 AUTH_USER_MODEL = "accounts.User"
 
-# simpleui 主题
 SIMPLEUI_HOME_TITLE = "金石管理系统"
 SIMPLEUI_HOME_INFO = False
 SIMPLEUI_LOGO = ""
 SIMPLEUI_DEFAULT_THEME = "light"
 
-# django-guardian 匿名用户
 ANONYMOUS_USER_NAME = None
 
-# 日志基础（dev 覆写 level）
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,

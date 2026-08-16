@@ -1,4 +1,4 @@
-"""金石管理系统 · 客户管理后台——M1 核心 + v2 客户池广场/撤销栈."""
+"""金石管理系统 · 客户管理后台——M1 核心 + v2 客户池广场/撤销栈 + 成交联动 M2."""
 from django.contrib import admin
 from django.contrib import messages
 from django.template.response import TemplateResponse
@@ -18,7 +18,6 @@ from .models import (
 )
 
 
-# ── 过滤器：加默认"全部"选项，展开后一目了然 ──
 class StatusFilter(admin.SimpleListFilter):
     title = "状态"
     parameter_name = "status"
@@ -68,7 +67,6 @@ class FollowUpInline(admin.TabularInline):
 
 
 class OwnerHistoryInline(admin.TabularInline):
-    """归属变更历史——只读时间线，v2 claim 新增."""
     model = CustomerOwnerHistory
     extra = 0
     fields = ("seq", "from_user", "to_user", "source_type", "source_note", "operator", "assigned_at", "revoked_at")
@@ -99,19 +97,17 @@ class CustomerAdmin(admin.ModelAdmin):
         "release_to_square", "revoke_assignment",
     ]
 
-    # ---------- 按角色过滤可用 Actions ----------
     def get_actions(self, request):
         actions = super().get_actions(request)
         role = getattr(request.user, "role", None)
         if role == Role.ADMIN:
-            actions.pop("claim_from_pool", None)   # 总经办不跟销售抢单
+            actions.pop("claim_from_pool", None)
         if role == Role.SALES:
-            actions.pop("assign_pool", None)       # 普通销售不能调配公海客户
+            actions.pop("assign_pool", None)
         if role not in LEAD_ROLES and role != Role.ADMIN:
-            actions.pop("assign_pool", None)       # 只有主管/总经办能调配
+            actions.pop("assign_pool", None)
         return actions
 
-    # ---------- 行级权限：销售看自己；销售主管看组员+自己；总经办看全部 ----------
     def get_queryset(self, request):
         qs = super().get_queryset(request)
         user = request.user
@@ -124,10 +120,10 @@ class CustomerAdmin(admin.ModelAdmin):
                 return qs.filter(models_q_owner_in_team(team))
             return qs.filter(owner=user)
         if role in (Role.CONSULTANT, Role.TECH):
-            return qs.none()  # 客户信息管理页对咨询/技术不开放（成交后转入第二页另有权限）
+            return qs.none()
         if role == Role.FINANCE:
             return qs.filter(status=CustomerStatus.DEAL)
-        return qs  # admin/总经办看全部
+        return qs
 
     def get_changelist_instance(self, request):
         cl = super().get_changelist_instance(request)
@@ -167,13 +163,29 @@ class CustomerAdmin(admin.ModelAdmin):
         return phone
     phone_masked.short_description = "电话"  # type: ignore[attr-defined]
 
-    # ---------- Admin Actions（状态机动作） ----------
-    @admin.action(description="✅ 成交（一键立项占位）")
+    @admin.action(description="✅ 成交（自动创建项目）")
     def mark_deal(self, request, queryset):
-        updated = queryset.filter(status__in=[CustomerStatus.LEAD, CustomerStatus.FOLLOWING]).update(
-            status=CustomerStatus.DEAL, updated_at=timezone.now()
-        )
-        self.message_user(request, f"{updated} 个客户已标记为成交。立项功能将在 M2 实现。", messages.SUCCESS)
+        """成交时：客户状态改 DEAL + 自动创建 Project 并做字段快照."""
+        from apps.projects.models import Project
+        now = timezone.now()
+        candidates = list(queryset.filter(status__in=[CustomerStatus.LEAD, CustomerStatus.FOLLOWING]))
+        cnt = 0
+        for customer in candidates:
+            customer.status = CustomerStatus.DEAL
+            customer.updated_at = now
+            customer.save(update_fields=["status", "updated_at"])
+            Project.objects.create(
+                customer=customer,
+                company_snapshot=customer.company,
+                contact_name_snapshot=customer.contact_name,
+                phone_snapshot=customer.phone,
+                source_snapshot=customer.get_source_display(),
+                quote_amount=customer.quote_amount,
+                sales=customer.owner,
+                consultant=None,
+            )
+            cnt += 1
+        self.message_user(request, f"{cnt} 个客户已成交，已自动创建对应项目，等待嘉茵分配咨询师。", messages.SUCCESS)
 
     @admin.action(description="🌊 掉入公海（自动/手动）")
     def move_to_pool(self, request, queryset):
@@ -223,7 +235,6 @@ class CustomerAdmin(admin.ModelAdmin):
 
     @admin.action(description="👑 调配公海客户（指定销售+理由弹窗）")
     def assign_pool(self, request, queryset):
-        """中间页选择目标销售 + 理由后执行调配（销售主管/总经办可用）."""
         if "apply" in request.POST:
             new_owner_id = request.POST.get("new_owner")
             reason = request.POST.get("reason", "").strip()
@@ -267,11 +278,6 @@ class CustomerAdmin(admin.ModelAdmin):
 
     @admin.action(description="🏟️ 释放到客户池广场")
     def release_to_square(self, request, queryset):
-        """v2 claim 新增：销售/销售主管/总经办可主动释放自己管辖的客户到广场.
-
-        与'掉入公海'共用 status=pool，靠 pool_type=SQUARE 区分，
-        来源栏自动署名'客户池广场-XX（释放人）'。
-        """
         role = getattr(request.user, "role", None)
         if role == Role.SALES:
             queryset = queryset.filter(owner=request.user)
@@ -292,11 +298,6 @@ class CustomerAdmin(admin.ModelAdmin):
 
     @admin.action(description="↩️ 撤销分配（回退到上一持有人）")
     def revoke_assignment(self, request, queryset):
-        """v2 claim 新增：栈式撤销——弹出最新一条未撤销历史记录，恢复上一状态.
-
-        边界规则：已成交（status=deal）客户不可撤销分配。
-        详见 14-老板最新Claim与变更执行清单-v2.md §三 决策 2。
-        """
         role = getattr(request.user, "role", None)
         if role not in (list(LEAD_ROLES) + [Role.ADMIN]):
             self.message_user(request, "仅销售主管/咨询主管/总经办可撤销分配", messages.ERROR)
@@ -331,7 +332,6 @@ class CustomerAdmin(admin.ModelAdmin):
 
 
 def models_q_owner_in_team(team):
-    """辅助函数：构造'归属人属于该团队'的 Q 查询，供销售主管行级过滤复用."""
     from django.db.models import Q
     return Q(owner__team=team)
 

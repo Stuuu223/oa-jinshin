@@ -7,7 +7,7 @@
     padding: 24px 28px;
 }
 .form-main {
-    max-width: 860px;
+    max-width: 100%;  /* 表单占满可用宽度,不留空 */
 }
 
 /* ── 2. 字段分组卡片化 ── */
@@ -198,4 +198,28 @@
 /* 跟进内容列给足宽度 */
 .inline-group td.field-content textarea {
     min-width: 280px;
+}
+
+/* ── 10. 隐藏 Django 默认 inline 删除列(表头"删除?"+td.delete),删除走 delete_link 按钮 ── */
+.inline-group .tabular th.delete,
+.inline-group .tabular td.delete {
+    display: none;
+}
+
+/* ── 11. 时间快捷键不被遮挡:独立成行、间距充足 ── */
+.inline-group .tabular .datetimeshortcuts {
+    display: inline-block;
+    margin-left: 6px;
+    white-space: nowrap;
+}
+.inline-group .tabular .datetimeshortcuts a {
+    padding: 1px 4px;
+    background: #EFF6FF;
+    color: #2563EB;
+    border-radius: 4px;
+    text-decoration: none;
+    font-size: 12px;
+}
+.inline-group .tabular .datetimeshortcuts a:hover {
+    background: #DBEAFE;
 }

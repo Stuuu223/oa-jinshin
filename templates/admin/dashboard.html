@@ -32,9 +32,29 @@
 
 <div class="dash-wrap">
   {% if dup_alerts %}
-  <div class="alert-banner warn">⚠️ 有 <b>{{ dup_alerts }}</b> 条撞单提醒待处理 —— 请前往「站内通知」核查重复客户归属。</div>
+  <div class="alert-banner warn">
+    <b>撞单提醒：{{ dup_alerts }} 条待处理</b> —— 以下客户被标识疑似重复建档,请总经办核查归属：
+    <table style="width:100%;border-collapse:collapse;margin-top:10px;font-size:13px">
+      <thead>
+        <tr style="text-align:left;color:#475569;border-bottom:1px solid #FDBA74">
+          <th style="padding:6px 8px">客户</th><th style="padding:6px 8px">重复方</th>
+          <th style="padding:6px 8px">建档人</th><th style="padding:6px 8px">标识时间</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in dup_details %}
+        <tr style="border-bottom:1px dashed #FDE8E8">
+          <td style="padding:6px 8px"><b>{{ d.company }}</b></td>
+          <td style="padding:6px 8px">{{ d.dup_names|join:"、" }}</td>
+          <td style="padding:6px 8px">{{ d.created_by }}</td>
+          <td style="padding:6px 8px">{{ d.flagged_at|date:"m-d H:i" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
   {% else %}
-  <div class="alert-banner ok">✅ 暂无撞单提醒,客户数据干净。</div>
+  <div class="alert-banner ok">暂无撞单提醒,客户数据干净。</div>
   {% endif %}
 
   <div class="dash-grid">
@@ -46,7 +66,7 @@
 
   <div class="dash-row">
     <div class="panel">
-      <h3>📊 客户状态漏斗</h3>
+      <h3>客户状态漏斗</h3>
       {% for name, cnt in funnel.items %}
       <div class="bar-row">
         <span class="name">{{ name }}</span>
@@ -62,7 +82,7 @@
     </div>
 
     <div class="panel">
-      <h3>🌐 建站进度</h3>
+      <h3>建站进度</h3>
       {% for name, cnt in site_progress.items %}
       <div class="bar-row">
         <span class="name">{{ name }}</span>

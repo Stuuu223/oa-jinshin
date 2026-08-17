@@ -53,7 +53,18 @@ def dashboard(request):
         "总经办:未读通知": unread_count,
     }
 
-    # ── 撞单提醒 ──
+    # ── 撞单提醒(明细:谁和谁撞了哪个单) ──
+    dup_customers = Customer.objects.filter(duplicate_flagged_at__isnull=False).order_by("-duplicate_flagged_at")[:10]
+    dup_details = []
+    for c in dup_customers:
+        dup_names = list(c.find_duplicates().values_list("company", flat=True)[:3])
+        dup_details.append({
+            "company": c.company,
+            "owner": c.owner.real_name if c.owner else "未分配",
+            "created_by": c.created_by.real_name if c.created_by else "未知",
+            "flagged_at": c.duplicate_flagged_at,
+            "dup_names": dup_names or ["（未检出重复方）"],
+        })
     dup_alerts = Notification.objects.filter(title="撞单提醒", read_at__isnull=True).count()
 
     context = dict(
@@ -70,6 +81,7 @@ def dashboard(request):
         dept_todos=dept_todos,
         unread_count=unread_count,
         dup_alerts=dup_alerts,
+        dup_details=dup_details,
     )
     return render(request, "admin/dashboard.html", context)
 

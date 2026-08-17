@@ -27,3 +27,8 @@ urlpatterns = [
     path("admin/consult-workbench/", views.consult_workbench, name="consult_workbench"),
     path("admin/", admin.site.urls),
 ]
+
+# Django admin 品牌:标题/浏览器标题/首页标题统一为"金石管理系统"
+admin.site.site_header = "金石管理系统"
+admin.site.site_title = "金石管理系统"
+admin.site.index_title = "金石管理系统"

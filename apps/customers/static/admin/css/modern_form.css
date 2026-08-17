@@ -240,6 +240,23 @@ div.form-row .datetimeshortcuts {
 .object-tools .el-button {
     margin-left: 0 !important;
 }
+
+/* ── 13. 顶部返回按钮(el-page-header):sticky 固定,不随滚动消失 ── */
+.page-header,
+.el-page-header {
+    position: sticky;
+    top: 0;
+    z-index: 98;
+    background: #fff;
+    padding: 8px 0;
+    margin-bottom: 8px;
+    border-bottom: 1px solid #F1F5F9;
+}
+.el-page-header__left {
+    cursor: pointer;
+    color: #2563EB;
+    font-weight: 500;
+}
 .inline-group .tabular .datetimeshortcuts {
     display: inline-block;
     margin-left: 6px;

@@ -120,16 +120,18 @@ div.form-row .help, .fieldBox .help {
     padding: 0 !important;
 }
 
-/* ── 6. 提交按钮区:优雅化 + sticky 固定(长表单不用滑到底) ── */
+/* ── 6. 提交按钮区:优雅化 + fixed 固定底部(长表单不用滑到底) ── */
 .submit-row {
-    position: sticky;
+    position: fixed;
     bottom: 0;
+    left: 0;
+    right: 0;
     z-index: 100;
-    background: #F8FAFC !important;
-    border: 1px solid #E5E7EB !important;
-    border-radius: 12px !important;
-    padding: 14px 20px !important;
-    margin-top: 4px !important;
+    background: rgba(248, 250, 252, .97) !important;
+    border-top: 1px solid #E5E7EB !important;
+    border-radius: 0 !important;
+    padding: 12px 24px !important;
+    margin: 0 !important;
     box-shadow: 0 -4px 12px rgba(0,0,0,.06);
 }
 .submit-row input[type="submit"],
@@ -223,16 +225,20 @@ div.form-row .datetimeshortcuts {
     display: none;
 }
 
-/* ── 12. 历史/对象工具条按钮:固定不随内容乱跑 ── */
+/* ── 12. 历史/对象工具条按钮:fixed 顶部固定,不随内容乱跑 ── */
 .object-tools {
-    position: sticky;
-    top: 0;
+    position: fixed;
+    top: 52px;              /* 位于返回按钮(el-page-header)下方 */
+    right: 24px;
     z-index: 99;
     display: flex;
     align-items: center;
     gap: 8px;
-    margin: 0 0 12px !important;
-    padding: 6px 0 !important;
+    margin: 0 !important;
+    padding: 4px 10px !important;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.08);
 }
 .object-tools li {
     list-style: none;
@@ -241,21 +247,30 @@ div.form-row .datetimeshortcuts {
     margin-left: 0 !important;
 }
 
-/* ── 13. 顶部返回按钮(el-page-header):sticky 固定,不随滚动消失 ── */
+/* ── 13. 顶部返回按钮(el-page-header):fixed 顶部固定 ── */
 .page-header,
 .el-page-header {
-    position: sticky;
+    position: fixed;
     top: 0;
+    left: 0;
+    right: 0;
     z-index: 98;
     background: #fff;
-    padding: 8px 0;
-    margin-bottom: 8px;
+    padding: 10px 24px !important;
+    margin: 0 !important;
     border-bottom: 1px solid #F1F5F9;
+    box-shadow: 0 2px 8px rgba(0,0,0,.05);
 }
 .el-page-header__left {
     cursor: pointer;
     color: #2563EB;
     font-weight: 500;
+}
+
+/* ── 14. 内容区补偿:顶部(返回52px+历史)与底部(提交)fixed 占位,防止遮挡 ── */
+#content {
+    padding-top: 120px !important;   /* 返回 + 历史按钮高度 */
+    padding-bottom: 80px !important; /* 底部提交按钮高度 */
 }
 .inline-group .tabular .datetimeshortcuts {
     display: inline-block;

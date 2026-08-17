@@ -1,0 +1,166 @@
+/* 金石系统 · 全局表单现代化样式（覆盖 simpleui 默认表单）
+   目标:卡片化分组、标签清晰、必填标记、输入框与按钮优雅化
+   覆盖范围:所有 admin 表单页(通过 base_site.html 全局挂载) */
+
+/* ── 1. 表单主体:内容区留白舒适 ── */
+#content {
+    padding: 24px 28px;
+}
+.form-main {
+    max-width: 860px;
+}
+
+/* ── 2. 字段分组卡片化 ── */
+.module, .module.aligned {
+    border: 1px solid #E5E7EB !important;
+    border-radius: 12px !important;
+    background: #fff !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,.04);
+    margin-bottom: 20px !important;
+    overflow: hidden;
+}
+.module > h2 {
+    background: #F8FAFC !important;
+    color: #334155 !important;
+    font-size: 14px !important;
+    font-weight: 600;
+    padding: 12px 20px !important;
+    margin: 0 !important;
+    border-bottom: 1px solid #E5E7EB;
+}
+.module > h2::before {
+    content: '';
+    display: inline-block;
+    width: 3px;
+    height: 14px;
+    background: #2563EB;
+    border-radius: 2px;
+    margin-right: 8px;
+    vertical-align: -2px;
+}
+
+/* ── 3. 字段行:间距与标签 ── */
+.form-row {
+    padding: 10px 20px !important;
+    border-bottom: 1px dashed #F1F5F9 !important;
+}
+.form-row:last-child {
+    border-bottom: none !important;
+}
+.form-row label, .form-row .label, .fieldBox label {
+    font-weight: 600 !important;
+    color: #334155 !important;
+    font-size: 13px !important;
+}
+/* 必填标记:红色星号 */
+.form-row label.required::after,
+.fieldBox label.required::after,
+.form-row .required label::after {
+    content: ' *';
+    color: #DC2626;
+    font-weight: 600;
+}
+
+/* ── 4. 输入框:优雅化 ── */
+.form-row input[type="text"],
+.form-row input[type="number"],
+.form-row input[type="email"],
+.form-row input[type="tel"],
+.form-row input[type="url"],
+.form-row input[type="date"],
+.form-row input[type="datetime-local"],
+.form-row select,
+.form-row textarea {
+    border: 1px solid #CBD5E1 !important;
+    border-radius: 8px !important;
+    padding: 8px 12px !important;
+    font-size: 14px !important;
+    color: #1E293B !important;
+    background: #fff !important;
+    transition: border-color .15s, box-shadow .15s;
+    width: 100%;
+    max-width: 420px;
+    box-sizing: border-box;
+}
+.form-row textarea {
+    min-height: 80px;
+    resize: vertical;
+}
+.form-row input:focus,
+.form-row select:focus,
+.form-row textarea:focus {
+    outline: none !important;
+    border-color: #3B82F6 !important;
+    box-shadow: 0 0 0 3px rgba(59,130,246,.12) !important;
+}
+/* placeholder 灰色 */
+.form-row input::placeholder,
+.form-row textarea::placeholder {
+    color: #94A3B8;
+}
+
+/* ── 5. 帮助提示:小字灰显 ── */
+.form-row .help, .fieldBox .help {
+    font-size: 11px !important;
+    color: #94A3B8 !important;
+    margin: 4px 0 0 !important;
+    padding: 0 !important;
+}
+
+/* ── 6. 提交按钮区:优雅化 ── */
+.submit-row {
+    background: #F8FAFC !important;
+    border: 1px solid #E5E7EB !important;
+    border-radius: 12px !important;
+    padding: 14px 20px !important;
+    margin-top: 4px !important;
+}
+.submit-row input[type="submit"],
+.submit-row input[type="button"],
+.submit-row a {
+    border: none !important;
+    border-radius: 8px !important;
+    padding: 9px 24px !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    cursor: pointer !important;
+    transition: background .15s;
+    text-decoration: none;
+    display: inline-block;
+}
+.submit-row input[type="submit"] {
+    background: #2563EB !important;
+    color: #fff !important;
+}
+.submit-row input[type="submit"]:hover {
+    background: #1D4ED8 !important;
+}
+.submit-row a {
+    background: #fff !important;
+    color: #64748B !important;
+    border: 1px solid #CBD5E1 !important;
+    margin-left: 8px;
+}
+.submit-row a:hover {
+    background: #F8FAFC !important;
+}
+
+/* ── 7. 时间/日期控件宽度适配 ── */
+.form-row .datetimeshortcuts {
+    font-size: 12px;
+    color: #2563EB;
+}
+
+/* ── 8. 折叠区(归属与状态等)继承卡片化,内部紧凑 ── */
+fieldset.collapse {
+    margin-top: 12px;
+}
+fieldset.collapse .form-row {
+    padding: 6px 20px !important;
+}
+
+/* ── 9. 小屏适配 ── */
+@media (max-width: 900px) {
+    #content { padding: 16px; }
+    .form-row input, .form-row select, .form-row textarea { max-width: 100%; }
+}

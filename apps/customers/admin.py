@@ -228,6 +228,20 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
     def get_fieldsets(self, request, obj=None):
         if obj is None:
             return self.add_fieldsets
+        # 编辑态:普通角色(销售/咨询/技术)只显示基本信息,不暴露系统字段(公海/释放人/入池/跟进/流失)
+        role = getattr(request.user, "role", None)
+        if role in (Role.SALES, Role.CONSULTANT, Role.TECH):
+            return (
+                ("📋 基本信息", {
+                    "fields": (
+                        ("company", "contact_name"),
+                        ("phone", "qualification_interest"),
+                        ("source", "quote_amount"),
+                        "consulted_at", "note",
+                    ),
+                }),
+            )
+        # 主管/总经办/系统管理员可见完整(含归属与状态折叠区)
         return super().get_fieldsets(request, obj)
 
     def get_readonly_fields(self, request, obj=None):

@@ -3,6 +3,7 @@ from django.contrib import admin, messages
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.db.models import Count
 from django.utils import timezone
+from django.utils.html import format_html
 
 from .admin_mixins import ADMIN_ONLY, RolePermissionsMixin
 from .models import Department, Notification, Role, Team, User
@@ -17,7 +18,7 @@ class NotificationAdmin(RolePermissionsMixin, admin.ModelAdmin):
     未读数只增不减。现在所有人可标记自己收件箱的已读状态(表单字段全只读,
     唯一可变的是 read_at)。
     """
-    list_display = ("read_badge", "title", "recipient", "created_at")
+    list_display = ("read_badge", "type_badge", "title_display", "content_preview", "recipient", "created_at")
     list_filter = ("recipient", "read_at")
     search_fields = ("title", "content")
     readonly_fields = ("recipient", "title", "content", "link", "created_at", "read_at")
@@ -52,6 +53,43 @@ class NotificationAdmin(RolePermissionsMixin, admin.ModelAdmin):
     @admin.display(description="已读", boolean=True)
     def read_badge(self, obj: Notification) -> bool:
         return obj.is_read
+
+    @admin.display(description="类型")
+    def type_badge(self, obj: Notification) -> str:
+        """按标题归类通知类型,给色标,让用户一眼知道是什么通知."""
+        t = obj.title or ""
+        style = "color:#B45309;background:#FEF3C7;border-radius:4px;padding:1px 8px;font-size:12px"
+        if "撞单" in t:
+            label, style = "撞单提醒", "color:#C0392B;background:#FDE8E8;border-radius:4px;padding:1px 8px;font-size:12px"
+        elif "分配" in t or "调配" in t:
+            label, style = "分配", "color:#1D4ED8;background:#DBEAFE;border-radius:4px;padding:1px 8px;font-size:12px"
+        elif "撤销" in t:
+            label, style = "撤销", "color:#6B7280;background:#F3F4F6;border-radius:4px;padding:1px 8px;font-size:12px"
+        else:
+            label = t[:6]
+        return format_html('<span style="{}">{}</span>', style, label)
+    type_badge.admin_order_field = "title"  # type: ignore[attr-defined]
+
+    @admin.display(description="标题")
+    def title_display(self, obj: Notification) -> str:
+        """未读加粗标色,已读正常灰显——可观测性."""
+        if obj.is_read:
+            return format_html('<span style="color:#64748B">{}</span>', obj.title)
+        return format_html('<b style="color:#1E293B">{}</b>', obj.title)
+
+    @admin.display(description="内容")
+    def content_preview(self, obj: Notification) -> str:
+        """内容摘要(截断)+ 若有链接给'前往处理'跳转."""
+        text = obj.content or ""
+        if len(text) > 40:
+            text = text[:40] + "…"
+        if obj.link:
+            return format_html(
+                '{} <a href="{}" style="color:#2563EB;text-decoration:none;white-space:nowrap">前往处理 →</a>',
+                text, obj.link,
+            )
+        return text
+    content_preview.admin_order_field = "content"  # type: ignore[attr-defined]
 
     @admin.action(description="标记为已读")
     def mark_read(self, request, queryset):

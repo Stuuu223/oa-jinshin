@@ -63,7 +63,6 @@ class Customer(models.Model):
     source = models.CharField("来源", max_length=16, choices=Source.choices, default=Source.OTHER)
     quote_amount = models.DecimalField(
         "报价金额", max_digits=12, decimal_places=2, null=True, blank=True,
-        help_text="v2 claim 新增：第一页客户信息字段",
     )
     note = models.TextField("客户情况/备注", blank=True)
     consulted_at = models.DateField("咨询时间", null=True, blank=True)
@@ -82,7 +81,6 @@ class Customer(models.Model):
         blank=True,
         related_name="square_released_customers",
         verbose_name="广场释放人",
-        help_text="客户池广场来源署名用：来源栏展示'客户池广场-XX'",
     )
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,

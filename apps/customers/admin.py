@@ -99,8 +99,9 @@ class FollowUpInline(admin.TabularInline):
     """跟进记录——跟进时间可选（默认当前）、下次跟进提醒可选填."""
     model = FollowUp
     extra = 1
-    fields = ("content", "created_at", "next_follow_at")
-    can_delete = True
+    fields = ("content", "created_at", "next_follow_at", "delete_link")
+    readonly_fields = ("delete_link",)
+    can_delete = False  # 移除"删除?"复选框列,删除改走按钮链接(delete_link)
     verbose_name_plural = "跟进记录"
 
     def formfield_for_dbfield(self, db_field, **kwargs):
@@ -110,6 +111,16 @@ class FollowUpInline(admin.TabularInline):
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related("user")
+
+    @admin.display(description="操作")
+    def delete_link(self, obj: FollowUp):
+        if not obj.pk:
+            return "—"
+        return format_html(
+            '<a href="/admin/customers/followup/{}/delete/" '
+            'style="color:#DC2626;text-decoration:none;font-size:12px">删除</a>',
+            obj.pk,
+        )
 
 
 class OwnerHistoryInline(admin.TabularInline):

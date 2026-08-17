@@ -84,7 +84,7 @@ class User(AbstractUser):
         blank=True,
         related_name="members",
         verbose_name="所属团队",
-        help_text="v2 claim 新增：驱动'主管看组员+自己'的行级过滤",
+        help_text="主管可查看本组组员客户",
     )
     is_team_lead = models.BooleanField(
         "是否团队主管", default=False, help_text="冗余标记，便于权限判断无需反查 Team.lead"

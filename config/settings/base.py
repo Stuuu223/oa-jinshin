@@ -87,8 +87,17 @@ SIMPLEUI_HOME_ACTION = False
 # 侧边栏自定义菜单——按业务分组,区分客户档案/客户池广场/回收站,避免"长得一样"
 SIMPLEUI_CONFIG = {
     "system_keep": False,
-    "menu_display": ["客户管理", "成交管理", "通知", "系统管理"],
+    "menu_display": ["工作台", "客户管理", "成交管理", "通知", "系统管理"],
     "menus": [
+        {
+            "name": "工作台",
+            "icon": "fa fa-tachometer",
+            "models": [
+                {"name": "老板总览面板", "url": "/admin/dashboard/", "icon": "fa fa-line-chart"},
+                {"name": "销售工作台", "url": "/admin/sales-workbench/", "icon": "fa fa-user-o"},
+                {"name": "咨询工作台", "url": "/admin/consult-workbench/", "icon": "fa fa-file-text-o"},
+            ],
+        },
         {
             "name": "客户管理",
             "icon": "fa fa-address-book",

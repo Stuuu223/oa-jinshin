@@ -73,7 +73,7 @@ class Customer(models.Model):
     )
     pool_type = models.CharField(
         "公海类型", max_length=16, choices=PoolType.choices, null=True, blank=True,
-        help_text="仅 status=pool 时有意义：区分自动掉入/客户池广场释放",
+        help_text="自动掉入/广场释放",
     )
     square_released_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -105,7 +105,7 @@ class Customer(models.Model):
     )
     duplicate_flagged_at = models.DateTimeField(
         "撞单标识时间", null=True, blank=True, editable=False,
-        help_text="细则第一页·六：录入时与其他同事客户疑似重复，已做标识待总经办核查",
+        help_text="疑似重复已标识",
     )
     created_at = models.DateTimeField("创建时间", auto_now_add=True)
     updated_at = models.DateTimeField("更新时间", auto_now=True)

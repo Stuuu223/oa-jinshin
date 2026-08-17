@@ -186,7 +186,7 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
                 ("status", "owner"),
                 ("pool_type", "square_released_by"),
                 ("pool_entered_at", "last_follow_at"),
-                ("lost_reason", "duplicate_flagged_at"),
+                ("lost_reason",),
             ),
             "classes": ("collapse",),
         }),

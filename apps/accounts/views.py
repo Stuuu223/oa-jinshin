@@ -82,3 +82,91 @@ def notification_unread(request):
         return JsonResponse({"count": 0})
     count = Notification.objects.filter(recipient=request.user, read_at__isnull=True).count()
     return JsonResponse({"count": count})
+
+
+def sales_workbench(request):
+    """销售工作台——销售视角聚合:我的客户/待跟进/撞单/快捷操作."""
+    if not request.user.is_authenticated or not request.user.is_staff:
+        from django.shortcuts import redirect
+        return redirect("/admin/login/?next=/admin/sales-workbench/")
+
+    from django.utils import timezone as tz
+    from datetime import timedelta
+
+    me = request.user
+    role = getattr(me, "role", None)
+    # 销售主管可见组员+自己,销售仅自己
+    if role == "sales_lead" and me.team:
+        team_users = [u.pk for u in me.team.members.all()]
+        my_customers = Customer.objects.filter(owner_id__in=team_users)
+    else:
+        my_customers = Customer.objects.filter(owner=me)
+
+    # 按状态分组
+    status_groups = {}
+    for c in my_customers:
+        key = c.get_status_display()
+        status_groups.setdefault(key, []).append(c)
+
+    # 待跟进:最近跟进超过 7 天仍未成交
+    week_ago = tz.now() - timedelta(days=7)
+    stale = my_customers.filter(
+        status__in=["lead", "following"],
+        last_follow_at__lt=week_ago,
+    ).order_by("last_follow_at")[:10]
+
+    # 撞单标识客户
+    dup = my_customers.filter(duplicate_flagged_at__isnull=False)[:10]
+
+    context = dict(
+        title="销售工作台",
+        me=me,
+        status_groups=status_groups,
+        total=my_customers.count(),
+        stale=stale,
+        duplicates=dup,
+    )
+    return render(request, "admin/sales_workbench.html", context)
+
+
+def consult_workbench(request):
+    """咨询工作台——咨询视角聚合:待分配/我的项目/收款支出/建站进度."""
+    if not request.user.is_authenticated or not request.user.is_staff:
+        from django.shortcuts import redirect
+        return redirect("/admin/login/?next=/admin/consult-workbench/")
+
+    from apps.projects.models import Project
+
+    me = request.user
+    role = getattr(me, "role", None)
+
+    # 待分配项目(嘉茵/总经办可见全部待分配,普通咨询不看)
+    if role in ("consultant_lead", "admin"):
+        pending_assign = Project.objects.filter(consultant__isnull=True).order_by("-deal_at")[:10]
+    else:
+        pending_assign = Project.objects.none()
+
+    # 我的项目(普通咨询看自己负责的;嘉茵看全部)
+    if role == "consultant":
+        my_projects = Project.objects.filter(consultant=me)
+    else:
+        my_projects = Project.objects.all()
+
+    # 建站进度分布(必须在切片前统计,切片后 QuerySet 不可再 filter)
+    progress = {
+        "待开始": my_projects.filter(site_progress="not_started").count(),
+        "进行中": my_projects.filter(site_progress="in_progress").count(),
+        "已完成": my_projects.filter(site_progress="done").count(),
+    }
+
+    # 切片用于列表展示
+    my_projects = my_projects.order_by("-deal_at")[:20]
+
+    context = dict(
+        title="咨询工作台",
+        me=me,
+        pending_assign=pending_assign,
+        my_projects=my_projects,
+        progress=progress,
+    )
+    return render(request, "admin/consult_workbench.html", context)

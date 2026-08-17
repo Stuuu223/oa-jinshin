@@ -1,0 +1,87 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<style>
+  .wb-wrap { padding: 8px 4px; }
+  .wb-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+  .wb-head h2 { margin: 0; font-size: 20px; color: #1E293B; }
+  .wb-head .sub { color: #64748B; font-size: 13px; }
+  .wb-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 20px; }
+  .card { border: 1px solid #E5E7EB; border-radius: 12px; background: #fff; padding: 16px 20px; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
+  .card .label { font-size: 12px; color: #64748B; }
+  .card .value { font-size: 26px; font-weight: 700; color: #1E293B; }
+  .card.blue { border-top: 3px solid #2563EB; }
+  .card.orange { border-top: 3px solid #EA580C; }
+  .card.red { border-top: 3px solid #DC2626; }
+  .panel { border: 1px solid #E5E7EB; border-radius: 12px; background: #fff; padding: 16px 20px; margin-bottom: 16px; }
+  .panel h3 { margin: 0 0 12px; font-size: 15px; color: #334155; }
+  .row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #F1F5F9; font-size: 13px; }
+  .row:last-child { border-bottom: none; }
+  .row .c { color: #334155; }
+  .row .t { color: #94A3B8; font-size: 12px; }
+  .row .n { font-weight: 600; color: #2563EB; }
+  .empty { color: #94A3B8; font-size: 13px; padding: 12px 0; }
+  .quick { display: flex; gap: 10px; flex-wrap: wrap; }
+  .quick a { padding: 9px 16px; background: #2563EB; color: #fff; border-radius: 8px; text-decoration: none; font-size: 13px; }
+  .quick a.ghost { background: #fff; color: #2563EB; border: 1px solid #CBD5E1; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; }
+  .tag-warn { background: #FDE8E8; color: #C0392B; }
+</style>
+
+<div class="wb-wrap">
+  <div class="wb-head">
+    <h2>📋 销售工作台</h2>
+    <span class="sub">{{ me.real_name }}（{{ me.get_role_display }}）</span>
+  </div>
+
+  <div class="quick" style="margin-bottom:20px">
+    <a href="/admin/customers/customer/add/">➕ 新建客户建档</a>
+    <a class="ghost" href="/admin/customers/customer/">📋 客户列表</a>
+    <a class="ghost" href="/admin/customers/customer/?status__exact=pool">🌊 客户池广场</a>
+  </div>
+
+  <div class="wb-grid">
+    <div class="card blue"><div class="label">我的客户</div><div class="value">{{ total }}</div></div>
+    <div class="card orange"><div class="label">待跟进(超7天)</div><div class="value">{{ stale|length }}</div></div>
+    <div class="card red"><div class="label">撞单标识</div><div class="value">{{ duplicates|length }}</div></div>
+  </div>
+
+  <div class="panel">
+    <h3>⏳ 待跟进客户（超过 7 天未跟进）</h3>
+    {% if stale %}
+      {% for c in stale %}
+      <div class="row">
+        <span class="c">{{ c.company }}</span>
+        <span class="t">最后跟进:{{ c.last_follow_at|date:"m-d H:i"|default:"无" }}</span>
+        <a class="n" href="/admin/customers/customer/{{ c.pk }}/change/">去跟进 →</a>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty">✅ 暂无超期未跟进的客户</div>
+    {% endif %}
+  </div>
+
+  <div class="panel">
+    <h3>⚠️ 撞单标识客户</h3>
+    {% if duplicates %}
+      {% for c in duplicates %}
+      <div class="row">
+        <span class="c">{{ c.company }} <span class="tag tag-warn">撞单</span></span>
+        <span class="t">{{ c.duplicate_flagged_at|date:"m-d H:i" }}</span>
+        <a class="n" href="/admin/customers/customer/{{ c.pk }}/change/">查看 →</a>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="empty">✅ 无撞单标识客户</div>
+    {% endif %}
+  </div>
+
+  <div class="panel">
+    <h3>📊 客户状态分布</h3>
+    {% for key, items in status_groups.items %}
+      <div class="row"><span class="c">{{ key }}</span><span class="n">{{ items|length }}</span></div>
+    {% empty %}
+      <div class="empty">暂无客户,点击上方"新建客户建档"开始</div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

@@ -84,6 +84,46 @@ SIMPLEUI_HOME_ICON = "fa fa-dashboard"
 SIMPLEUI_HOME_QUICK = False
 SIMPLEUI_HOME_ACTION = False
 
+# 侧边栏自定义菜单——按业务分组,区分客户档案/客户池广场/回收站,避免"长得一样"
+SIMPLEUI_CONFIG = {
+    "system_keep": False,
+    "menu_display": ["客户管理", "成交管理", "通知", "系统管理"],
+    "menus": [
+        {
+            "name": "客户管理",
+            "icon": "fa fa-address-book",
+            "models": [
+                {"name": "客户档案", "url": "/admin/customers/customer/", "icon": "fa fa-file-text-o"},
+                {"name": "客户池广场", "url": "/admin/customers/customer/?status__exact=pool", "icon": "fa fa-globe"},
+                {"name": "回收站", "url": "/admin/customers/recycledcustomer/", "icon": "fa fa-trash-o"},
+            ],
+        },
+        {
+            "name": "成交管理",
+            "icon": "fa fa-briefcase",
+            "models": [
+                {"name": "成交项目", "url": "/admin/projects/project/", "icon": "fa fa-file-o"},
+            ],
+        },
+        {
+            "name": "通知",
+            "icon": "fa fa-bell-o",
+            "models": [
+                {"name": "站内通知", "url": "/admin/accounts/notification/", "icon": "fa fa-envelope-o"},
+            ],
+        },
+        {
+            "name": "系统管理",
+            "icon": "fa fa-cog",
+            "models": [
+                {"name": "用户", "url": "/admin/accounts/user/", "icon": "fa fa-user"},
+                {"name": "部门", "url": "/admin/accounts/department/", "icon": "fa fa-building-o"},
+                {"name": "团队", "url": "/admin/accounts/team/", "icon": "fa fa-group"},
+            ],
+        },
+    ],
+}
+
 ANONYMOUS_USER_NAME = None
 
 LOGGING = {

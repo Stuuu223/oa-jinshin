@@ -73,7 +73,7 @@ class Customer(models.Model):
     )
     pool_type = models.CharField(
         "公海类型", max_length=16, choices=PoolType.choices, null=True, blank=True,
-        help_text="自动掉入/广场释放",
+        help_text="30天未跟进自动进公海，或销售手动释放到客户池广场",
     )
     square_released_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,

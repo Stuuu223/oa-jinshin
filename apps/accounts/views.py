@@ -57,13 +57,16 @@ def dashboard(request):
     dup_customers = Customer.objects.filter(duplicate_flagged_at__isnull=False).order_by("-duplicate_flagged_at")[:10]
     dup_details = []
     for c in dup_customers:
-        dup_names = list(c.find_duplicates().values_list("company", flat=True)[:3])
+        # 重复方:公司名 + 建档人,一眼看出"张三↔李四撞单"
+        dup_targets = []
+        for d in c.find_duplicates()[:3]:
+            who = d.created_by.real_name if d.created_by else "未知"
+            dup_targets.append(f"{d.company}（{who}建档）")
         dup_details.append({
             "company": c.company,
-            "owner": c.owner.real_name if c.owner else "未分配",
             "created_by": c.created_by.real_name if c.created_by else "未知",
             "flagged_at": c.duplicate_flagged_at,
-            "dup_names": dup_names or ["（未检出重复方）"],
+            "dup_targets": dup_targets or ["（未检出重复方）"],
         })
     dup_alerts = Notification.objects.filter(title="撞单提醒", read_at__isnull=True).count()
 

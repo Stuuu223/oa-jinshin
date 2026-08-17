@@ -33,19 +33,23 @@
 <div class="dash-wrap">
   {% if dup_alerts %}
   <div class="alert-banner warn">
-    <b>撞单提醒：{{ dup_alerts }} 条待处理</b> —— 以下客户被标识疑似重复建档,请总经办核查归属：
+    <b>撞单提醒：{{ dup_alerts }} 条待处理</b> —— 同一客户被不同销售重复建档,请总经办核查归属：
     <table style="width:100%;border-collapse:collapse;margin-top:10px;font-size:13px">
       <thead>
         <tr style="text-align:left;color:#475569;border-bottom:1px solid #FDBA74">
-          <th style="padding:6px 8px">客户</th><th style="padding:6px 8px">重复方</th>
-          <th style="padding:6px 8px">建档人</th><th style="padding:6px 8px">标识时间</th>
+          <th style="padding:6px 8px">客户</th><th style="padding:6px 8px">与谁撞单(重复方)</th>
+          <th style="padding:6px 8px">本单建档人</th><th style="padding:6px 8px">标识时间</th>
         </tr>
       </thead>
       <tbody>
         {% for d in dup_details %}
         <tr style="border-bottom:1px dashed #FDE8E8">
           <td style="padding:6px 8px"><b>{{ d.company }}</b></td>
-          <td style="padding:6px 8px">{{ d.dup_names|join:"、" }}</td>
+          <td style="padding:6px 8px">
+            {% for t in d.dup_targets %}
+              <span style="display:inline-block;background:#FDE8E8;color:#B45309;border-radius:6px;padding:2px 8px;margin:2px 4px 2px 0">{{ t }}</span>
+            {% endfor %}
+          </td>
           <td style="padding:6px 8px">{{ d.created_by }}</td>
           <td style="padding:6px 8px">{{ d.flagged_at|date:"m-d H:i" }}</td>
         </tr>

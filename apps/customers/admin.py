@@ -182,19 +182,9 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
                 "note",
             ),
         }),
-        ("归属与状态", {
-            "fields": (
-                ("status", "owner"),
-                ("pool_type", "square_released_by"),
-                ("pool_entered_at", "last_follow_at"),
-                ("lost_reason",),
-            ),
-            "classes": ("collapse",),
-        }),
     )
 
-    # 新建客户页只显示建档必填/常用字段;归属/状态在编辑页为只读,流转必须走
-    # 分配/释放/领取等 action——避免手改字段绕过署名与归属历史
+    # 新建客户页只显示建档必填/常用字段;归属(owner)自动=当前建档销售,由 save_model 赋值,不裸露手选
     add_fieldsets = (
         ("客户基本信息", {
             "fields": (
@@ -203,9 +193,6 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
                 ("source", "quote_amount"),
                 "consulted_at", "note",
             ),
-        }),
-        ("归属销售", {
-            "fields": ("owner",),
         }),
     )
 
@@ -228,21 +215,18 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
     def get_fieldsets(self, request, obj=None):
         if obj is None:
             return self.add_fieldsets
-        # 编辑态:普通角色(销售/咨询/技术)只显示基本信息,不暴露系统字段(公海/释放人/入池/跟进/流失)
-        role = getattr(request.user, "role", None)
-        if role in (Role.SALES, Role.CONSULTANT, Role.TECH):
-            return (
-                ("基本信息", {
-                    "fields": (
-                        ("company", "contact_name"),
-                        ("phone", "qualification_interest"),
-                        ("source", "quote_amount"),
-                        "consulted_at", "note",
-                    ),
-                }),
-            )
-        # 主管/总经办/系统管理员可见完整(含归属与状态折叠区)
-        return super().get_fieldsets(request, obj)
+        # 编辑态:所有角色只显示基本信息——状态/归属/公海等系统字段由列表列与归属历史展示,
+        # 流转必须走分配/释放/领取等 action,不在表单裸露
+        return (
+            ("基本信息", {
+                "fields": (
+                    ("company", "contact_name"),
+                    ("phone", "qualification_interest"),
+                    ("source", "quote_amount"),
+                    "consulted_at", "note",
+                ),
+            }),
+        )
 
     def get_readonly_fields(self, request, obj=None):
         base = list(super().get_readonly_fields(request, obj))

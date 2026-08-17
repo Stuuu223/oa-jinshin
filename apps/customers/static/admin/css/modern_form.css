@@ -151,15 +151,7 @@
     color: #2563EB;
 }
 
-/* ── 8. 折叠区(归属与状态等)继承卡片化,内部紧凑 ── */
-fieldset.collapse {
-    margin-top: 12px;
-}
-fieldset.collapse .form-row {
-    padding: 6px 20px !important;
-}
-
-/* ── 9. 小屏适配 ── */
+/* ── 8. 小屏适配 ── */
 @media (max-width: 900px) {
     #content { padding: 16px; }
     .form-row input, .form-row select, .form-row textarea { max-width: 100%; }

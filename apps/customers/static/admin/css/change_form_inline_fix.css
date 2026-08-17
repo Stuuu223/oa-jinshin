@@ -26,3 +26,47 @@
 #follow_ups-group textarea {
     min-width: 320px;
 }
+
+/* 5) "归属与状态"折叠区紧凑化:label 与只读值同行,help 小字灰显,不再散乱堆叠 */
+#customer_form fieldset.collapse .form-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 4px 0;
+    border-bottom: 1px dashed #F1F5F9;
+}
+#customer_form fieldset.collapse .form-row:last-child {
+    border-bottom: none;
+}
+#customer_form fieldset.collapse .fieldBox {
+    flex: 1;
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    margin: 0;
+}
+#customer_form fieldset.collapse label {
+    font-size: 12px;
+    color: #64748B;
+    font-weight: 500;
+    white-space: nowrap;
+    min-width: 70px;
+    text-align: right;
+}
+#customer_form fieldset.collapse .readonly {
+    font-size: 13px;
+    color: #1E293B;
+    padding: 2px 0;
+}
+#customer_form fieldset.collapse .help {
+    font-size: 11px;
+    color: #94A3B8;
+    margin: 0;
+    padding: 0;
+    flex-basis: 100%;
+    order: 3;
+}
+#customer_form fieldset.collapse .form-row > div > .help {
+    flex-basis: 100%;
+}
+

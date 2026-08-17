@@ -653,7 +653,7 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
 @admin.register(RecycledCustomer)
 class RecycledCustomerAdmin(RolePermissionsMixin, admin.ModelAdmin):
     """回收站（细则第一页·七）:总经办查看已删除客户 + 全部修改记录 + 恢复/彻底删除."""
-    list_display = ("company", "contact_name", "phone", "owner", "created_by", "deleted_at", "history_link")
+    list_display = ("company_deleted_badge", "contact_name", "phone", "owner", "created_by", "deleted_at", "history_link")
     search_fields = ("company", "contact_name", "phone")
     list_filter = ("deleted_at",)
     actions = ["restore", "purge"]
@@ -675,6 +675,14 @@ class RecycledCustomerAdmin(RolePermissionsMixin, admin.ModelAdmin):
         if obj is None:
             return []
         return [f.name for f in obj._meta.fields if f.name != "id"]
+
+    @admin.display(description="公司名称（已删除）")
+    def company_deleted_badge(self, obj: RecycledCustomer) -> str:
+        return format_html(
+            '{} <span style="background:#FDE8E8;color:#C0392B;border-radius:4px;padding:1px 6px;font-size:11px">已删除</span>',
+            obj.company,
+        )
+    company_deleted_badge.admin_order_field = "company"  # type: ignore[attr-defined]
 
     @admin.display(description="修改记录")
     def history_link(self, obj: RecycledCustomer):

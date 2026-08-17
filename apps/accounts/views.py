@@ -68,7 +68,8 @@ def dashboard(request):
             "flagged_at": c.duplicate_flagged_at,
             "dup_targets": dup_targets or ["（未检出重复方）"],
         })
-    dup_alerts = Notification.objects.filter(title="撞单提醒", read_at__isnull=True).count()
+    # 横幅条数与明细条数同一数据源(标识客户数),避免"2条却显示4条"
+    dup_alerts = len(dup_details)
 
     context = dict(
         self_service=request,

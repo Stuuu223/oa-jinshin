@@ -22,5 +22,6 @@ from apps.accounts import views
 urlpatterns = [
     # 注意顺序:dashboard 必须在 admin/ 之前,否则被 admin 内部 catch_all 吞掉
     path("admin/dashboard/", views.dashboard, name="dashboard"),
+    path("admin/notifications/unread/", views.notification_unread, name="notification_unread"),
     path("admin/", admin.site.urls),
 ]

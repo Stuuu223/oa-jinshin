@@ -72,3 +72,13 @@ def dashboard(request):
         dup_alerts=dup_alerts,
     )
     return render(request, "admin/dashboard.html", context)
+
+
+def notification_unread(request):
+    """侧边栏信息箱未读徽标数据接口——返回当前用户未读数 JSON."""
+    from django.http import JsonResponse
+
+    if not request.user.is_authenticated or not request.user.is_staff:
+        return JsonResponse({"count": 0})
+    count = Notification.objects.filter(recipient=request.user, read_at__isnull=True).count()
+    return JsonResponse({"count": count})

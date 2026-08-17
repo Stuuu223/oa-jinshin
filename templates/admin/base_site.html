@@ -1,0 +1,50 @@
+{% extends "admin/base.html" %}
+{% load static %}
+
+{% block title %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block branding %}
+<h1 id="site-name"><a href="{% url 'admin:index' %}">{{ site_header|default:_('Django administration') }}</a></h1>
+{% endblock %}
+
+{% block nav-global %}{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<script>
+/* 金石企服 · 侧边栏信息箱未读徽标(细则第一页·六:信息箱要有明显的未读数量标识) */
+(function () {
+    function fetchUnread() {
+        fetch('/admin/notifications/unread/')
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                var n = (data && data.count) || 0;
+                var target = null;
+                // simpleui 侧边栏菜单项:找指向站内通知的链接
+                var links = document.querySelectorAll('.el-menu a, .el-submenu a, a[href*="notification"]');
+                for (var i = 0; i < links.length; i++) {
+                    if (links[i].getAttribute('href') && links[i].getAttribute('href').indexOf('notification') !== -1) {
+                        target = links[i];
+                        break;
+                    }
+                }
+                if (!target) return;
+                // 移除旧徽标
+                var old = target.querySelector('.unread-badge');
+                if (old) old.remove();
+                if (n > 0) {
+                    var b = document.createElement('span');
+                    b.className = 'unread-badge';
+                    b.style.cssText = 'display:inline-block;margin-left:6px;padding:0 7px;background:#DC2626;'
+                        + 'color:#fff;border-radius:999px;font-size:11px;line-height:18px;font-weight:600;';
+                    b.textContent = n > 99 ? '99+' : n;
+                    target.appendChild(b);
+                }
+            }).catch(function () { /* 静默,不打断页面 */ });
+    }
+    // 页面加载后 + 每 30s 轮询
+    document.addEventListener('DOMContentLoaded', fetchUnread);
+    setInterval(fetchUnread, 30000);
+})();
+</script>
+{% endblock %}

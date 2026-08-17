@@ -78,9 +78,21 @@
     color: #1E293B !important;
     background: #fff !important;
     transition: border-color .15s, box-shadow .15s;
-    width: 100%;
-    max-width: 420px;
+    width: 100%;              /* 撑满所在列,不再 max-width 限窄 */
+    max-width: 100%;
     box-sizing: border-box;
+}
+/* 多字段并排行:均分、不互相遮挡 */
+.form-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 16px;
+}
+.form-row .fieldBox,
+.form-row > div {
+    flex: 1 1 200px;
+    min-width: 0;
 }
 .form-row textarea {
     min-height: 80px;

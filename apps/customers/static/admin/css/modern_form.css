@@ -40,37 +40,37 @@
 }
 
 /* ── 3. 字段行:间距与标签 ── */
-.form-row {
+div.form-row {
     padding: 10px 20px !important;
     border-bottom: 1px dashed #F1F5F9 !important;
 }
-.form-row:last-child {
+div.form-row:last-child {
     border-bottom: none !important;
 }
-.form-row label, .form-row .label, .fieldBox label {
+div.form-row label, div.form-row .label, .fieldBox label {
     font-weight: 600 !important;
     color: #334155 !important;
     font-size: 13px !important;
 }
 /* 必填标记:红色星号 */
-.form-row label.required::after,
+div.form-row label.required::after,
 .fieldBox label.required::after,
-.form-row .required label::after {
+div.form-row .required label::after {
     content: ' *';
     color: #DC2626;
     font-weight: 600;
 }
 
 /* ── 4. 输入框:优雅化 ── */
-.form-row input[type="text"],
-.form-row input[type="number"],
-.form-row input[type="email"],
-.form-row input[type="tel"],
-.form-row input[type="url"],
-.form-row input[type="date"],
-.form-row input[type="datetime-local"],
-.form-row select,
-.form-row textarea {
+div.form-row input[type="text"],
+div.form-row input[type="number"],
+div.form-row input[type="email"],
+div.form-row input[type="tel"],
+div.form-row input[type="url"],
+div.form-row input[type="date"],
+div.form-row input[type="datetime-local"],
+div.form-row select,
+div.form-row textarea {
     border: 1px solid #CBD5E1 !important;
     border-radius: 8px !important;
     padding: 8px 12px !important;
@@ -82,37 +82,38 @@
     max-width: 100%;
     box-sizing: border-box;
 }
-/* 多字段并排行:均分、不互相遮挡 */
-.form-row {
+/* 多字段并排行:均分、不互相遮挡
+   注意:仅作用于主表单的 div.form-row,绝不命中 inline 的 <tr class="form-row dynamic-..."> */
+div.form-row {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 16px;
 }
-.form-row .fieldBox,
-.form-row > div {
+div.form-row .fieldBox,
+div.form-row > div {
     flex: 1 1 200px;
     min-width: 0;
 }
-.form-row textarea {
+div.form-row textarea {
     min-height: 80px;
     resize: vertical;
 }
-.form-row input:focus,
-.form-row select:focus,
-.form-row textarea:focus {
+div.form-row input:focus,
+div.form-row select:focus,
+div.form-row textarea:focus {
     outline: none !important;
     border-color: #3B82F6 !important;
     box-shadow: 0 0 0 3px rgba(59,130,246,.12) !important;
 }
 /* placeholder 灰色 */
-.form-row input::placeholder,
-.form-row textarea::placeholder {
+div.form-row input::placeholder,
+div.form-row textarea::placeholder {
     color: #94A3B8;
 }
 
 /* ── 5. 帮助提示:小字灰显 ── */
-.form-row .help, .fieldBox .help {
+div.form-row .help, .fieldBox .help {
     font-size: 11px !important;
     color: #94A3B8 !important;
     margin: 4px 0 0 !important;
@@ -158,7 +159,7 @@
 }
 
 /* ── 7. 时间/日期控件宽度适配 ── */
-.form-row .datetimeshortcuts {
+div.form-row .datetimeshortcuts {
     font-size: 12px;
     color: #2563EB;
 }
@@ -166,7 +167,7 @@
 /* ── 8. 小屏适配 ── */
 @media (max-width: 900px) {
     #content { padding: 16px; }
-    .form-row input, .form-row select, .form-row textarea { max-width: 100%; }
+    div.form-row input, div.form-row select, div.form-row textarea { max-width: 100%; }
 }
 
 /* ── 9. inline 表格布局修复:表头不换行(防竖排)、列宽合理、对齐统一 ── */

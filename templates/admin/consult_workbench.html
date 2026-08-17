@@ -28,12 +28,12 @@
 
 <div class="wb-wrap">
   <div class="wb-head">
-    <h2>📋 咨询工作台</h2>
+    <h2>咨询工作台</h2>
     <span class="sub">{{ me.real_name }}（{{ me.get_role_display }}）</span>
   </div>
 
   <div class="panel">
-    <h3>📊 建站进度分布</h3>
+    <h3>建站进度分布</h3>
     <div class="progress-grid">
       <div class="p-box a"><div class="num">{{ progress.待开始 }}</div><div class="lbl">待开始</div></div>
       <div class="p-box b"><div class="num">{{ progress.进行中 }}</div><div class="lbl">进行中</div></div>
@@ -43,7 +43,7 @@
 
   {% if pending_assign %}
   <div class="panel">
-    <h3>🎯 待分配项目（需咨询主管分配）</h3>
+    <h3>待分配项目（需咨询主管分配）</h3>
     {% for p in pending_assign %}
     <div class="row">
       <span class="c">{{ p.company_snapshot }} <span class="tag tag-pending">待分配</span></span>
@@ -55,7 +55,7 @@
   {% endif %}
 
   <div class="panel">
-    <h3>📁 项目列表（{% if me.role == "consultant" %}我负责的{% else %}全部{% endif %}）</h3>
+    <h3>项目列表（{% if me.role == "consultant" %}我负责的{% else %}全部{% endif %}）</h3>
     {% if my_projects %}
       {% for p in my_projects %}
       <div class="row">

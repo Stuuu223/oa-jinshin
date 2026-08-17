@@ -53,12 +53,12 @@ class NotificationAdmin(RolePermissionsMixin, admin.ModelAdmin):
     def read_badge(self, obj: Notification) -> bool:
         return obj.is_read
 
-    @admin.action(description="📮 标记为已读")
+    @admin.action(description="标记为已读")
     def mark_read(self, request, queryset):
         updated = queryset.filter(read_at__isnull=True).update(read_at=timezone.now())
         self.message_user(request, f"已标记 {updated} 条通知为已读", messages.SUCCESS)
 
-    @admin.action(description="📬 全部标记为已读")
+    @admin.action(description="全部标记为已读")
     def mark_all_read(self, request, queryset):
         updated = self.get_queryset(request).filter(read_at__isnull=True).update(read_at=timezone.now())
         self.message_user(request, f"信息箱已清零（{updated} 条已读）", messages.SUCCESS)

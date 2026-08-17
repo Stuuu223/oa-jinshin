@@ -79,7 +79,7 @@
     banner = document.createElement("div");
     banner.style.cssText = "margin:10px 0;padding:10px 14px;border:1px solid #F59E0B;background:#FFFBEB;border-radius:8px;color:#92400E;font-size:13px;display:flex;gap:12px;align-items:center";
     var when = new Date(data.__savedAt).toLocaleString("zh-CN");
-    banner.innerHTML = "📝 检测到 " + when + " 未保存的草稿（" + countFilled(data) + " 个字段已自动暂存过）";
+    banner.innerHTML = "检测到 " + when + " 未保存的草稿（" + countFilled(data) + " 个字段已自动暂存过）";
     var restore = document.createElement("button");
     restore.type = "button";
     restore.textContent = "恢复草稿";

@@ -260,7 +260,7 @@ class ProjectAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
 
     # ---------- 分配咨询师 Action（嘉茵/总经办专用） ----------
 
-    @admin.action(description="🎯 分配/调配咨询师")
+    @admin.action(description="分配/调配咨询师")
     def assign_consultant(self, request, queryset):
         role = getattr(request.user, "role", None)
         if role not in (Role.CONSULTANT_LEAD, Role.ADMIN):

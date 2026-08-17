@@ -128,7 +128,7 @@ class OwnerHistoryInline(admin.TabularInline):
         """合并 from→to 为紧凑文案,撤销标记可见,避免多列挤压."""
         from_user = obj.from_user.real_name if obj.from_user else "（首次/公海）"
         to_user = obj.to_user.real_name if obj.to_user else "（释放到广场）"
-        revoked = " ↩️已撤销" if obj.revoked_at else ""
+        revoked = "（已撤销）" if obj.revoked_at else ""
         return f"{from_user} → {to_user}{revoked}"
 
     class Media:
@@ -173,7 +173,7 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
     inlines = [FollowUpInline, OwnerHistoryInline, CustomerAttachmentInline]
 
     fieldsets = (
-        ("📋 基本信息", {
+        ("基本信息", {
             "fields": (
                 ("company", "contact_name"),
                 ("phone", "qualification_interest"),
@@ -182,7 +182,7 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
                 "note",
             ),
         }),
-        ("👤 归属与状态", {
+        ("归属与状态", {
             "fields": (
                 ("status", "owner"),
                 ("pool_type", "square_released_by"),
@@ -196,7 +196,7 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
     # 新建客户页只显示建档必填/常用字段;归属/状态在编辑页为只读,流转必须走
     # 分配/释放/领取等 action——避免手改字段绕过署名与归属历史
     add_fieldsets = (
-        ("📋 客户基本信息", {
+        ("客户基本信息", {
             "fields": (
                 ("company", "contact_name"),
                 ("phone", "qualification_interest"),
@@ -204,7 +204,7 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
                 "consulted_at", "note",
             ),
         }),
-        ("👤 归属销售", {
+        ("归属销售", {
             "fields": ("owner",),
         }),
     )
@@ -232,7 +232,7 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
         role = getattr(request.user, "role", None)
         if role in (Role.SALES, Role.CONSULTANT, Role.TECH):
             return (
-                ("📋 基本信息", {
+                ("基本信息", {
                     "fields": (
                         ("company", "contact_name"),
                         ("phone", "qualification_interest"),
@@ -301,7 +301,7 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
             dup_names = "、".join(d.company for d in duplicates[:3])
             self.message_user(
                 request,
-                f"⚠️ 与同事录入相同信息：{dup_names}（本条已录入并做标识，请与公司总经办联系）",
+                f"与同事录入相同信息：{dup_names}（本条已录入并做标识，请与公司总经办联系）",
                 level=messages.WARNING,
             )
             admins = User.objects.filter(role=Role.ADMIN, is_active=True)
@@ -415,7 +415,7 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
 
     # ---------- 状态与流转 Actions ----------
 
-    @admin.action(description="✅ 成交（自动创建项目）")
+    @admin.action(description="成交（自动创建项目）")
     def mark_deal(self, request, queryset):
         """成交时：客户状态改 DEAL + 自动创建 Project 并做字段快照（幂等,不会重复建项目）."""
         from apps.projects.models import Project
@@ -444,7 +444,7 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
             cnt += 1
         self.message_user(request, f"{cnt} 个客户已成交，已自动创建对应项目，等待嘉茵分配咨询师。", messages.SUCCESS)
 
-    @admin.action(description="🌊 掉入公海（手动）")
+    @admin.action(description="掉入公海")
     def move_to_pool(self, request, queryset):
         role = getattr(request.user, "role", None)
         if role not in (Role.SALES, Role.SALES_LEAD, Role.ADMIN):
@@ -458,7 +458,7 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
         )
         self.message_user(request, f"{updated} 个客户已掉入公海", messages.SUCCESS)
 
-    @admin.action(description="❌ 标记流失")
+    @admin.action(description="标记流失")
     def mark_lost(self, request, queryset):
         role = getattr(request.user, "role", None)
         if role not in (Role.SALES, Role.SALES_LEAD, Role.ADMIN):
@@ -471,14 +471,14 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
         )
         self.message_user(request, f"{updated} 个客户已标记流失", messages.SUCCESS)
 
-    @admin.action(description="🗑️ 删除（进入回收站）")
+    @admin.action(description="删除（进入回收站）")
     def soft_delete(self, request, queryset):
         updated = queryset.update(deleted_at=timezone.now(), updated_at=timezone.now())
         self.message_user(
             request, f"{updated} 个客户已移入回收站（总经办可查看/恢复）", messages.SUCCESS,
         )
 
-    @admin.action(description="📥 领取公海客户")
+    @admin.action(description="领取公海客户")
     def claim_from_pool(self, request, queryset):
         if getattr(request.user, "role", None) not in (Role.SALES, Role.SALES_LEAD):
             self.message_user(request, "仅销售/销售主管可领取公海客户", messages.ERROR)
@@ -507,7 +507,7 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
             cnt += 1
         self.message_user(request, f"已领取 {cnt} 个公海客户", messages.SUCCESS)
 
-    @admin.action(description="👑 分配客户（指定人员+理由弹窗）")
+    @admin.action(description="分配客户（指定人员+理由弹窗）")
     def assign_pool(self, request, queryset):
         """细则第一页·四:主管/总经办分配自己管辖池的客户（不限公海状态）给指定人员."""
         role = getattr(request.user, "role", None)
@@ -572,7 +572,7 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
         )
         return TemplateResponse(request, "admin/customers/assign_pool.html", context)
 
-    @admin.action(description="🏟️ 释放到客户池广场")
+    @admin.action(description="释放到客户池广场")
     def release_to_square(self, request, queryset):
         role = getattr(request.user, "role", None)
         if role not in (Role.SALES, Role.SALES_LEAD, Role.ADMIN):
@@ -615,7 +615,7 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
         )
         return TemplateResponse(request, "admin/customers/release_to_square.html", context)
 
-    @admin.action(description="↩️ 撤销分配（回退到上一持有人）")
+    @admin.action(description="撤销分配（回退到上一持有人）")
     def revoke_assignment(self, request, queryset):
         role = getattr(request.user, "role", None)
         if role not in (Role.SALES_LEAD, Role.ADMIN):
@@ -688,12 +688,12 @@ class RecycledCustomerAdmin(RolePermissionsMixin, admin.ModelAdmin):
     def history_link(self, obj: RecycledCustomer):
         return format_html('<a href="/admin/customers/customer/{}/history/">查看全部修改记录</a>', obj.pk)
 
-    @admin.action(description="♻️ 恢复到客户列表")
+    @admin.action(description="恢复到客户列表")
     def restore(self, request, queryset):
         updated = queryset.update(deleted_at=None, updated_at=timezone.now())
         self.message_user(request, f"已恢复 {updated} 个客户到客户列表", messages.SUCCESS)
 
-    @admin.action(description="🗑️ 彻底删除（不可恢复）")
+    @admin.action(description="彻底删除（不可恢复）")
     def purge(self, request, queryset):
         count, _ = queryset.delete()
         self.message_user(request, f"已彻底删除 {count} 个客户（含跟进/归属/附图数据）", messages.WARNING)

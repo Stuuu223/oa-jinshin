@@ -29,14 +29,14 @@
 
 <div class="wb-wrap">
   <div class="wb-head">
-    <h2>📋 销售工作台</h2>
+    <h2>销售工作台</h2>
     <span class="sub">{{ me.real_name }}（{{ me.get_role_display }}）</span>
   </div>
 
   <div class="quick" style="margin-bottom:20px">
-    <a href="/admin/customers/customer/add/">➕ 新建客户建档</a>
-    <a class="ghost" href="/admin/customers/customer/">📋 客户列表</a>
-    <a class="ghost" href="/admin/customers/customer/?status__exact=pool">🌊 客户池广场</a>
+    <a href="/admin/customers/customer/add/">新建客户建档</a>
+    <a class="ghost" href="/admin/customers/customer/">客户列表</a>
+    <a class="ghost" href="/admin/customers/customer/?status__exact=pool">客户池广场</a>
   </div>
 
   <div class="wb-grid">
@@ -56,12 +56,12 @@
       </div>
       {% endfor %}
     {% else %}
-      <div class="empty">✅ 暂无超期未跟进的客户</div>
+      <div class="empty">暂无超期未跟进的客户</div>
     {% endif %}
   </div>
 
   <div class="panel">
-    <h3>⚠️ 撞单标识客户</h3>
+    <h3>撞单标识客户</h3>
     {% if duplicates %}
       {% for c in duplicates %}
       <div class="row">
@@ -71,12 +71,12 @@
       </div>
       {% endfor %}
     {% else %}
-      <div class="empty">✅ 无撞单标识客户</div>
+      <div class="empty">无撞单标识客户</div>
     {% endif %}
   </div>
 
   <div class="panel">
-    <h3>📊 客户状态分布</h3>
+    <h3>客户状态分布</h3>
     {% for key, items in status_groups.items %}
       <div class="row"><span class="c">{{ key }}</span><span class="n">{{ items|length }}</span></div>
     {% empty %}

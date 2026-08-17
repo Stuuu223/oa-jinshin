@@ -156,3 +156,46 @@
     #content { padding: 16px; }
     .form-row input, .form-row select, .form-row textarea { max-width: 100%; }
 }
+
+/* ── 9. inline 表格布局修复:表头不换行(防竖排)、列宽合理、对齐统一 ── */
+.inline-group .tabular {
+    border-collapse: collapse;
+    width: 100%;
+}
+.inline-group .tabular th {
+    white-space: nowrap !important;      /* 表头不换行,杜绝"操作"竖排 */
+    vertical-align: middle;
+    padding: 8px 10px !important;
+    font-size: 13px;
+}
+.inline-group .tabular td {
+    vertical-align: middle;
+    padding: 6px 10px !important;
+    font-size: 13px;
+}
+/* 操作列(删除链接等)固定最小宽度,不被压缩 */
+.inline-group th.column-delete_link,
+.inline-group td.field-delete_link {
+    min-width: 60px;
+    white-space: nowrap;
+}
+/* 序号/短值列固定宽度,长文本列自适应 */
+.inline-group th.column-seq,
+.inline-group td.field-seq {
+    width: 40px;
+    text-align: center;
+}
+.inline-group th.column-created_at,
+.inline-group td.field-created_at {
+    min-width: 110px;
+    white-space: nowrap;
+}
+.inline-group th.column-next_follow_at,
+.inline-group td.field-next_follow_at {
+    min-width: 130px;
+    white-space: nowrap;
+}
+/* 跟进内容列给足宽度 */
+.inline-group td.field-content textarea {
+    min-width: 280px;
+}

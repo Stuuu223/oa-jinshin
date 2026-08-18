@@ -319,11 +319,17 @@ a.deletelink:hover {
 a:link, a:visited {
     color: #2563EB !important;
 }
-.quick a,
-.object-tools a,
-.object-tools .addlink,
-a.addlink,
-.button,
+/* 主按钮类(.quick a/.object-tools a/addlink)保持白字
+   注意:必须用 a:link/a:visited 提高特异性(0,2,1 > 0,1,1),
+   否则与 simpleui 的 a:link{color:green!important} 同特异性时靠加载顺序,主题后加载仍染绿 */
+.quick a:link,
+.quick a:visited,
+.object-tools a:link,
+.object-tools a:visited,
+a.addlink:link,
+a.addlink:visited,
+.button:link,
+.button:visited,
 input[type="submit"] {
     color: #fff !important;
 }

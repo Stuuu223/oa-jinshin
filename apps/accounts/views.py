@@ -111,8 +111,11 @@ def sales_workbench(request):
 
     me = request.user
     role = getattr(me, "role", None)
+    # 总经办(admin):看全部客户(老板全景视角)
+    if role == "admin":
+        my_customers = Customer.objects.all()
     # 销售主管可见组员+自己,销售仅自己
-    if role == "sales_lead" and me.team:
+    elif role == "sales_lead" and me.team:
         team_users = [u.pk for u in me.team.members.all()]
         my_customers = Customer.objects.filter(owner_id__in=team_users)
     else:

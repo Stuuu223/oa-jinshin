@@ -520,6 +520,16 @@
                     // data.id = new Date().getTime() + "" + Math.random();
                     data.id = data.eid;
                     data.index = index;
+                    // 金石修复:tab 数量上限(默认12个),超限自动关闭最旧的,防止堆积几十个tab导致工作台tab被挤丢
+                    var MAX_TABS = 12;
+                    if (this.tabs.length >= MAX_TABS) {
+                        for (var k = 0; k < this.tabs.length; k++) {
+                            if (this.tabs[k].id != '0' && this.tabs[k].id != data.id) {
+                                this.tabs.splice(k, 1);
+                                break;
+                            }
+                        }
+                    }
                     this.tabs.push(data);
                     this.tabModel = data.id;
                 }

@@ -1,0 +1,13 @@
+{% extends "admin/change_list.html" %}
+{% load i18n %}
+
+{% block content %}
+{% if request.GET.status__exact == "pool" %}
+<div style="margin:10px 0 16px;padding:12px 16px;border:1px solid #BFDBFE;background:#EFF6FF;border-radius:8px;color:#1D4ED8;font-size:13px;line-height:1.8">
+  <b>客户池广场</b>：这里显示的是<b>未成交释放的公海客户</b>（销售跟进未成单后释放，或手动释放到广场）。
+  <br>· 公海客户<b>全员可见、可领取</b>——选中记录后使用「领取公海客户」操作，归属到自己名下跟进。
+  <br>· 与「客户列表」不同：<b>客户列表是全部/自己的客户</b>，<b>客户池广场只是公海客户</b>。
+</div>
+{% endif %}
+{{ block.super }}
+{% endblock %}

@@ -87,6 +87,7 @@ SIMPLEUI_HOME_ACTION = False
 # 侧边栏自定义菜单——按业务分组,区分客户档案/客户池广场/回收站,避免"长得一样"
 SIMPLEUI_CONFIG = {
     "system_keep": False,
+    "dynamic": False,  # 只显示下方 menus 配置的菜单,不自动追加未配置模型(避免 auth/group、跟进记录等重复 tab)
     "menu_display": ["工作台", "客户管理", "成交管理", "通知", "系统管理"],
     "menus": [
         {

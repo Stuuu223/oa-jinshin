@@ -332,6 +332,44 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
         # 批量删除兜底走软删
         queryset.update(deleted_at=timezone.now(), updated_at=timezone.now())
 
+    def delete_view(self, request, object_id, extra_context=None):
+        """覆盖默认删除视图——客户一律软删进回收站,不受成交项目 PROTECT 外键阻止.
+
+        背景:Django 默认 delete_view 会调 get_deleted_objects 检查外键保护,
+        客户已成交(有 Project,on_delete=PROTECT)时返回"无法删除"页,连软删都不走,
+        导致"删了回收站看不到"。软删只是设 deleted_at、不真正删行,不违反 FK,
+        因此跳过受保护检查,直接确认后软删。
+        """
+        from django.core.exceptions import PermissionDenied
+        from django.http import HttpResponseRedirect, Http404
+        from django.urls import reverse
+
+        obj = self.get_object(request, object_id)
+        if obj is None:
+            raise Http404
+        if not self.has_delete_permission(request, obj):
+            raise PermissionDenied
+
+        if request.method == "POST":
+            self.delete_model(request, obj)
+            self.message_user(request, f"客户「{obj.company}」已删除(进入回收站,可恢复)", messages.SUCCESS)
+            return HttpResponseRedirect(reverse("admin:customers_customer_changelist"))
+
+        # GET:渲染确认页,deleted_objects 置空跳过 PROTECT 检查,总是可软删
+        context = {
+            **self.admin_site.each_context(request),
+            "title": f"删除客户: {obj.company}",
+            "object_name": "客户",
+            "object": obj,
+            "deleted_objects": [],
+            "model_count": {},
+            "queryset": [obj],
+            "opts": self.model._meta,
+        }
+        if extra_context:
+            context.update(extra_context)
+        return TemplateResponse(request, "admin/delete_confirmation.html", context)
+
     # ---------- 撞单预检（录入前弹窗的数据接口） ----------
 
     def get_urls(self):

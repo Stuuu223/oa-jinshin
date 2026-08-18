@@ -21,7 +21,17 @@
   .row .n { font-weight: 600; color: #2563EB; }
   .empty { color: #94A3B8; font-size: 13px; padding: 12px 0; }
   .quick { display: flex; gap: 10px; flex-wrap: wrap; }
-  .quick a:not(.ghost) { padding: 9px 16px; background: #2563EB; color: #fff !important; border-radius: 8px; text-decoration: none; font-size: 13px; border: 1px solid #2563EB; }
+  .quick a:not(.ghost),
+  .quick a.ghost {
+    display: inline-flex;
+    align-items: center;
+    padding: 9px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    line-height: 1.2;
+    text-decoration: none;
+  }
+  .quick a:not(.ghost) { background: #2563EB; color: #fff !important; border: 1px solid #2563EB; }
   .quick a:not(.ghost):hover { background: #1D4ED8; color: #fff !important; border-color: #1D4ED8; }
   .quick a.ghost { background: #fff; color: #2563EB !important; border: 1px solid #CBD5E1; }
   .quick a.ghost:hover { background: #EFF6FF; color: #1D4ED8; border-color: #2563EB; box-shadow: 0 1px 4px rgba(37,99,235,.18); }

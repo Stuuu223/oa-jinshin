@@ -281,7 +281,39 @@ div.form-row .datetimeshortcuts {
     font-weight: 500;
 }
 
-/* ── 14. 内容区补偿:顶部(返回52px+历史)与底部(提交)fixed 占位,防止遮挡 ── */
+/* ── 15. 统一按钮色板(SSOT)——根治"绿字蓝底"等配色冲突
+   主按钮:蓝底白字;次按钮/链接:白底蓝字;禁用主题默认的绿字蓝底组合 */
+.object-tools a,
+.object-tools .addlink,
+a.addlink,
+.button,
+input[type="submit"] {
+    background: #2563EB !important;
+    color: #fff !important;
+    border: none !important;
+    border-radius: 8px;
+    padding: 8px 18px;
+    text-decoration: none;
+}
+.object-tools a:hover,
+.object-tools .addlink:hover,
+a.addlink:hover,
+.button:hover,
+input[type="submit"]:hover {
+    background: #1D4ED8 !important;
+    color: #fff !important;
+}
+/* 次按钮/普通链接:白底蓝字,不冲突 */
+.object-tools a.deletelink,
+a.deletelink {
+    background: #fff !important;
+    color: #DC2626 !important;
+    border: 1px solid #DC2626 !important;
+}
+.object-tools a.deletelink:hover,
+a.deletelink:hover {
+    background: #FEF2F2 !important;
+}
 #content {
     padding-top: 120px !important;   /* 返回 + 历史按钮高度 */
     padding-bottom: 80px !important; /* 底部提交按钮高度 */

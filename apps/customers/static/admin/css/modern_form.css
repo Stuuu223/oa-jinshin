@@ -333,12 +333,17 @@ a.addlink:visited,
 input[type="submit"] {
     color: #fff !important;
 }
-.quick a:hover,
-.object-tools a:hover,
+.quick a:not(.ghost):hover,
+.object-tools a:not(.deletelink):hover,
 a.addlink:hover,
 .button:hover,
 input[type="submit"]:hover {
     color: #fff !important;
+}
+/* ghost 次按钮(白底蓝字):hover 保持深蓝字,不被主按钮 hover 规则误伤 */
+.quick a.ghost:hover {
+    color: #1D4ED8 !important;
+    background: #F8FAFC !important;
 }
 /* 删除/危险链接保持红字(不被全局绿覆盖) */
 a.deletelink:link, a.deletelink:visited {

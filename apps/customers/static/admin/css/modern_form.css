@@ -340,10 +340,12 @@ a.addlink:hover,
 input[type="submit"]:hover {
     color: #fff !important;
 }
-/* ghost 次按钮(白底蓝字):hover 保持深蓝字,不被主按钮 hover 规则误伤 */
+/* ghost 次按钮(白底蓝字):hover 有明显反馈(边框/背景/字色三重变化) */
 .quick a.ghost:hover {
     color: #1D4ED8 !important;
-    background: #F8FAFC !important;
+    background: #EFF6FF !important;       /* 浅蓝底,明显区别于白底 */
+    border-color: #2563EB !important;     /* 边框变品牌蓝 */
+    box-shadow: 0 1px 4px rgba(37,99,235,.18); /* 轻微投影增强可感知 */
 }
 /* 删除/危险链接保持红字(不被全局绿覆盖) */
 a.deletelink:link, a.deletelink:visited {

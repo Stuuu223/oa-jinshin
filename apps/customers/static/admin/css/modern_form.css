@@ -261,23 +261,24 @@ div.form-row .datetimeshortcuts {
     margin-left: 0 !important;
 }
 
-/* ── 13. 顶部返回按钮(el-page-header):fixed 顶部固定 ── */
+/* ── 13. 顶部返回按钮(el-page-header):static 跟随内容流,不遮挡下方内容
+   (原 fixed 顶部固定会盖住草稿横幅/表单顶部,用户反馈遮挡) */
 .page-header,
 .el-page-header {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    z-index: 98;
+    position: static;
     background: #fff;
-    padding: 10px 24px !important;
-    margin: 0 !important;
+    padding: 10px 0 !important;
+    margin: 0 0 8px !important;
     border-bottom: 1px solid #F1F5F9;
-    box-shadow: 0 2px 8px rgba(0,0,0,.05);
 }
 .el-page-header__left {
     cursor: pointer;
     color: #2563EB;
     font-weight: 500;
+}
+/* ── 14. 内容区补偿:仅底部提交按钮 fixed 占位;顶部不再固定按钮,无遮挡 */
+#content {
+    padding-top: 16px !important;
+    padding-bottom: 80px !important; /* 底部提交按钮高度 */
 }
 

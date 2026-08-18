@@ -38,8 +38,32 @@
     return data;
   }
 
+  // 表单初始快照:仅记录用户真实修改过的字段(默认值/隐藏字段不算"有内容")
+  var initialData = null;
+  function snapshotInitial() {
+    try {
+      initialData = collect();
+      // 清掉服务端预填的隐藏字段标记,避免误判为"用户输入"
+    } catch (e) { initialData = {}; }
+  }
+  snapshotInitial();
+
+  function hasRealChanges() {
+    var now = collect();
+    for (var k in now) {
+      if ((now[k] || "") !== ((initialData && initialData[k]) || "")) return true;
+    }
+    return false;
+  }
+
   function saveDraft() {
     try {
+      // 用户无真实修改(仅默认值/未动过)→ 清除草稿,不弹横幅
+      if (!hasRealChanges()) {
+        localStorage.removeItem(KEY);
+        mark("no-real-changes");
+        return;
+      }
       var data = collect();
       var empty = true;
       for (var k in data) { if (data[k]) { empty = false; break; } }

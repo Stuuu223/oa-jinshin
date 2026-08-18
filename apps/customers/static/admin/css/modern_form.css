@@ -120,6 +120,29 @@ div.form-row .help, .fieldBox .help {
     padding: 0 !important;
 }
 
+/* ── 6. 行内表格(inline)字体:Django admin base.css inline 表格仅 0.75-0.8125rem(约10-11px),提升到 13-14px ── */
+.inline-group .tabular th,
+.inline-group .tabular td,
+.inline-group .tabular input,
+.inline-group .tabular textarea,
+.inline-group .tabular select,
+.inline-group .tabular p {
+    font-size: 14px !important;
+}
+.inline-group .tabular th {
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    color: #334155 !important;
+}
+.inline-group .tabular td,
+.inline-group .tabular th {
+    padding: 8px 10px !important;
+}
+.inline-group .inline-heading,
+.inline-group h2 {
+    font-size: 14px !important;
+}
+
 /* ── 6. 提交按钮区:优雅化 + fixed 固定底部(长表单不用滑到底) ── */
 .submit-row {
     position: fixed;

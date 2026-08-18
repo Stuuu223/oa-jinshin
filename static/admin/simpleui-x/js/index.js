@@ -506,6 +506,12 @@
 
                 if (exists) {
                     this.tabModel = exists.id;
+                    // 金石修复:iframe 内导航后(如工作台→客户池)再点侧边栏菜单,
+                    // 若 tab 实际内容(newUrl)与菜单目标(url)不一致,重置 url 强制 iframe 重新加载,避免"锁死回不去"
+                    if (exists.newUrl && data.url && exists.newUrl != data.url) {
+                        exists.url = data.url;
+                        exists.newUrl = null;
+                    }
                 } else {
                     //其他的网址loading会一直转
                     if (data.url && data.url.indexOf('http') != 0) {

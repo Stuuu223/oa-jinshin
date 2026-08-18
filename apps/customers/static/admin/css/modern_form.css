@@ -319,11 +319,10 @@ a.deletelink:hover {
 a:link, a:visited {
     color: #2563EB !important;
 }
-/* 主按钮类(.quick a/.object-tools a/addlink)保持白字
+/* 主按钮类(.object-tools a/addlink/input submit)保持白字
    注意:必须用 a:link/a:visited 提高特异性(0,2,1 > 0,1,1),
-   否则与 simpleui 的 a:link{color:green!important} 同特异性时靠加载顺序,主题后加载仍染绿 */
-.quick a:link,
-.quick a:visited,
+   否则与 simpleui 的 a:link 同特异性时靠加载顺序,主题后加载仍染绿。
+   .quick 按钮样式已在 sales_workbench.html 模板内联定义(唯一来源),此处不再覆盖 */
 .object-tools a:link,
 .object-tools a:visited,
 a.addlink:link,
@@ -333,19 +332,11 @@ a.addlink:visited,
 input[type="submit"] {
     color: #fff !important;
 }
-.quick a:not(.ghost):hover,
 .object-tools a:not(.deletelink):hover,
 a.addlink:hover,
 .button:hover,
 input[type="submit"]:hover {
     color: #fff !important;
-}
-/* ghost 次按钮(白底蓝字):hover 有明显反馈(边框/背景/字色三重变化) */
-.quick a.ghost:hover {
-    color: #1D4ED8 !important;
-    background: #EFF6FF !important;       /* 浅蓝底,明显区别于白底 */
-    border-color: #2563EB !important;     /* 边框变品牌蓝 */
-    box-shadow: 0 1px 4px rgba(37,99,235,.18); /* 轻微投影增强可感知 */
 }
 /* 删除/危险链接保持红字(不被全局绿覆盖) */
 a.deletelink:link, a.deletelink:visited {

@@ -121,6 +121,38 @@ class ProjectAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
     list_filter = ("site_progress", "is_invoiced")
     readonly_fields = ("created_at", "deal_at") + tuple(MONEY_FIELDS)
 
+    # 表单布局规范:短字段并排(2列),长字段(note)独占整行,时间字段组合
+    fieldsets = (
+        ("项目基本信息", {
+            "fields": (
+                ("company_snapshot", "contact_name_snapshot"),
+                ("phone_snapshot", "deal_business"),
+                ("source_snapshot", "quote_amount"),
+                "note",
+            ),
+        }),
+        ("成交与归属", {
+            "fields": (
+                ("sales", "consultant"),
+                ("contract_entity", "is_invoiced"),
+                ("is_tax_included", "deal_at"),
+                "created_at",
+            ),
+        }),
+        ("建站信息", {
+            "fields": (
+                ("site_category", "site_progress"),
+                "site_info",
+            ),
+        }),
+        ("财务汇总(自动核算)", {
+            "fields": (
+                ("total_income_display", "total_expense_display"),
+                "profit_display",
+            ),
+        }),
+    )
+
     actions = ["assign_consultant"]
 
     VIEW_ROLES = PROJECT_VIEW_ROLES

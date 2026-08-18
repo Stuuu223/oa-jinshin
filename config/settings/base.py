@@ -81,6 +81,7 @@ SIMPLEUI_LOGO = ""
 SIMPLEUI_DEFAULT_THEME = "light"
 # 首页跳转到老板总览面板(simpleui 官方配置)
 SIMPLEUI_HOME_PAGE = "/admin/dashboard/"
+SIMPLEUI_INDEX = "/admin/dashboard/"  # 首页/logo点击跳转目标(缺失时goIndex('')跳转空白)
 SIMPLEUI_HOME_ICON = "fa fa-dashboard"
 SIMPLEUI_HOME_QUICK = False
 SIMPLEUI_HOME_ACTION = False

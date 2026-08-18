@@ -13,6 +13,32 @@
 {{ block.super }}
 <link rel="stylesheet" type="text/css" href="{% static 'admin/css/modern_form.css' %}">
 <script>
+/* 金石企服 · simpleui 标签页白名单清理
+   根因:simpleui 把打开过的 tab 存 sessionStorage['tabs'],刷新后恢复;
+   dynamic:False 只清菜单,历史 tab(如 auth/group 组、跟进记录等残留)仍会恢复显示。
+   本脚本在页面加载时过滤 tabs,只保留当前菜单白名单 URL,残留项自动清除。 */
+(function () {
+    var ALLOW = [
+        '/admin/dashboard/', '/admin/sales-workbench/', '/admin/consult-workbench/',
+        '/admin/customers/customer/', '/admin/customers/recycledcustomer/',
+        '/admin/projects/project/', '/admin/accounts/notification/',
+        '/admin/accounts/user/', '/admin/accounts/department/', '/admin/accounts/team/',
+    ];
+    try {
+        var raw = sessionStorage.getItem('tabs');
+        if (raw) {
+            var tabs = JSON.parse(raw);
+            var ok = tabs.filter(function (t) {
+                return t && t.url && ALLOW.some(function (p) { return t.url.indexOf(p) === 0; });
+            });
+            if (ok.length !== tabs.length) {
+                sessionStorage.setItem('tabs', JSON.stringify(ok));
+            }
+        }
+    } catch (e) { /* 静默,不打断页面 */ }
+})();
+</script>
+<script>
 /* 金石企服 · 侧边栏信息箱未读徽标(细则第一页·六:信息箱要有明显的未读数量标识) */
 (function () {
     function fetchUnread() {

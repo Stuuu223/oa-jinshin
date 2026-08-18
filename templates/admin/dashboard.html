@@ -17,10 +17,10 @@
   .panel { border: 1px solid #E5E7EB; border-radius: 12px; background: #fff; padding: 16px 20px; }
   .panel h3 { margin: 0 0 12px; font-size: 14px; color: #334155; }
   .bar-row { display: flex; align-items: center; margin-bottom: 8px; font-size: 13px; }
-  .bar-row .name { width: 70px; color: #475569; }
-  .bar-row .bar { flex: 1; height: 12px; background: #F1F5F9; border-radius: 6px; overflow: hidden; }
+  .bar-row .name { width: 70px; color: #334155; order: 0; }
+  .bar-row .bar { flex: 1; height: 12px; background: #EEF2F7; border-radius: 6px; overflow: hidden; order: 1; }
   .bar-row .bar i { display: block; height: 100%; border-radius: 6px; }
-  .bar-row .num { width: 46px; text-align: right; color: #334155; font-weight: 600; }
+  .bar-row .num { min-width: 42px; color: #1E293B; font-weight: 700; order: 0; text-align: left; }
   .todo-list { list-style: none; margin: 0; padding: 0; }
   .todo-list li { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #F1F5F9; font-size: 13px; color: #334155; }
   .todo-list li:last-child { border-bottom: none; }

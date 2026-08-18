@@ -109,13 +109,13 @@ div.form-row textarea:focus {
 /* placeholder 灰色 */
 div.form-row input::placeholder,
 div.form-row textarea::placeholder {
-    color: #94A3B8;
+    color: #64748B;
 }
 
 /* ── 5. 帮助提示:小字灰显 ── */
 div.form-row .help, .fieldBox .help {
     font-size: 11px !important;
-    color: #94A3B8 !important;
+    color: #64748B !important;
     margin: 4px 0 0 !important;
     padding: 0 !important;
 }

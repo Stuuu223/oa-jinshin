@@ -120,27 +120,42 @@ div.form-row .help, .fieldBox .help {
     padding: 0 !important;
 }
 
-/* ── 6. 行内表格(inline)字体:Django admin base.css inline 表格仅 0.75-0.8125rem(约10-11px),提升到 13-14px ── */
-.inline-group .tabular th,
-.inline-group .tabular td,
-.inline-group .tabular input,
-.inline-group .tabular textarea,
-.inline-group .tabular select,
-.inline-group .tabular p {
+/* ── 6. 行内表格(inline)字体:Django admin base.css inline 表格仅 0.75-0.8125rem(约10-11px),提升到 13-14px
+   注意:实际渲染结构为 <div class="tabular inline-related"><fieldset><table>,无 .inline-group 包裹,须用 .tabular 直接选择 ── */
+.tabular th,
+.tabular td,
+.tabular input,
+.tabular textarea,
+.tabular select,
+.tabular p {
     font-size: 14px !important;
 }
-.inline-group .tabular th {
+.tabular th {
     font-size: 13px !important;
     font-weight: 600 !important;
     color: #334155 !important;
 }
-.inline-group .tabular td,
-.inline-group .tabular th {
+.tabular td,
+.tabular th {
     padding: 8px 10px !important;
 }
-.inline-group .inline-heading,
-.inline-group h2 {
+.tabular .inline-heading,
+.tabular h2 {
     font-size: 14px !important;
+}
+
+/* ── 6.1 隐藏 original 列(重复的"公司 支出 xx"信息,无用户价值) + 清理"删除?"复选框列 ── */
+.tabular th.original,
+.tabular td.original,
+.tabular td.original p {
+    display: none !important;   /* 消除 -42px 负margin乱飘 + absolute定位 */
+    width: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+.tabular th.delete,
+.tabular td.delete {
+    display: none !important;   /* 清理"删除?"复选框列 */
 }
 
 /* ── 6. 提交按钮区:优雅化 + fixed 固定底部(长表单不用滑到底) ── */

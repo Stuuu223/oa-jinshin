@@ -118,6 +118,8 @@
             tabs: [home],
             tabModel: 0,
             tabIndex: 0,
+            // 金石修复:单内容区模式——curUrl 驱动主 iframe,点菜单直接切换
+            curUrl: (typeof home !== 'undefined' && home.url) ? home.url : '/admin/dashboard/',
             menus: [],
             menuActive: '0',
             breadcrumbs: [],
@@ -473,14 +475,14 @@
                 if (data.breadcrumbs) {
                     this.breadcrumbs = data.breadcrumbs;
                 }
-                //如果data没有eid，就直接打开或者添加，根据url
-                if (!data.eid) {
-                    data.eid = new Date().getTime() + "" + Math.random();
+                // 金石修复:单内容区模式——点菜单直接切换主 iframe
+                if (data.url) {
+                    this.curUrl = data.url;
                 }
-
                 if (index) {
                     this.menuActive = String(index);
                 }
+                changeUrl(data);
                 if (selected) {
                     //找到name，打开
                     // console.log(data)

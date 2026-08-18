@@ -284,20 +284,44 @@ div.form-row .datetimeshortcuts {
     margin-left: 0 !important;
 }
 
-/* ── 13. 顶部返回按钮(el-page-header):static 跟随内容流,不遮挡下方内容
-   (原 fixed 顶部固定会盖住草稿横幅/表单顶部,用户反馈遮挡) */
+/* ── 13. 顶部返回按钮(el-page-header):统一为'←返回'按钮样式(白底蓝字圆角边框)
+   (替换 simpleui 极简文字链,与 change_list 的返回按钮视觉一致) */
 .page-header,
 .el-page-header {
     position: static;
+    display: inline-block;
     background: #fff;
-    padding: 10px 0 !important;
-    margin: 0 0 8px !important;
-    border-bottom: 1px solid #F1F5F9;
+    border: 1px solid #CBD5E1;
+    border-radius: 8px;
+    padding: 6px 14px;
+    margin: 0 0 12px !important;
+    cursor: pointer;
+    transition: background .15s, border-color .15s;
+}
+.page-header:hover,
+.el-page-header:hover {
+    background: #F8FAFC;
+    border-color: #2563EB;
 }
 .el-page-header__left {
     cursor: pointer;
     color: #2563EB;
-    font-weight: 500;
+    font-weight: 600;
+}
+.el-page-header__left .el-icon-back {
+    font-size: 13px;
+    margin-right: 4px;
+}
+.el-page-header__title {
+    font-size: 13px;
+    font-weight: 600;
+}
+/* 右侧标题(如'修改 客户')保持普通文字,不被按钮样式影响 */
+.el-page-header__content {
+    color: #334155;
+    font-size: 15px;
+    font-weight: 600;
+    margin-left: 12px;
 }
 /* ── 14. 内容区补偿:仅底部提交按钮 fixed 占位;顶部不再固定按钮,无遮挡 */
 #content {

@@ -50,7 +50,7 @@ div.form-row:last-child {
 div.form-row label, div.form-row .label, .fieldBox label {
     font-weight: 600 !important;
     color: #334155 !important;
-    font-size: 13px !important;
+    font-size: 14px !important;
 }
 /* 必填标记:红色星号 */
 div.form-row label.required::after,
@@ -114,7 +114,7 @@ div.form-row textarea::placeholder {
 
 /* ── 5. 帮助提示:小字灰显 ── */
 div.form-row .help, .fieldBox .help {
-    font-size: 11px !important;
+    font-size: 13px !important;
     color: #64748B !important;
     margin: 4px 0 0 !important;
     padding: 0 !important;

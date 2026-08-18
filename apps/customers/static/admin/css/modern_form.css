@@ -314,6 +314,30 @@ a.deletelink {
 a.deletelink:hover {
     background: #FEF2F2 !important;
 }
+/* ── 16. 覆盖 simpleui 主题全局绿色链接规则(#36b24a 染绿所有 a:link)
+   统一链接色为品牌蓝;主按钮类(.quick a/.object-tools a/addlink)保持白字 */
+a:link, a:visited {
+    color: #2563EB !important;
+}
+.quick a,
+.object-tools a,
+.object-tools .addlink,
+a.addlink,
+.button,
+input[type="submit"] {
+    color: #fff !important;
+}
+.quick a:hover,
+.object-tools a:hover,
+a.addlink:hover,
+.button:hover,
+input[type="submit"]:hover {
+    color: #fff !important;
+}
+/* 删除/危险链接保持红字(不被全局绿覆盖) */
+a.deletelink:link, a.deletelink:visited {
+    color: #DC2626 !important;
+}
 #content {
     padding-top: 120px !important;   /* 返回 + 历史按钮高度 */
     padding-bottom: 80px !important; /* 底部提交按钮高度 */

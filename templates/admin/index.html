@@ -22,10 +22,11 @@
     {% endblock %}
     {% block head %}
 <script>
-/* 金石企服 · simpleui 标签页白名单清理
+/* 金石企服 · simpleui 标签页白名单清理(强化版)
    根因:simpleui 把打开过的 tab 存 sessionStorage['tabs'],刷新后恢复;
-   dynamic:False 只清菜单,历史 tab(如 auth/group 组、跟进记录等残留)仍会恢复显示。
-   本脚本在页面加载时过滤 tabs,只保留当前菜单白名单 URL,残留项自动清除。 */
+   且 menus 变化时 watcher 可能重新生成 tab。本脚本:
+   1) 页面加载时(先于 simpleui index.js)清理 sessionStorage 中非白名单 tab;
+   2) DOMContentLoaded 后延迟再清一次(Vue 渲染后兜底),防止 watcher 加回。 */
 (function () {
     var ALLOW = [
         '/admin/dashboard/', '/admin/sales-workbench/', '/admin/consult-workbench/',
@@ -33,18 +34,21 @@
         '/admin/projects/project/', '/admin/accounts/notification/',
         '/admin/accounts/user/', '/admin/accounts/department/', '/admin/accounts/team/',
     ];
-    try {
-        var raw = sessionStorage.getItem('tabs');
-        if (raw) {
+    function clean() {
+        try {
+            var raw = sessionStorage.getItem('tabs');
+            if (!raw) return;
             var tabs = JSON.parse(raw);
             var ok = tabs.filter(function (t) {
-                return t && t.url && ALLOW.some(function (p) { return t.url.indexOf(p) === 0; });
+                return t && t.id == '0' || (t && t.url && ALLOW.some(function (p) { return t.url.indexOf(p) === 0; }));
             });
             if (ok.length !== tabs.length) {
                 sessionStorage.setItem('tabs', JSON.stringify(ok));
             }
-        }
-    } catch (e) { /* 静默,不打断页面 */ }
+        } catch (e) { /* 静默 */ }
+    }
+    clean();  // 先于 simpleui index.js 执行
+    document.addEventListener('DOMContentLoaded', function () { setTimeout(clean, 500); });  // Vue 渲染后兜底
 })();
 </script>
     {% endblock %}

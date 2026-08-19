@@ -31,7 +31,8 @@
         var dups = (d && d.duplicates) || [];
         if (dups.length) {
           var names = dups.map(function (x) {
-            return x.company + "（" + (x.owner || "无归属") + "）";
+            // 标明'哪个同事'录入的:客户名(张三录入),owner为空时用录入人
+            return x.company + "（" + (x.created_by || x.owner || "未知") + "录入）";
           }).join("、");
           if (!window.confirm(
             "与同事录入相同信息：" + names +

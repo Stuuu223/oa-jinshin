@@ -177,6 +177,34 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
     empty_value_display = "—"
     list_filter = (OwnerFilter, StatusFilter, SourceFilter, QualificationFilter)
     search_fields = ("company", "contact_name", "phone")
+
+    # 需求资质多选:JSONField 存列表,表单用多选复选框
+    QUALIFICATION_CHOICES = (
+        ("动漫网文", "动漫网文"),
+        ("表演网文", "表演网文"),
+        ("音乐网文", "音乐网文"),
+        ("游戏文网文", "游戏文网文"),
+        ("混合网文", "混合网文"),
+        ("ICP许可证", "ICP许可证"),
+        ("EDI许可证", "EDI许可证"),
+        ("ICPEDI", "ICPEDI（组合套餐）"),
+        ("广播证", "广播电视节目制作经营许可证"),
+    )
+
+    def formfield_for_dbfield(self, db_field, **kwargs):
+        if db_field.name == "qualification_interest":
+            # JSONField 的 formfield 会传 encoder 参数给 MultipleChoiceField 导致 TypeError,
+            # 因此不走 super() 路径,直接构造多选复选框字段
+            from django import forms
+            field = forms.MultipleChoiceField(
+                choices=self.QUALIFICATION_CHOICES,
+                widget=forms.CheckboxSelectMultiple,
+                required=False,
+                label=db_field.verbose_name,
+                help_text=db_field.help_text,
+            )
+            return field
+        return super().formfield_for_dbfield(db_field, **kwargs)
     readonly_fields = (
         "source_signature", "created_at", "updated_at", "pool_entered_at", "created_by", "square_released_by",
         "duplicate_flagged_at",
@@ -409,8 +437,10 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
             {
                 "company": c.company,
                 "owner": c.owner.real_name if c.owner else "公海/无归属",
+                # 录入人:标明'哪个同事'录的(客户可能在公海,owner为空,但created_by是录入者)
+                "created_by": c.created_by.real_name if c.created_by else "未知",
             }
-            for c in qs.select_related("owner")[:5]
+            for c in qs.select_related("owner", "created_by")[:5]
         ]
         return JsonResponse({"duplicates": data})
 

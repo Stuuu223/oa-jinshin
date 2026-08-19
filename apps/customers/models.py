@@ -44,21 +44,11 @@ class Customer(models.Model):
     company = models.CharField("公司名称", max_length=128, db_index=True)
     contact_name = models.CharField("对接人", max_length=32)
     phone = models.CharField("联系电话", max_length=32, db_index=True)
-    qualification_interest = models.CharField(
-        "需求资质",
-        max_length=32,
-        choices=[
-            ("动漫网文", "动漫网文"),
-            ("表演网文", "表演网文"),
-            ("音乐网文", "音乐网文"),
-            ("游戏文网文", "游戏文网文"),
-            ("混合网文", "混合网文"),
-            ("ICP许可证", "ICP许可证"),
-            ("EDI许可证", "EDI许可证"),
-            ("ICPEDI", "ICPEDI（组合套餐）"),
-            ("广播证", "广播电视节目制作经营许可证"),
-        ],
+    qualification_interest = models.JSONField(
+        "需求资质(可多选)",
+        default=list,
         blank=True,
+        help_text="客户可同时咨询多个资质,如 ICP + EDI",
     )
     source = models.CharField("来源", max_length=16, choices=Source.choices, default=Source.OTHER)
     quote_amount = models.DecimalField(

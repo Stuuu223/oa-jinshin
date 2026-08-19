@@ -279,6 +279,9 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
         # 注意顺序:必须先落库拿到 pk,再写归属历史（旧代码反着来,新增客户直接 500）
         if not change:
             obj.created_by = request.user
+            # 新增客户归属默认 = 当前建档销售（细则:哪个销售上传自动署名,客户归其名下）
+            if not obj.owner and getattr(request.user, "role", None) in (Role.SALES, Role.SALES_LEAD):
+                obj.owner = request.user
         super().save_model(request, obj, form, change)
         if not change:
             CustomerOwnerHistory.objects.create(

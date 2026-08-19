@@ -42,7 +42,7 @@ class SoftDeleteManager(models.Manager):
 class Customer(models.Model):
     """客户档案——唯一建档入口为销售部."""
     company = models.CharField("公司名称", max_length=128, db_index=True)
-    contact_name = models.CharField("对接人", max_length=32)
+    contact_name = models.CharField("客户联系人", max_length=32)
     phone = models.CharField("联系电话", max_length=32, db_index=True)
     qualification_interest = models.JSONField(
         "需求资质(可多选)",

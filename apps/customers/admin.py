@@ -173,7 +173,7 @@ _ROLE_ACTIONS = {
 
 @admin.register(Customer)
 class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
-    list_display = ("summary", "phone_masked", "owner", "quote_amount", "last_follow_at")
+    list_display = ("summary", "phone_masked", "owner", "follow_staff_display", "quote_amount", "last_follow_at")
     empty_value_display = "—"
     list_filter = (OwnerFilter, StatusFilter, SourceFilter, QualificationFilter)
     search_fields = ("company", "contact_name", "phone")

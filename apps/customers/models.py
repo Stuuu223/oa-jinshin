@@ -138,6 +138,21 @@ class Customer(models.Model):
             return f"客户池广场-{self.square_released_by.real_name}"
         return self.get_source_display()
 
+    @property
+    def follow_staff_display(self) -> str:
+        """跟进人员多次署名+时间——细则第一页·一:在谁的客户池里自动署名+时间,
+        再次分配第二人则二次署名+时间,三次则三次署名+时间.
+
+        按归属历史 seq 依次展示:张三 08-16 / 李四 08-17 / 王五 08-18
+        """
+        parts = []
+        history = self.owner_history.filter(revoked_at__isnull=True).order_by("seq")
+        for h in history[:3]:
+            who = h.to_user.real_name if h.to_user else "未知"
+            when = h.assigned_at.strftime("%m-%d") if h.assigned_at else ""
+            parts.append(f"{who} {when}".rstrip())
+        return " / ".join(parts) if parts else "—"
+
 
 class RecycledCustomer(Customer):
     """回收站视图（代理模型）——细则第一页·七:总经办查看已删除客户.

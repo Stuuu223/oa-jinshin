@@ -34,8 +34,8 @@ def dashboard(request):
         }.get(role)
         if workbench:
             return redirect(reverse(workbench))
-        # 技术等无工作台角色:回 admin 首页
-        return redirect("/admin/")
+        # 无工作台角色(技术等):回可达页面(项目列表)——不能回 /admin/(首页=dashboard 会再次 302,死循环)
+        return redirect("/admin/projects/project/")
 
     # ── 客户漏斗 ──
     total_customers = Customer.objects.count()

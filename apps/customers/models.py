@@ -139,7 +139,7 @@ class Customer(models.Model):
         return self.get_source_display()
 
     @property
-    def follow_staff_display(self) -> str:
+    def follow_staff_display(self):
         """跟进人员多次署名+时间——细则第一页·一:在谁的客户池里自动署名+时间,
         再次分配第二人则二次署名+时间,三次则三次署名+时间.
 
@@ -152,6 +152,8 @@ class Customer(models.Model):
             when = h.assigned_at.strftime("%m-%d") if h.assigned_at else ""
             parts.append(f"{who} {when}".rstrip())
         return " / ".join(parts) if parts else "—"
+    # property 对象不能直接设 short_description,须在底层函数上设置
+    follow_staff_display.fget.short_description = "跟进人员"
 
 
 class RecycledCustomer(Customer):

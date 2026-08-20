@@ -376,6 +376,16 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
         obj.deleted_at = timezone.now()
         obj.deleted_by = request.user if request.user.is_authenticated else None
         obj.save(update_fields=["deleted_at", "deleted_by", "updated_at"])
+        # 留痕:删除操作记录日志
+        try:
+            OperationLog.objects.create(
+                user=request.user if request.user.is_authenticated else None,
+                action="删除",
+                target=f"客户 {obj.company}",
+                detail="软删进回收站",
+            )
+        except Exception:
+            pass
 
     def delete_queryset(self, request, queryset):
         # 批量删除兜底走软删,记录删除人(回收站按角色分权依据)
@@ -383,6 +393,16 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
             deleted_at=timezone.now(), updated_at=timezone.now(),
             deleted_by=request.user if request.user.is_authenticated else None,
         )
+        # 留痕:批量删除记录日志
+        try:
+            OperationLog.objects.create(
+                user=request.user if request.user.is_authenticated else None,
+                action="删除",
+                target="客户（批量）",
+                detail=f"{queryset.count()} 个客户软删进回收站",
+            )
+        except Exception:
+            pass
 
     def delete_view(self, request, object_id, extra_context=None):
         """覆盖默认删除视图——客户一律软删进回收站,不受成交项目 PROTECT 外键阻止.
@@ -593,6 +613,16 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
             deleted_at=timezone.now(), updated_at=timezone.now(),
             deleted_by=request.user if request.user.is_authenticated else None,
         )
+        # 留痕:软删操作记录日志
+        try:
+            OperationLog.objects.create(
+                user=request.user if request.user.is_authenticated else None,
+                action="删除",
+                target="客户（批量）",
+                detail=f"{updated} 个客户软删进回收站",
+            )
+        except Exception:
+            pass
         self.message_user(
             request, f"{updated} 个客户已移入回收站（可查看/恢复）", messages.SUCCESS,
         )
@@ -853,11 +883,36 @@ class RecycledCustomerAdmin(RolePermissionsMixin, admin.ModelAdmin):
     @admin.action(description="恢复到客户列表")
     def restore(self, request, queryset):
         updated = queryset.update(deleted_at=None, updated_at=timezone.now())
+        # 留痕:恢复操作记录日志
+        try:
+            OperationLog.objects.create(
+                user=request.user if request.user.is_authenticated else None,
+                action="恢复",
+                target="客户（回收站）",
+                detail="、".join(str(c.company) for c in queryset[:10]) or "(无)",
+            )
+        except Exception:
+            pass
         self.message_user(request, f"已恢复 {updated} 个客户到客户列表", messages.SUCCESS)
 
-    @admin.action(description="彻底删除（不可恢复）")
+    @admin.action(description="彻底删除（不可恢复，仅总经办）")
     def purge(self, request, queryset):
+        # 非管理角色禁彻底删除——销售/主管只能软删进回收站,彻底删除仅总经办
+        role = getattr(request.user, "role", None)
+        if role != Role.ADMIN:
+            self.message_user(request, "无权限彻底删除（仅总经办可操作）", messages.ERROR)
+            return
         count, _ = queryset.delete()
+        # 留痕:彻底删除记录操作日志
+        try:
+            OperationLog.objects.create(
+                user=request.user if request.user.is_authenticated else None,
+                action="彻底删除",
+                target="客户（回收站）",
+                detail="、".join(str(c.company) for c in queryset[:10]) or "(无)",
+            )
+        except Exception:
+            pass
         self.message_user(request, f"已彻底删除 {count} 个客户（含跟进/归属/附图数据）", messages.WARNING)
 
 

@@ -262,7 +262,11 @@
                 icon: 'fas fa-home'
             };
         {% endif %}
+        {% if request.user.role != 'tech' %}
         menus.unshift(home);
+        {% endif %}
+        // 空分组过滤:models 为空的 submenu 不显示(如技术视角'工作台'空壳)
+        menus = menus.filter(function (m) { return !m.models || m.models.length > 0; });
         window.language = {
             change_password: '{% trans 'Change password' %}',
             logout: '退出',

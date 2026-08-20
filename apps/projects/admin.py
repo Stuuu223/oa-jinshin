@@ -278,7 +278,7 @@ class ProjectAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
         if obj.tech_assigned_id:
             return format_html('<span style="color:#1a7f37">{}</span>', obj.tech_assigned.real_name)
         return format_html(
-            '<a href="/admin/projects/project/{}/claim/" style="background:#2563EB;color:#fff;padding:4px 12px;border-radius:6px;text-decoration:none;font-size:12px">领取</a>',
+            '<a href="/admin/projects/project/{}/claim/" style="background:#2563EB;color:#fff!important;padding:4px 12px;border-radius:6px;text-decoration:none;font-size:12px;display:inline-block">领取</a>',
             obj.pk,
         )
 

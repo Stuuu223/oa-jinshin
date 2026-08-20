@@ -30,14 +30,20 @@
       .then(function (d) {
         var dups = (d && d.duplicates) || [];
         if (dups.length) {
+          // 组装'你填的哪项=值':让用户一眼看到自己填了什么与已有客户相同
+          var mine = [];
+          [["公司名", companyEl], ["联系人", contactEl], ["电话", phoneEl]].forEach(function (pair) {
+            var v = (pair[1] && pair[1].value || "").trim();
+            if (v) mine.push(pair[0] + "「" + v + "」");
+          });
+          var mineText = mine.length ? mine.join("、") : "输入的信息";
           var names = dups.map(function (x) {
-            // 标明'哪个同事'录入的 + '相同在哪'(公司名/联系人/电话)
             var who = x.created_by || x.owner || "未知";
             var same = (x.match_fields && x.match_fields.length) ? x.match_fields.join("、") : "信息";
             return x.company + "（" + who + "录入，" + same + "相同）";
           }).join("、");
           if (!window.confirm(
-            "与同事录入相同" + (dups[0].match_fields && dups[0].match_fields.length ? dups[0].match_fields.join("、") : "信息") + "：" + names +
+            "你填的" + mineText + " 与已有客户相同：\n" + names +
             "\n\n本条信息依然会录入系统并做标识，请与公司总经办联系。\n确定继续录入吗？"
           )) {
             return;

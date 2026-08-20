@@ -285,7 +285,8 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
         user = request.user
         role = getattr(user, "role", None)
         if role == Role.SALES:
-            return qs.filter(owner=user)
+            # 销售看自己客户 + 公海客户(细则五'客户池广场所有人员可见')
+            return qs.filter(Q(owner=user) | Q(status=CustomerStatus.POOL))
         if role == Role.SALES_LEAD:
             # 主管看组员+自己（细则第一页·三）,不依赖主管本人是否填在 team 里
             team = getattr(user, "team", None)
@@ -552,7 +553,7 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
             cnt += 1
         self.message_user(request, f"{cnt} 个客户已成交，已自动创建对应项目，等待嘉茵分配咨询师。", messages.SUCCESS)
 
-    @admin.action(description="掉入公海")
+    @admin.action(description="释放客户到公海")
     def move_to_pool(self, request, queryset):
         role = getattr(request.user, "role", None)
         if role not in (Role.SALES, Role.SALES_LEAD, Role.ADMIN):
@@ -560,11 +561,12 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
             return
         if role == Role.SALES:
             queryset = queryset.filter(owner=request.user)
-        updated = queryset.filter(status=CustomerStatus.FOLLOWING).update(
+        # 线索(LEAD)/跟进中(FOLLOWING)均可释放进公海——原只认FOLLOWING导致LEAD客户'0个生效'
+        updated = queryset.filter(status__in=[CustomerStatus.LEAD, CustomerStatus.FOLLOWING]).update(
             status=CustomerStatus.POOL, pool_type=PoolType.AUTO, owner=None,
             pool_entered_at=timezone.now(), updated_at=timezone.now(),
         )
-        self.message_user(request, f"{updated} 个客户已掉入公海", messages.SUCCESS)
+        self.message_user(request, f"{updated} 个客户已释放到公海", messages.SUCCESS)
 
     @admin.action(description="标记流失")
     def mark_lost(self, request, queryset):

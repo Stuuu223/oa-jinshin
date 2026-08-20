@@ -4,14 +4,14 @@
 {% block after_field_sets %}
   {{ block.super }}
   {% if not original %}
-    <script src="{% static 'admin/js/dup_check.js' %}" defer></script>
+    <script src="{% static 'admin/js/dup_check.js' %}?v={% now 'YmdHis' %}" defer></script>
   {% endif %}
-  <script src="{% static 'admin/js/form_draft.js' %}" defer></script>
+  <script src="{% static 'admin/js/form_draft.js' %}?v={% now 'YmdHis' %}" defer></script>
 {% endblock %}
 {% block after_fieldsets %}
   {{ block.super }}
   {% if not original %}
-    <script src="{% static 'admin/js/dup_check.js' %}" defer></script>
+    <script src="{% static 'admin/js/dup_check.js' %}?v={% now 'YmdHis' %}" defer></script>
   {% endif %}
-  <script src="{% static 'admin/js/form_draft.js' %}" defer></script>
+  <script src="{% static 'admin/js/form_draft.js' %}?v={% now 'YmdHis' %}" defer></script>
 {% endblock %}

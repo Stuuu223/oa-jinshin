@@ -432,6 +432,20 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
         """按公司名/联系人/电话做录入前查重,返回 JSON 供前端弹窗展示."""
         conditions = Q()
         has_condition = False
+        # 尝试提交日志:即使被弹窗拦截,后台也要能追溯'谁尝试提交了什么'
+        try:
+            OperationLog.objects.create(
+                user=request.user if request.user.is_authenticated else None,
+                action="尝试提交",
+                target="客户 查重",
+                detail=(
+                    f"公司:{request.GET.get('company','')} "
+                    f"联系人:{request.GET.get('contact','')} "
+                    f"电话:{request.GET.get('phone','')}"
+                ),
+            )
+        except Exception:
+            pass  # 日志失败不影响查重
         for field, value in (
             ("company", request.GET.get("company", "")),
             ("contact_name", request.GET.get("contact", "")),

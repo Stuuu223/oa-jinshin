@@ -433,15 +433,27 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
         exclude_pk = request.GET.get("exclude")
         if exclude_pk:
             qs = qs.exclude(pk=exclude_pk)
-        data = [
-            {
+        data = []
+        for c in qs.select_related("owner", "created_by")[:5]:
+            # 计算与当前录入哪项信息相同(公司名/联系人/电话),标明'相同在哪'
+            match = []
+            company_q = request.GET.get("company", "").strip()
+            contact_q = request.GET.get("contact", "").strip()
+            phone_q = request.GET.get("phone", "").strip()
+            if company_q and c.company and c.company.lower() == company_q.lower():
+                match.append("公司名")
+            if contact_q and c.contact_name and c.contact_name.lower() == contact_q.lower():
+                match.append("联系人")
+            if phone_q and c.phone and c.phone == phone_q:
+                match.append("电话")
+            data.append({
                 "company": c.company,
                 "owner": c.owner.real_name if c.owner else "公海/无归属",
                 # 录入人:标明'哪个同事'录的(客户可能在公海,owner为空,但created_by是录入者)
                 "created_by": c.created_by.real_name if c.created_by else "未知",
-            }
-            for c in qs.select_related("owner", "created_by")[:5]
-        ]
+                # 相同项:让用户知道'相同在哪'(公司名/联系人/电话)
+                "match_fields": match or ["信息"],
+            })
         return JsonResponse({"duplicates": data})
 
     # ---------- 列表展示 ----------

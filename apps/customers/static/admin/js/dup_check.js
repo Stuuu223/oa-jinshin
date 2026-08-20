@@ -31,11 +31,13 @@
         var dups = (d && d.duplicates) || [];
         if (dups.length) {
           var names = dups.map(function (x) {
-            // 标明'哪个同事'录入的:客户名(张三录入),owner为空时用录入人
-            return x.company + "（" + (x.created_by || x.owner || "未知") + "录入）";
+            // 标明'哪个同事'录入的 + '相同在哪'(公司名/联系人/电话)
+            var who = x.created_by || x.owner || "未知";
+            var same = (x.match_fields && x.match_fields.length) ? x.match_fields.join("、") : "信息";
+            return x.company + "（" + who + "录入，" + same + "相同）";
           }).join("、");
           if (!window.confirm(
-            "与同事录入相同信息：" + names +
+            "与同事录入相同" + (dups[0].match_fields && dups[0].match_fields.length ? dups[0].match_fields.join("、") : "信息") + "：" + names +
             "\n\n本条信息依然会录入系统并做标识，请与公司总经办联系。\n确定继续录入吗？"
           )) {
             return;

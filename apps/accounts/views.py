@@ -122,8 +122,14 @@ def notification_unread(request):
 def sales_workbench(request):
     """销售工作台——销售视角聚合:我的客户/待跟进/撞单/快捷操作."""
     if not request.user.is_authenticated or not request.user.is_staff:
-        from django.shortcuts import redirect
         return redirect("/admin/login/?next=/admin/sales-workbench/")
+
+    # 角色边界:仅销售/销售主管/总经办可看销售工作台,其他角色直访 302 回自己工作台
+    role = getattr(request.user, "role", None)
+    if role not in (Role.SALES, Role.SALES_LEAD, Role.ADMIN):
+        if role in (Role.CONSULTANT, Role.CONSULTANT_LEAD):
+            return redirect(reverse("consult_workbench"))
+        return redirect("/admin/")
 
     from django.utils import timezone as tz
     from datetime import timedelta
@@ -170,8 +176,14 @@ def sales_workbench(request):
 def consult_workbench(request):
     """咨询工作台——咨询视角聚合:待分配/我的项目/收款支出/建站进度."""
     if not request.user.is_authenticated or not request.user.is_staff:
-        from django.shortcuts import redirect
         return redirect("/admin/login/?next=/admin/consult-workbench/")
+
+    # 角色边界:仅咨询/咨询主管/总经办可看咨询工作台,其他角色直访 302 回自己工作台
+    role = getattr(request.user, "role", None)
+    if role not in (Role.CONSULTANT, Role.CONSULTANT_LEAD, Role.ADMIN):
+        if role in (Role.SALES, Role.SALES_LEAD):
+            return redirect(reverse("sales_workbench"))
+        return redirect("/admin/")
 
     from apps.projects.models import Project
 

@@ -128,10 +128,11 @@ SIMPLEUI_CONFIG = {
         {
             "name": "系统管理",
             "icon": "fa fa-cog",
+            "permission": "accounts.view_user",
             "models": [
-                {"name": "用户", "url": "/admin/accounts/user/", "icon": "fa fa-user"},
-                {"name": "部门", "url": "/admin/accounts/department/", "icon": "fa fa-building-o"},
-                {"name": "团队", "url": "/admin/accounts/team/", "icon": "fa fa-group"},
+                {"name": "用户", "url": "/admin/accounts/user/", "icon": "fa fa-user", "permission": "accounts.view_user"},
+                {"name": "部门", "url": "/admin/accounts/department/", "icon": "fa fa-building-o", "permission": "accounts.view_department"},
+                {"name": "团队", "url": "/admin/accounts/team/", "icon": "fa fa-group", "permission": "accounts.view_team"},
             ],
         },
     ],

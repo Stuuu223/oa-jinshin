@@ -138,6 +138,11 @@ class ProjectAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
             kwargs["queryset"] = kwargs.get("queryset", User.objects.all()).filter(
                 Q(role=Role.CONSULTANT) | Q(role=Role.CONSULTANT_LEAD) | Q(role=Role.ADMIN)
             )
+        elif db_field.name == "tech_assigned":
+            # 技术承接人只列技术角色(同类问题:sales/consultant已过滤,tech_assigned漏了)
+            kwargs["queryset"] = kwargs.get("queryset", User.objects.all()).filter(
+                Q(role=Role.TECH) | Q(role=Role.ADMIN)
+            )
         return super().formfield_for_dbfield(db_field, **kwargs)
 
     # 表单布局规范:短字段并排(2列),长字段(note)独占整行,时间字段组合
@@ -208,6 +213,34 @@ class ProjectAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
         return inlines
 
     # ---------- 按角色过滤可见字段 ----------
+
+    def get_fieldsets(self, request, obj=None):
+        """fieldsets 按角色动态过滤——Django 有 fieldsets 时 get_fields 被忽略,
+        此前技术/销售/咨询字段隐藏未生效(技术详情泄漏联系人/电话/来源等)。"""
+        role = getattr(request.user, "role", None)
+        fs = [list(g) for g in self.fieldsets]  # 深拷贝,避免污染类级 fieldsets
+        if role == Role.TECH:
+            keep = TECH_VISIBLE
+        elif role == Role.SALES:
+            keep = set(ALL_FIELDS) - SALES_HIDDEN
+        elif role == Role.CONSULTANT:
+            keep = set(ALL_FIELDS) - CONSULTANT_HIDDEN
+        else:
+            return self.fieldsets
+        # 过滤每个分组的字段,保留非空分组
+        result = []
+        for name, opts in fs:
+            fields = opts.get("fields", ())
+            flat = []
+            for f in fields:
+                if isinstance(f, (tuple, list)):
+                    flat.append(tuple(x for x in f if x in keep))
+                elif f in keep or f in MONEY_FIELDS:
+                    flat.append(f)
+            flat = [f for f in flat if f not in ((),)]
+            if flat:
+                result.append((name, {"fields": tuple(flat)}))
+        return result
 
     def get_fields(self, request, obj=None):
         role = getattr(request.user, "role", None)

@@ -161,6 +161,8 @@ def sales_workbench(request):
 
     # 撞单标识客户
     dup = my_customers.filter(duplicate_flagged_at__isnull=False)[:10]
+    # 我成交的项目(销售/主管:查看自己成交项目进度,细则[20];普通职员侧边栏已无'成交管理',此入口在工作台)
+    my_deals = Project.objects.filter(sales=me).order_by("-deal_at")[:20]
 
     # 组员管理(主管视角):组员名单 + 每人客户数/成交数
     team_stats = []
@@ -184,6 +186,7 @@ def sales_workbench(request):
         team_stats=team_stats,
         stale=stale,
         duplicates=dup,
+        my_deals=my_deals,
     )
     return render(request, "admin/sales_workbench.html", context)
 

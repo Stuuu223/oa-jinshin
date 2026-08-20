@@ -267,8 +267,10 @@
         {% endif %}
         // 空分组过滤:models 为空的 submenu 不显示(如技术视角'工作台'空壳)
         menus = menus.filter(function (m) { return !m.models || m.models.length > 0; });
-        // 技术角色:已有建站工作台,不再看'成交管理'分组(建站入口已由建站工作台承担)
-        if ('{{ request.user.role|default:"" }}' === 'tech') {
+        // 普通职员(销售/咨询/技术)不'管理'成交——工作台是各自主入口,移除'成交管理'分组
+        // (管理层:销售主管/咨询主管/总经办保留——分配/调配/全盘是管理职责)
+        var _role = '{{ request.user.role|default:"" }}';
+        if (_role === 'sales' || _role === 'consultant' || _role === 'tech') {
             menus = menus.filter(function (m) { return m.name !== '成交管理'; });
         }
         window.language = {

@@ -92,7 +92,19 @@
   </div>
 
   <div class="panel">
-    <h3>撞单标识客户</h3>
+  <h3>我成交的项目（查看进度/办证/建站）</h3>
+  {% for p in my_deals %}
+  <div class="row">
+    <span class="c">{{ p.company_snapshot }}</span>
+    <span class="t"><a href="/admin/projects/project/{{ p.pk }}/change/" style="color:#2563EB">查看 →</a></span>
+  </div>
+  {% empty %}
+  <div class="empty">暂无成交项目</div>
+  {% endfor %}
+  </div>
+
+  <div class="panel">
+  <h3>撞单标识客户</h3>
     {% if duplicates %}
       {% for c in duplicates %}
       <div class="row">

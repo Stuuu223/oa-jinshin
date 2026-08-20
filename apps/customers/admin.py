@@ -374,11 +374,15 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
     def delete_model(self, request, obj):
         # 单个删除也走软删（细则第一页·七:删除的客户信息要能在回收站查看）
         obj.deleted_at = timezone.now()
-        obj.save(update_fields=["deleted_at", "updated_at"])
+        obj.deleted_by = request.user if request.user.is_authenticated else None
+        obj.save(update_fields=["deleted_at", "deleted_by", "updated_at"])
 
     def delete_queryset(self, request, queryset):
-        # 批量删除兜底走软删
-        queryset.update(deleted_at=timezone.now(), updated_at=timezone.now())
+        # 批量删除兜底走软删,记录删除人(回收站按角色分权依据)
+        queryset.update(
+            deleted_at=timezone.now(), updated_at=timezone.now(),
+            deleted_by=request.user if request.user.is_authenticated else None,
+        )
 
     def delete_view(self, request, object_id, extra_context=None):
         """覆盖默认删除视图——客户一律软删进回收站,不受成交项目 PROTECT 外键阻止.
@@ -585,9 +589,12 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
 
     @admin.action(description="删除（进入回收站）")
     def soft_delete(self, request, queryset):
-        updated = queryset.update(deleted_at=timezone.now(), updated_at=timezone.now())
+        updated = queryset.update(
+            deleted_at=timezone.now(), updated_at=timezone.now(),
+            deleted_by=request.user if request.user.is_authenticated else None,
+        )
         self.message_user(
-            request, f"{updated} 个客户已移入回收站（总经办可查看/恢复）", messages.SUCCESS,
+            request, f"{updated} 个客户已移入回收站（可查看/恢复）", messages.SUCCESS,
         )
 
     @admin.action(description="领取公海客户")
@@ -795,18 +802,30 @@ class OperationLogAdmin(RolePermissionsMixin, admin.ModelAdmin):
 
 @admin.register(RecycledCustomer)
 class RecycledCustomerAdmin(RolePermissionsMixin, admin.ModelAdmin):
-    """回收站（细则第一页·七）:总经办查看已删除客户 + 全部修改记录 + 恢复/彻底删除."""
-    list_display = ("company_deleted_badge", "contact_name", "phone", "owner", "created_by", "deleted_at", "history_link")
+    """回收站（细则第一页·七）:按角色分权——销售看自己删的/主管看组员+自己/总经办看全部."""
+    list_display = ("company_deleted_badge", "contact_name", "phone", "owner", "created_by", "deleted_by", "deleted_at", "history_link")
     search_fields = ("company", "contact_name", "phone")
     list_filter = ("deleted_at",)
     actions = ["restore", "purge"]
 
-    VIEW_ROLES = {Role.ADMIN}
+    VIEW_ROLES = {Role.SALES, Role.SALES_LEAD, Role.ADMIN}
     CHANGE_ROLES = {Role.ADMIN}
     DELETE_ROLES = {Role.ADMIN}
 
     def get_queryset(self, request):
-        return RecycledCustomer.objects.filter(deleted_at__isnull=False)
+        qs = RecycledCustomer.objects.filter(deleted_at__isnull=False)
+        user = request.user
+        role = getattr(user, "role", None)
+        if role == Role.SALES:
+            # 销售看自己删的(方案B:误删可自查)
+            return qs.filter(deleted_by=user)
+        if role == Role.SALES_LEAD:
+            # 主管看组员+自己删的
+            team = getattr(user, "team", None)
+            if team:
+                return qs.filter(Q(deleted_by__team=team) | Q(deleted_by=user))
+            return qs.filter(deleted_by=user)
+        return qs  # 总经办看全部
 
     def has_add_permission(self, request):
         return False

@@ -98,6 +98,10 @@ class Customer(models.Model):
     created_at = models.DateTimeField("创建时间", auto_now_add=True)
     updated_at = models.DateTimeField("更新时间", auto_now=True)
     deleted_at = models.DateTimeField("删除时间", null=True, blank=True, db_index=True)
+    deleted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="deleted_customers", verbose_name="删除人",
+    )
 
     objects = SoftDeleteManager()
     all_objects = models.Manager()

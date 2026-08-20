@@ -285,8 +285,10 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
         user = request.user
         role = getattr(user, "role", None)
         if role == Role.SALES:
-            # 销售看自己客户 + 公海客户(细则五'客户池广场所有人员可见')
-            return qs.filter(Q(owner=user) | Q(status=CustomerStatus.POOL))
+            # 区分视图:客户公海池入口(URL status=pool)看全部公海客户;普通列表仅自己名下客户
+            if request.GET.get("status__exact") == str(CustomerStatus.POOL):
+                return qs.filter(status=CustomerStatus.POOL)
+            return qs.filter(owner=user)
         if role == Role.SALES_LEAD:
             # 主管看组员+自己（细则第一页·三）,不依赖主管本人是否填在 team 里
             team = getattr(user, "team", None)

@@ -126,6 +126,20 @@ class ProjectAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
         "source_snapshot", "quote_amount", "deal_business", "note",
     ) + tuple(MONEY_FIELDS)
 
+    def formfield_for_dbfield(self, db_field, **kwargs):
+        # 下拉按角色过滤:销售人员只列销售、咨询师只列咨询(不再列出全部26个用户)
+        from apps.accounts.models import Role
+        from django.db.models import Q
+        if db_field.name == "sales":
+            kwargs["queryset"] = kwargs.get("queryset", User.objects.all()).filter(
+                Q(role=Role.SALES) | Q(role=Role.SALES_LEAD) | Q(role=Role.ADMIN)
+            )
+        elif db_field.name == "consultant":
+            kwargs["queryset"] = kwargs.get("queryset", User.objects.all()).filter(
+                Q(role=Role.CONSULTANT) | Q(role=Role.CONSULTANT_LEAD) | Q(role=Role.ADMIN)
+            )
+        return super().formfield_for_dbfield(db_field, **kwargs)
+
     # 表单布局规范:短字段并排(2列),长字段(note)独占整行,时间字段组合
     fieldsets = (
         ("项目基本信息", {

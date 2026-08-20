@@ -41,11 +41,59 @@
 
 /* ── 3. 字段行:间距与标签 ── */
 div.form-row {
-    padding: 10px 20px !important;
+    padding: 12px 20px !important;
     border-bottom: 1px dashed #F1F5F9 !important;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px 12px;
 }
 div.form-row:last-child {
     border-bottom: none !important;
+}
+/* 表单控件统一高度/对齐:select与input一致,checkbox垂直居中 */
+div.form-row select,
+div.form-row input[type="text"],
+div.form-row input[type="number"],
+div.form-row input.vTextField {
+    height: 32px;
+    line-height: 30px;
+    padding: 0 8px;
+    font-size: 14px;
+    border: 1px solid #CBD5E1;
+    border-radius: 6px;
+}
+div.form-row input[type="checkbox"],
+div.form-row .vCheckboxLabel {
+    vertical-align: middle;
+}
+div.form-row input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    margin-right: 6px;
+}
+/* 只读字段(快照/时间)样式:灰底块,与可编辑区分 */
+div.form-row .readonly {
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 14px;
+    color: #475569;
+    min-height: 20px;
+}
+div.form-row .fieldBox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 220px;
+}
+div.form-row .fieldBox label {
+    white-space: nowrap;
+}
+div.form-row .fieldBox .related-widget-wrapper {
+    flex: 1;
+    min-width: 180px;
 }
 div.form-row label, div.form-row .label, .fieldBox label {
     font-weight: 600 !important;

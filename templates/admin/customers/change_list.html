@@ -2,10 +2,21 @@
 {% load i18n %}
 
 {% block content %}
-{% if request.GET.status__exact == "pool" %}
-<a href="/admin/customers/customer/" style="display:inline-block;margin:0 0 10px;padding:6px 14px;background:#fff;color:#2563EB;border:1px solid #CBD5E1;border-radius:8px;text-decoration:none;font-size:13px">← 返回客户列表</a>
+{% if request.user.role == 'sales' or request.user.role == 'sales_lead' %}{% comment %}销售/销售主管{% endcomment %}
+<a href="/admin/sales-workbench/" style="display:inline-block;margin:0 0 10px;padding:6px 14px;background:#fff;color:#2563EB;border:1px solid #CBD5E1;border-radius:8px;text-decoration:none;font-size:13px">← 返回销售工作台</a>
+{% elif request.user.role == 'consultant' or request.user.role == 'consultant_lead' %}{% comment %}咨询/咨询主管{% endcomment %}
+<a href="/admin/consult-workbench/" style="display:inline-block;margin:0 0 10px;padding:6px 14px;background:#fff;color:#2563EB;border:1px solid #CBD5E1;border-radius:8px;text-decoration:none;font-size:13px">← 返回咨询工作台</a>
 {% else %}
-<a href="/admin/dashboard/" style="display:inline-block;margin:0 0 10px;padding:6px 14px;background:#fff;color:#2563EB;border:1px solid #CBD5E1;border-radius:8px;text-decoration:none;font-size:13px">← 返回工作台</a>
+<a href="/admin/dashboard/" style="display:inline-block;margin:0 0 10px;padding:6px 14px;background:#fff;color:#2563EB;border:1px solid #CBD5E1;border-radius:8px;text-decoration:none;font-size:13px">← 返回总览</a>
+{% endif %}
+
+{% comment %}面包屑:知道自己在哪{% endcomment %}
+{% if request.user.role == 'sales' or request.user.role == 'sales_lead' %}
+<span style="font-size:13px;color:#94A3B8;margin-left:8px">销售工作台 &gt; 客户管理 &gt; {% if request.GET.status__exact == "pool" %}客户公海池{% else %}客户列表{% endif %}</span>
+{% elif request.user.role == 'consultant' or request.user.role == 'consultant_lead' %}
+<span style="font-size:13px;color:#94A3B8;margin-left:8px">咨询工作台 &gt; 客户管理 &gt; {% if request.GET.status__exact == "pool" %}客户公海池{% else %}客户列表{% endif %}</span>
+{% else %}
+<span style="font-size:13px;color:#94A3B8;margin-left:8px">总览 &gt; 客户管理 &gt; {% if request.GET.status__exact == "pool" %}客户公海池{% else %}客户列表{% endif %}</span>
 {% endif %}
 {% if request.GET.status__exact == "pool" %}
 <div style="margin:10px 0 16px;padding:12px 16px;border:1px solid #BFDBFE;background:#EFF6FF;border-radius:8px;color:#1D4ED8;font-size:13px;line-height:1.8">

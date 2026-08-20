@@ -5,18 +5,37 @@ from decimal import Decimal
 from django.contrib import messages
 from django.contrib.auth.views import redirect_to_login
 from django.db.models import Count, Q, Sum
-from django.shortcuts import render
+from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.utils import timezone
 
-from apps.accounts.models import Notification, User
+from apps.accounts.models import Notification, Role, User
 from apps.customers.models import Customer, CustomerStatus
 from apps.projects.models import Project, ProjectExpense, ProjectPayment
 
 
 def dashboard(request):
-    """总览面板:线索→成交漏斗/回款/利润/各部门待办/撞单提醒."""
+    """总览面板:线索→成交漏斗/回款/利润/各部门待办/撞单提醒.
+
+    权限:仅管理层(总经办 ADMIN)可看老板总览;其他角色按角色重定向到自己的工作台,
+    防止销售/咨询/技术越权查看全公司财务与客户数据(细则权限边界).
+    """
     if not request.user.is_authenticated or not request.user.is_staff:
         return redirect_to_login(request.get_full_path())
+
+    role = getattr(request.user, "role", None)
+    if role != Role.ADMIN:
+        # 非管理层:按角色回各自工作台(SSOT 映射,与侧边栏一致)
+        workbench = {
+            Role.SALES: "sales_workbench",
+            Role.SALES_LEAD: "sales_workbench",
+            Role.CONSULTANT: "consult_workbench",
+            Role.CONSULTANT_LEAD: "consult_workbench",
+        }.get(role)
+        if workbench:
+            return redirect(reverse(workbench))
+        # 技术等无工作台角色:回 admin 首页
+        return redirect("/admin/")
 
     # ── 客户漏斗 ──
     total_customers = Customer.objects.count()

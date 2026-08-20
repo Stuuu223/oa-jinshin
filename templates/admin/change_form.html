@@ -23,7 +23,7 @@
 <div id="content-main" class="form-main">
     {% if '_popup' not in request.GET %}
     <div class="page-header" style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
-        <a href="javascript:history.back()" style="display:inline-block;padding:6px 14px;background:#fff;color:#2563EB;border:1px solid #CBD5E1;border-radius:8px;text-decoration:none;font-size:13px;font-weight:600">← 返回</a>
+        <a href="javascript:history.length > 1 ? history.back() : '/admin/dashboard/'" style="display:inline-block;padding:6px 14px;background:#fff;color:#2563EB;border:1px solid #CBD5E1;border-radius:8px;text-decoration:none;font-size:13px;font-weight:600" onclick="if(history.length <= 1){location.href='/admin/dashboard/';return false;}">← 返回</a>
         <span style="color:#334155;font-size:15px;font-weight:600">{{ title }}</span>
     </div>
     {% endif %}

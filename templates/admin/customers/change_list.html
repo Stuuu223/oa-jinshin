@@ -2,7 +2,11 @@
 {% load i18n %}
 
 {% block content %}
-<a href="javascript:history.back()" style="display:inline-block;margin:0 0 10px;padding:6px 14px;background:#fff;color:#2563EB;border:1px solid #CBD5E1;border-radius:8px;text-decoration:none;font-size:13px">← 返回上一页</a>
+{% if request.GET.status__exact == "pool" %}
+<a href="/admin/customers/customer/" style="display:inline-block;margin:0 0 10px;padding:6px 14px;background:#fff;color:#2563EB;border:1px solid #CBD5E1;border-radius:8px;text-decoration:none;font-size:13px">← 返回客户列表</a>
+{% else %}
+<a href="/admin/dashboard/" style="display:inline-block;margin:0 0 10px;padding:6px 14px;background:#fff;color:#2563EB;border:1px solid #CBD5E1;border-radius:8px;text-decoration:none;font-size:13px">← 返回工作台</a>
+{% endif %}
 {% if request.GET.status__exact == "pool" %}
 <div style="margin:10px 0 16px;padding:12px 16px;border:1px solid #BFDBFE;background:#EFF6FF;border-radius:8px;color:#1D4ED8;font-size:13px;line-height:1.8">
   <b>客户池广场</b>：这里显示的是<b>未成交释放的公海客户</b>（销售跟进未成单后释放，或手动释放到广场）。

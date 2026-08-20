@@ -195,6 +195,8 @@ class ProjectAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
         role = getattr(request.user, "role", None)
         if role not in (Role.CONSULTANT_LEAD, Role.ADMIN):
             actions.pop("assign_consultant", None)
+        if role not in (Role.TECH, Role.ADMIN):
+            actions.pop("claim_site_task", None)  # 领取建站仅技术/总经办
         return actions
 
     def get_list_display(self, request):
@@ -412,9 +414,8 @@ class ProjectAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
             instance.save()
         formset.save_m2m()
 
-    # ---------- 分配咨询师 Action（嘉茵/总经办专用） ----------
+    # ---------- 建站领取 Action（技术/总经办专用） ----------
 
-    @admin.action(description="分配/调配咨询师")
     @admin.action(description="领取建站任务（技术承接）")
     def claim_site_task(self, request, queryset):
         """技术领取建站任务:记录承接人 + 通知对应咨询 + 留痕."""
@@ -444,6 +445,9 @@ class ProjectAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
             cnt += 1
         self.message_user(request, f"已领取 {cnt} 个建站任务,承接人=自己,已通知对应咨询", messages.SUCCESS)
 
+    # ---------- 分配咨询师 Action（嘉茵/总经办专用） ----------
+
+    @admin.action(description="分配/调配咨询师")
     def assign_consultant(self, request, queryset):
         role = getattr(request.user, "role", None)
         if role not in (Role.CONSULTANT_LEAD, Role.ADMIN):

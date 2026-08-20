@@ -52,10 +52,29 @@
   </div>
 
   <div class="wb-grid">
-    <div class="card blue"><div class="label">我的客户</div><div class="value">{{ total }}</div></div>
+    <div class="card blue"><div class="label">我的客户</div><div class="value">{{ my_total }}</div></div>
+    {% if role == 'sales_lead' %}
+    <div class="card green"><div class="label">组员客户</div><div class="value">{{ total|add:"-0" }}</div></div>
+    {% else %}
+    <div class="card blue"><div class="label">全部客户</div><div class="value">{{ total }}</div></div>
+    {% endif %}
     <div class="card orange"><div class="label">待跟进(超7天)</div><div class="value">{{ stale|length }}</div></div>
     <div class="card red"><div class="label">撞单标识</div><div class="value">{{ duplicates|length }}</div></div>
   </div>
+
+  {% if role == 'sales_lead' and team_stats %}
+  <div class="panel">
+    <h3>👥 组员管理（{{ team_stats|length }} 人）</h3>
+    {% for t in team_stats %}
+    <div class="row">
+      <span class="c">{{ t.user.real_name }}（{{ t.user.username }}）</span>
+      <span class="t">客户 {{ t.total }} 个 · 成交 {{ t.deal }} 个</span>
+    </div>
+    {% empty %}
+    <div class="empty">暂无组员</div>
+    {% endfor %}
+  </div>
+  {% endif %}
 
   <div class="panel">
     <h3>⏳ 待跟进客户（超过 7 天未跟进）</h3>

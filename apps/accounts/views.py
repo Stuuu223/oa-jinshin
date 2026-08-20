@@ -162,11 +162,26 @@ def sales_workbench(request):
     # 撞单标识客户
     dup = my_customers.filter(duplicate_flagged_at__isnull=False)[:10]
 
+    # 组员管理(主管视角):组员名单 + 每人客户数/成交数
+    team_stats = []
+    if role == "sales_lead" and me.team:
+        from django.db.models import Count
+        for member in me.team.members.all().order_by("real_name"):
+            member_qs = Customer.objects.filter(owner=member)
+            team_stats.append({
+                "user": member,
+                "total": member_qs.count(),
+                "deal": member_qs.filter(status=CustomerStatus.DEAL).count(),
+            })
+
     context = dict(
         title="销售工作台",
         me=me,
+        role=role,
         status_groups=status_groups,
         total=my_customers.count(),
+        my_total=Customer.objects.filter(owner=me).count() if role == "sales_lead" else my_customers.count(),
+        team_stats=team_stats,
         stale=stale,
         duplicates=dup,
     )

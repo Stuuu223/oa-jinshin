@@ -27,6 +27,7 @@ from .models import (
     CustomerOwnerHistory,
     CustomerStatus,
     FollowUp,
+    OperationLog,
     OwnerHistorySourceType,
     PoolType,
     RecycledCustomer,
@@ -311,6 +312,19 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
             if not obj.owner and getattr(request.user, "role", None) in (Role.SALES, Role.SALES_LEAD):
                 obj.owner = request.user
         super().save_model(request, obj, form, change)
+        # 提交日志（审计）:记录谁在何时提交/修改了什么信息,后台可查
+        try:
+            OperationLog.objects.create(
+                user=request.user if request.user.is_authenticated else None,
+                action="新增" if not change else "修改",
+                target=f"客户 {obj.company}",
+                detail=(
+                    f"公司:{obj.company} 联系人:{obj.contact_name} 电话:{obj.phone} "
+                    f"资质:{obj.qualification_interest or ''}"
+                ),
+            )
+        except Exception:
+            pass  # 日志失败不影响主流程
         if not change:
             CustomerOwnerHistory.objects.create(
                 customer=obj, from_user=None, to_user=obj.owner or request.user,
@@ -728,6 +742,37 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
         if skipped:
             msg += f"；{skipped} 个已成交或无历史记录，已跳过"
         self.message_user(request, msg, messages.SUCCESS if cnt else messages.WARNING)
+
+
+@admin.register(OperationLog)
+class OperationLogAdmin(RolePermissionsMixin, admin.ModelAdmin):
+    """提交日志——审计:谁在何时提交/修改了什么信息(客户建档/修改等)."""
+    list_display = ("created_at", "user", "action", "target", "detail_short")
+    list_filter = ("action", "user")
+    search_fields = ("target", "detail")
+    readonly_fields = ("created_at", "user", "action", "target", "detail")
+    date_hierarchy = "created_at"
+
+    VIEW_ROLES = {Role.ADMIN, Role.SALES_LEAD, Role.CONSULTANT_LEAD}
+    CHANGE_ROLES = set()  # 日志只读,不可改
+    ADD_ROLES = set()
+    DELETE_ROLES = {Role.ADMIN}
+
+    def has_add_permission(self, request):
+        return False
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        user = request.user
+        if user.is_superuser or getattr(user, "role", None) == Role.ADMIN:
+            return qs
+        if user.is_authenticated:
+            return qs.filter(user=user)  # 普通角色只看自己的操作日志
+        return qs.none()
+
+    @admin.display(description="提交信息")
+    def detail_short(self, obj: OperationLog) -> str:
+        return (obj.detail[:50] + "…") if len(obj.detail) > 50 else obj.detail
 
 
 @admin.register(RecycledCustomer)

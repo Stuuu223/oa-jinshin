@@ -280,3 +280,27 @@ class FollowUp(models.Model):
     def __str__(self) -> str:
         date_str = self.created_at.strftime("%m-%d %H:%M") if self.created_at else ""
         return f"{date_str}  {self.content[:30]}"
+
+
+class OperationLog(models.Model):
+    """提交/操作日志——记录谁在何时提交了什么信息,后台可追溯(审计).
+
+    适用:客户建档/修改/成交/释放/分配等关键提交动作,记录操作人+对象+提交的关键字段。
+    """
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True,
+        verbose_name="操作人",
+    )
+    action = models.CharField("动作", max_length=32, default="提交")
+    target = models.CharField("对象", max_length=200, blank=True)
+    detail = models.TextField("提交信息", blank=True)
+    created_at = models.DateTimeField("时间", default=timezone.now)
+
+    class Meta:
+        verbose_name = "提交日志"
+        verbose_name_plural = verbose_name
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        who = self.user.real_name if self.user else "未知"
+        return f"{self.created_at:%m-%d %H:%M} {who} {self.action} {self.target[:20]}"

@@ -393,3 +393,22 @@ div.form-row .datetimeshortcuts {
     padding-bottom: 80px !important; /* 底部提交按钮高度 */
 }
 
+
+/* ── 领取建站按钮(统一复用,不堆内联):蓝底白字,伪类提特异性对抗 a:link{color:#409eff!important} ── */
+.claim,
+.claim:link,
+.claim:visited {
+    display: inline-block;
+    background: #2563EB;
+    color: #fff !important;
+    padding: 4px 12px;
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 12px;
+}
+.claim:hover,
+.claim:focus {
+    background: #1D4ED8;
+    color: #fff !important;
+    text-decoration: none;
+}

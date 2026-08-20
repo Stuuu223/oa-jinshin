@@ -140,6 +140,10 @@ SIMPLEUI_CONFIG = {
 
 ANONYMOUS_USER_NAME = None
 
+# 会话保持:每次请求续期,避免长时间操作/停留被判定过期自动退出
+SESSION_SAVE_EVERY_REQUEST = True
+SESSION_COOKIE_AGE = 1209600  # 14 天
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,

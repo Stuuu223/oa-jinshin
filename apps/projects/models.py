@@ -23,6 +23,17 @@ class SiteProgress(models.TextChoices):
     DONE = "done", "已完成"
 
 
+class SiteCategory(models.TextChoices):
+    """网站搭建类目——预设选项(非自由文本),与客户需求资质口径一致."""
+    ICP = "ICP", "ICP许可证"
+    EDI = "EDI", "EDI许可证"
+    ICPEDI = "ICPEDI", "ICPEDI（组合套餐）"
+    CORP_SITE = "corp_site", "企业官网"
+    CORP_SITE_ICP = "corp_site_icp", "企业官网+备案"
+    APP = "app", "APP/小程序"
+    OTHER = "other", "其他"
+
+
 class Project(models.Model):
     """成交客户/项目——对应第二页管理页面.
 
@@ -63,8 +74,18 @@ class Project(models.Model):
     deal_at = models.DateTimeField("成交时间", auto_now_add=True)
 
     # ── 建站信息（咨询师/技术填写） ──
-    site_category = models.CharField("网站搭建类目", max_length=64, blank=True)
+    site_category = models.CharField(
+        "网站搭建类目", max_length=64, blank=True, choices=SiteCategory.choices,
+        help_text="选择建站类型(如 ICPEDI/企业官网+备案),咨询师填写",
+    )
     site_info = models.TextField("网站搭建信息", blank=True)
+    # ── 站点信息(咨询填写,衔接办证/建站) ──
+    site_full_name = models.CharField("网站全称", max_length=128, blank=True)
+    site_contact_address = models.CharField("网站联系地址", max_length=255, blank=True)
+    site_contact_phone = models.CharField("网站联系电话", max_length=32, blank=True)
+    site_contact_email = models.EmailField("网站联系邮箱", blank=True)
+    site_domain = models.CharField("域名", max_length=128, blank=True)
+    site_icp_number = models.CharField("备案号", max_length=64, blank=True)
     site_progress = models.CharField(
         "网站搭建进度", max_length=16, choices=SiteProgress.choices, default=SiteProgress.NOT_STARTED
     )

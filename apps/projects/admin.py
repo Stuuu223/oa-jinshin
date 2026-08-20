@@ -12,6 +12,7 @@ from django.contrib import admin, messages
 from django.db.models import DecimalField, OuterRef, Q, Subquery, Sum
 from django.db.models.functions import Coalesce
 from django.template.response import TemplateResponse
+from django.utils.html import format_html
 
 from apps.accounts.admin_mixins import PROJECT_EDIT_ROLES, PROJECT_VIEW_ROLES, RolePermissionsMixin
 from apps.accounts.models import Role, User
@@ -112,7 +113,7 @@ MONEY_FIELDS = ["total_income_display", "total_expense_display", "profit_display
 
 # 列表页各角色可见列——此前列表列固定,销售/技术在列表页能看到详情页已隐藏的字段
 LIST_COLUMNS_DEFAULT = ("company_snapshot", "deal_business", "sales", "consultant", "site_progress", "profit_display")
-LIST_COLUMNS_TECH = ("company_snapshot", "deal_at", "consultant", "site_category", "site_progress")
+LIST_COLUMNS_TECH = ("company_snapshot", "deal_at", "consultant", "site_category", "site_progress", "claim_link")
 
 
 @admin.register(Project)
@@ -167,6 +168,9 @@ class ProjectAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
             "fields": (
                 ("tech_assigned", "site_progress"),
                 ("site_category", "site_info"),
+                ("site_full_name", "site_domain"),
+                ("site_contact_address", "site_contact_phone"),
+                ("site_contact_email", "site_icp_number"),
             ),
         }),
         ("财务汇总(自动核算)", {
@@ -177,7 +181,7 @@ class ProjectAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
         }),
     )
 
-    actions = ["assign_consultant"]
+    actions = ["assign_consultant", "claim_site_task"]
 
     VIEW_ROLES = PROJECT_VIEW_ROLES
     CHANGE_ROLES = PROJECT_EDIT_ROLES  # 销售 view-only（细则:销售对成交信息只看）
@@ -267,6 +271,53 @@ class ProjectAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
             # 技术只能改 site_progress，其余只读
             return base + [f for f in TECH_VISIBLE if f != "site_progress"]
         return base
+
+    @admin.display(description="领取")
+    def claim_link(self, obj: Project):
+        """技术列表'领取'按钮:未承接显示领取链接,已承接显示承接人."""
+        if obj.tech_assigned_id:
+            return format_html('<span style="color:#1a7f37">{}</span>', obj.tech_assigned.real_name)
+        return format_html(
+            '<a href="/admin/projects/project/{}/claim/" style="background:#2563EB;color:#fff;padding:4px 12px;border-radius:6px;text-decoration:none;font-size:12px">领取</a>',
+            obj.pk,
+        )
+
+    def claim_site_view(self, request, object_id):
+        """技术领取建站:记录承接人+通知咨询+留痕,302回列表."""
+        from django.shortcuts import redirect
+        from django.contrib import messages as msgs
+        from apps.accounts.models import Notification
+        from apps.customers.models import OperationLog
+        role = getattr(request.user, "role", None)
+        if role not in (Role.TECH, Role.ADMIN):
+            self.message_user(request, "仅技术/总经办可领取建站任务", msgs.ERROR)
+            return redirect("/admin/projects/project/")
+        project = Project.objects.filter(pk=object_id, tech_assigned__isnull=True).first()
+        if not project:
+            self.message_user(request, "任务不存在或已被领取", msgs.ERROR)
+            return redirect("/admin/projects/project/")
+        Project.objects.filter(pk=project.pk).update(tech_assigned=request.user)
+        try:
+            if project.consultant_id:
+                Notification.objects.create(
+                    recipient=project.consultant, title="建站任务已承接",
+                    content=f"「{project.company_snapshot}」建站任务由 {request.user.real_name} 领取,后续建站事宜请联系该技术。",
+                    link=f"/admin/projects/project/{project.pk}/change/",
+                )
+            OperationLog.objects.create(
+                user=request.user, action="承接建站",
+                target=f"项目 {project.company_snapshot}",
+                detail=f"技术 {request.user.real_name} 领取建站任务",
+            )
+        except Exception:
+            pass
+        self.message_user(request, f"已领取建站任务:{project.company_snapshot},已通知咨询", msgs.SUCCESS)
+        return redirect("/admin/projects/project/")
+
+    def get_urls(self):
+        from django.urls import path
+        urls = super().get_urls()
+        return [path("<path:object_id>/claim/", self.admin_site.admin_view(self.claim_site_view), name="project_claim_site")] + urls
 
     @admin.display(description="利润")
     def profit_display(self, obj: Project):
@@ -364,6 +415,35 @@ class ProjectAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
     # ---------- 分配咨询师 Action（嘉茵/总经办专用） ----------
 
     @admin.action(description="分配/调配咨询师")
+    @admin.action(description="领取建站任务（技术承接）")
+    def claim_site_task(self, request, queryset):
+        """技术领取建站任务:记录承接人 + 通知对应咨询 + 留痕."""
+        role = getattr(request.user, "role", None)
+        if role not in (Role.TECH, Role.ADMIN):
+            self.message_user(request, "仅技术/总经办可领取建站任务", messages.ERROR)
+            return
+        from apps.accounts.models import Notification
+        from apps.customers.models import OperationLog
+        cnt = 0
+        for project in queryset.filter(tech_assigned__isnull=True):
+            Project.objects.filter(pk=project.pk).update(tech_assigned=request.user)
+            try:
+                if project.consultant_id:
+                    Notification.objects.create(
+                        recipient=project.consultant, title="建站任务已承接",
+                        content=f"「{project.company_snapshot}」建站任务由 {request.user.real_name} 领取,后续建站事宜请联系该技术。",
+                        link=f"/admin/projects/project/{project.pk}/change/",
+                    )
+                OperationLog.objects.create(
+                    user=request.user, action="承接建站",
+                    target=f"项目 {project.company_snapshot}",
+                    detail=f"技术 {request.user.real_name} 领取建站任务",
+                )
+            except Exception:
+                pass
+            cnt += 1
+        self.message_user(request, f"已领取 {cnt} 个建站任务,承接人=自己,已通知对应咨询", messages.SUCCESS)
+
     def assign_consultant(self, request, queryset):
         role = getattr(request.user, "role", None)
         if role not in (Role.CONSULTANT_LEAD, Role.ADMIN):

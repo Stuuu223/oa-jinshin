@@ -1,0 +1,12 @@
+{% extends "admin/base_site.html" %}
+
+{% block title %}无权访问{% endblock %}
+
+{% block content %}
+<div style="max-width:560px;margin:60px auto;background:#fff;border:1px solid #FDE8E8;border-radius:12px;padding:32px 36px;text-align:center;box-shadow:0 2px 12px rgba(0,0,0,.05)">
+  <div style="font-size:40px;font-weight:800;color:#DC2626;line-height:1">403</div>
+  <h2 style="margin:10px 0 6px;font-size:16px;color:#1E293B">无权访问该页面</h2>
+  <p style="font-size:13px;color:#64748B;margin:0 0 20px">该功能仅限特定角色使用，如你需要访问请与总经办联系。</p>
+  <a href="/admin/" style="display:inline-block;padding:9px 22px;background:#2563EB;color:#fff;border-radius:8px;text-decoration:none;font-size:14px">返回系统首页</a>
+</div>
+{% endblock %}

@@ -447,7 +447,9 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
     # ---------- 列表展示 ----------
 
     def summary(self, obj: Customer) -> str:
-        qual = (obj.qualification_interest or "未填").replace("（组合套餐）", "")
+        # 需求资质已改为 JSONField(list),多资质用顿号连接展示
+        qual_list = obj.qualification_interest or []
+        qual = "、".join(str(q).replace("（组合套餐）", "") for q in qual_list) or "未填"
         badges = format_html(
             "<span style='padding:1px 7px;border-radius:6px;background:#E8EDFB;"
             "color:#3B5098;font-size:11px'>{}</span>"

@@ -28,8 +28,11 @@ class SessionAuditMiddleware:
                     getattr(user, "username", "?"), sid[:10], path, ua,
                 )
             else:
+                # auth=NO 时记录完整 COOKIES keys——区分'浏览器没带cookie'(sessionid不在)
+                # vs '带了但session失效'(sessionid在,服务端不认)——铁证粒度更细
+                ck = ",".join(sorted(request.COOKIES.keys())) or "NONE"
                 logger.warning(
-                    "AUDIT auth=NO sid=%s path=%s ua=%s",
-                    sid[:10], path, ua,
+                    "AUDIT auth=NO sid=%s path=%s ua=%s cookies=%s",
+                    sid[:10], path, ua, ck,
                 )
         return self.get_response(request)

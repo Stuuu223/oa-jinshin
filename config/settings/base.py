@@ -96,9 +96,9 @@ SIMPLEUI_CONFIG = {
             "name": "工作台",
             "icon": "fa fa-tachometer",
             "models": [
-                {"name": "老板总览面板", "url": "/admin/dashboard/", "icon": "fa fa-line-chart"},
-                {"name": "销售工作台", "url": "/admin/sales-workbench/", "icon": "fa fa-user-o"},
-                {"name": "咨询工作台", "url": "/admin/consult-workbench/", "icon": "fa fa-file-text-o"},
+                {"name": "老板总览面板", "url": "/admin/dashboard/", "icon": "fa fa-line-chart", "permission": "accounts.view_boss_dashboard"},
+                {"name": "销售工作台", "url": "/admin/sales-workbench/", "icon": "fa fa-user-o", "permission": "accounts.view_sales_workbench"},
+                {"name": "咨询工作台", "url": "/admin/consult-workbench/", "icon": "fa fa-file-text-o", "permission": "accounts.view_consult_workbench"},
             ],
         },
         {

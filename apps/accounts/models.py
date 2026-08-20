@@ -95,6 +95,11 @@ class User(AbstractUser):
     class Meta:
         verbose_name = "用户"
         verbose_name_plural = verbose_name
+        permissions = [
+            ("view_boss_dashboard", "可看老板总览面板"),
+            ("view_sales_workbench", "可看销售工作台"),
+            ("view_consult_workbench", "可看咨询工作台"),
+        ]
 
     def __str__(self) -> str:
         return f"{self.real_name} ({self.get_role_display()})"

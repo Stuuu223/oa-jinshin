@@ -34,8 +34,8 @@ def dashboard(request):
         }.get(role)
         if workbench:
             return redirect(reverse(workbench))
-        # 无工作台角色(技术等):回可达页面(项目列表)——不能回 /admin/(首页=dashboard 会再次 302,死循环)
-        return redirect("/admin/projects/project/")
+        # 无工作台角色(技术等):回技术建站工作台——不能回 /admin/(首页=dashboard 会再次 302,死循环)
+        return redirect(reverse("tech_workbench"))
 
     # ── 客户漏斗 ──
     total_customers = Customer.objects.count()
@@ -235,3 +235,36 @@ def consult_workbench(request):
         progress=progress,
     )
     return render(request, "admin/consult_workbench.html", context)
+
+
+def tech_workbench(request):
+    """技术建站工作台——任务池(待领取)/我承接的/进度统计."""
+    if not request.user.is_authenticated or not request.user.is_staff:
+        return redirect("/admin/login/?next=/admin/tech-workbench/")
+    role = getattr(request.user, "role", None)
+    if role not in (Role.TECH, Role.ADMIN):
+        return redirect(reverse("dashboard"))
+
+    from apps.projects.models import Project, SiteProgress
+
+    me = request.user
+    # 任务池:未承接的建站任务(待开始/进行中)
+    pool = Project.objects.filter(tech_assigned__isnull=True).order_by("deal_at")
+    # 我承接的
+    mine = Project.objects.filter(tech_assigned=me).order_by("-deal_at")
+    # 进度统计
+    progress = {
+        "待开始": Project.objects.filter(site_progress=SiteProgress.NOT_STARTED).count(),
+        "进行中": Project.objects.filter(site_progress=SiteProgress.IN_PROGRESS).count(),
+        "已完成": Project.objects.filter(site_progress=SiteProgress.DONE).count(),
+        "我承接": mine.count(),
+    }
+    context = dict(
+        title="技术建站工作台",
+        me=me,
+        role=role,
+        pool=pool,
+        mine=mine,
+        progress=progress,
+    )
+    return render(request, "admin/tech_workbench.html", context)

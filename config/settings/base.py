@@ -100,6 +100,7 @@ SIMPLEUI_CONFIG = {
                 {"name": "老板总览面板", "url": "/admin/dashboard/", "icon": "fa fa-line-chart", "permission": "accounts.view_boss_dashboard"},
                 {"name": "销售工作台", "url": "/admin/sales-workbench/", "icon": "fa fa-user-o", "permission": "accounts.view_sales_workbench"},
                 {"name": "咨询工作台", "url": "/admin/consult-workbench/", "icon": "fa fa-file-text-o", "permission": "accounts.view_consult_workbench"},
+                {"name": "建站工作台", "url": "/admin/tech-workbench/", "icon": "fa fa-code", "permission": "accounts.view_tech_workbench"},
             ],
         },
         {

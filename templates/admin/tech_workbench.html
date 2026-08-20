@@ -1,0 +1,62 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<style>
+  .tb-wrap{padding:8px 4px}
+  .tb-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+  .tb-head h2{margin:0;font-size:20px;color:#1E293B}
+  .tb-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+  .t-card{text-align:center;padding:14px 8px;border-radius:10px}
+  .t-card .num{font-size:24px;font-weight:700}
+  .t-card .lbl{font-size:12px;color:#64748B}
+  .t-card.a{background:#DBEAFE;color:#1D4ED8}
+  .t-card.b{background:#FEF3C7;color:#B45309}
+  .t-card.c{background:#DCFCE7;color:#15803D}
+  .t-card.d{background:#EFF6FF;color:#2563EB}
+  .panel{border:1px solid #E5E7EB;border-radius:12px;background:#fff;padding:16px 20px;margin-bottom:16px}
+  .panel h3{margin:0 0 12px;font-size:15px;color:#334155}
+  .row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px dashed #F1F5F9;font-size:13px;gap:10px}
+  .row:last-child{border-bottom:none}
+  .row .c{color:#334155;flex:1}
+  .row .t{color:#64748B;white-space:nowrap}
+  .claim{display:inline-block;background:#2563EB;color:#fff!important;padding:4px 12px;border-radius:6px;text-decoration:none;font-size:12px}
+  .empty{color:#94A3B8;font-size:13px;padding:10px 0}
+  .tag{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px}
+  .tag-n{background:#FEF3C7;color:#B45309}
+  .tag-i{background:#DBEAFE;color:#1D4ED8}
+  .tag-d{background:#DCFCE7;color:#15803D}
+</style>
+<div class="tb-wrap">
+  <div class="tb-head"><h2>技术建站工作台</h2><span style="color:#64748B;font-size:13px">你好,{{ me.real_name }} — 领取建站任务,更新进度</span></div>
+
+  <div class="tb-grid">
+    <div class="t-card a"><div class="num">{{ progress.待开始 }}</div><div class="lbl">待开始</div></div>
+    <div class="t-card b"><div class="num">{{ progress.进行中 }}</div><div class="lbl">进行中</div></div>
+    <div class="t-card c"><div class="num">{{ progress.已完成 }}</div><div class="lbl">已完成</div></div>
+    <div class="t-card d"><div class="num">{{ progress.我承接 }}</div><div class="lbl">我承接</div></div>
+  </div>
+
+  <div class="panel">
+    <h3>建站任务池(待领取)</h3>
+    {% for p in pool %}
+    <div class="row">
+      <span class="c">{{ p.company_snapshot }} <span class="tag tag-{% if p.site_progress == 'in_progress' %}i{% elif p.site_progress == 'done' %}d{% else %}n{% endif %}">{{ p.get_site_progress_display }}</span></span>
+      <span class="t">{{ p.consultant.real_name|default:"未分配" }} <a class="claim" href="/admin/projects/project/{{ p.pk }}/claim/">领取</a></span>
+    </div>
+    {% empty %}
+    <div class="empty">暂无待领取任务</div>
+    {% endfor %}
+  </div>
+
+  <div class="panel">
+    <h3>我承接的建站任务</h3>
+    {% for p in mine %}
+    <div class="row">
+      <span class="c">{{ p.company_snapshot }} <span class="tag tag-{% if p.site_progress == 'in_progress' %}i{% elif p.site_progress == 'done' %}d{% else %}n{% endif %}">{{ p.get_site_progress_display }}</span></span>
+      <span class="t"><a href="/admin/projects/project/{{ p.pk }}/change/" style="color:#2563EB">更新进度 →</a></span>
+    </div>
+    {% empty %}
+    <div class="empty">你还没有承接建站任务,到上方任务池领取</div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

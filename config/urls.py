@@ -25,6 +25,7 @@ urlpatterns = [
     path("admin/notifications/unread/", views.notification_unread, name="notification_unread"),
     path("admin/sales-workbench/", views.sales_workbench, name="sales_workbench"),
     path("admin/consult-workbench/", views.consult_workbench, name="consult_workbench"),
+    path("admin/tech-workbench/", views.tech_workbench, name="tech_workbench"),
     path("admin/", admin.site.urls),
 ]
 

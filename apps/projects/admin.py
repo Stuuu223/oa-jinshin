@@ -119,7 +119,12 @@ LIST_COLUMNS_TECH = ("company_snapshot", "deal_at", "consultant", "site_category
 class ProjectAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
     search_fields = ("company_snapshot", "contact_name_snapshot", "phone_snapshot")
     list_filter = ("site_progress", "is_invoiced")
-    readonly_fields = ("created_at", "deal_at") + tuple(MONEY_FIELDS)
+    readonly_fields = (
+        "created_at", "deal_at",
+        # 快照字段:客户成交时从客户档案带入,销售已录,只读展示不重复填
+        "company_snapshot", "contact_name_snapshot", "phone_snapshot",
+        "source_snapshot", "quote_amount", "deal_business", "note",
+    ) + tuple(MONEY_FIELDS)
 
     # 表单布局规范:短字段并排(2列),长字段(note)独占整行,时间字段组合
     fieldsets = (

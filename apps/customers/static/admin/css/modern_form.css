@@ -72,14 +72,15 @@ div.form-row input[type="checkbox"] {
     height: 16px;
     margin-right: 6px;
 }
-/* 只读字段(快照/时间)样式:灰底块,与可编辑区分 */
+/* 只读字段(快照/时间)样式:灰底块,与可编辑区分
+   !important 对抗 Django 默认 .aligned label + div.readonly { padding:6px 0 }(特异性更高) */
 div.form-row .readonly {
-    background: #F8FAFC;
-    border: 1px solid #E2E8F0;
-    border-radius: 6px;
-    padding: 6px 12px;
-    font-size: 14px;
-    color: #475569;
+    background: #F8FAFC !important;
+    border: 1px solid #E2E8F0 !important;
+    border-radius: 6px !important;
+    padding: 6px 12px !important;
+    font-size: 14px !important;
+    color: #475569 !important;
     min-height: 20px;
 }
 div.form-row .fieldBox {

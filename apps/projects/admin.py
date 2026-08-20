@@ -17,7 +17,7 @@ from apps.accounts.admin_mixins import PROJECT_EDIT_ROLES, PROJECT_VIEW_ROLES, R
 from apps.accounts.models import Role, User
 from simple_history.admin import SimpleHistoryAdmin
 
-from .models import Project, ProjectAttachment, ProjectConsultantHistory, ProjectExpense, ProjectPayment
+from .models import Project, ProjectAttachment, ProjectConsultantHistory, ProjectExpense, ProjectPayment, SiteProgress
 
 
 def _next_seq(history_qs):
@@ -160,8 +160,8 @@ class ProjectAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
         }),
         ("建站信息", {
             "fields": (
-                ("site_category", "site_progress"),
-                "site_info",
+                ("tech_assigned", "site_progress"),
+                ("site_category", "site_info"),
             ),
         }),
         ("财务汇总(自动核算)", {
@@ -293,6 +293,25 @@ class ProjectAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
         role = getattr(request.user, "role", None)
         if role == Role.TECH and change:
             Project.objects.filter(pk=obj.pk).update(site_progress=obj.site_progress)
+            # 建站任务流转:技术更新进度时若无人承接 → 记录承接人 + 通知对应咨询 + 留痕
+            if not obj.tech_assigned_id and obj.site_progress != SiteProgress.NOT_STARTED:
+                Project.objects.filter(pk=obj.pk).update(tech_assigned=request.user)
+                try:
+                    from apps.accounts.models import Notification
+                    if obj.consultant_id:
+                        Notification.objects.create(
+                            recipient=obj.consultant, title="建站任务已承接",
+                            content=f"「{obj.company_snapshot}」建站任务由 {request.user.real_name} 接手（进度:{obj.get_site_progress_display()}），后续建站事宜请联系该技术。",
+                            link=f"/admin/projects/project/{obj.pk}/change/",
+                        )
+                    from apps.customers.models import OperationLog
+                    OperationLog.objects.create(
+                        user=request.user, action="承接建站",
+                        target=f"项目 {obj.company_snapshot}",
+                        detail=f"技术 {request.user.real_name} 承接建站,进度:{obj.get_site_progress_display()}",
+                    )
+                except Exception:
+                    pass
             return
         super().save_model(request, obj, form, change)
 

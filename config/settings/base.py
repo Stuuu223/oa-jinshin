@@ -104,6 +104,7 @@ SIMPLEUI_CONFIG = {
         {
             "name": "客户管理",
             "icon": "fa fa-address-book",
+            "permission": "accounts.view_sales_workbench",
             "models": [
                 {"name": "客户档案", "url": "/admin/customers/customer/", "icon": "fa fa-file-text-o", "permission": "accounts.view_sales_workbench"},
                 {"name": "客户公海池", "url": "/admin/customers/customer/?status__exact=pool", "icon": "fa fa-globe", "permission": "accounts.view_sales_workbench"},

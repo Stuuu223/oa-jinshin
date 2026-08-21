@@ -128,7 +128,7 @@ def page(title, body):
         '<aside class="side"><input class="search" type="text" placeholder="搜索文档…" id="q">'
         '<div id="nav"></div></aside>\n'
         '<main class="main"><div class="content"><div class="crumb"><a href="index.html">文档中心</a> / <span>' + title + '</span></div>'
-        '<div class="card">' + body + '</div></div></main>\n'
+        + body + '</div></main>\n'
         '<aside class="toc" id="toc"><div class="toc-t">本页目录</div><div id="tocLinks"></div></aside>'
         '</div><button id="totop">↑</button>\n'
         '<script>\n' + JS + '</script></body></html>'
@@ -152,18 +152,17 @@ function renderNav(filter){
 document.getElementById('q').addEventListener('input', function(){ renderNav(this.value.trim().toLowerCase()); });
 
 function showDoc(k){
-  var el = document.getElementById('doc-' + k);
   var all = document.querySelectorAll('.page'); all.forEach(function(x){ x.style.display='none'; });
-  if(el) el.style.display='block';
+  var el = document.getElementById('doc-' + k);
+  if(el){ el.style.display='block'; } else { document.getElementById('home').style.display='block'; }
   renderNav();
-  // 生成 TOC
   var toc = document.getElementById('tocLinks'); toc.innerHTML='';
+  if(!el) return;
   el.querySelectorAll('h2').forEach(function(h){
     var a=document.createElement('a'); a.textContent=h.textContent; a.href='#doc-'+k;
     a.addEventListener('click',function(){ h.scrollIntoView({behavior:'smooth'}); });
     toc.appendChild(a);
   });
-  // 滚动高亮 TOC
   var links = toc.querySelectorAll('a');
   var obs = new IntersectionObserver(function(es){
     es.forEach(function(e){ if(e.isIntersecting){
@@ -176,7 +175,10 @@ function showDoc(k){
 window.addEventListener('hashchange', function(){
   var m = location.hash.match(/doc-(.+)/);
   if(m) showDoc(decodeURIComponent(m[1]));
+  else showDoc('');
 });
+// 初始:URL 带 #doc-x 时直接切到对应文档(刷新不丢页)
+(function(){ var m = location.hash.match(/doc-(.+)/); if(m) showDoc(decodeURIComponent(m[1])); })();
 // 返回顶部
 var tt = document.getElementById('totop');
 window.addEventListener('scroll', function(){ tt.classList.toggle('show', window.scrollY > 300); });
@@ -277,9 +279,14 @@ def index_page():
         + cards +
         '<p style="margin-top:26px;color:var(--fg3);font-size:13px">与 markdown 源同步,系统变更后重新生成。</p>'
     )
-    return page("文档中心", body)
+    # 首页也是 .page section(#home),纳入 showDoc 统一切换——避免首页与文档内容混显(layout 崩)
+    home_section = '<section class="page" id="home" style="display:block"><div class="card">' + body + '</div></section>'
+    doc_sections = "\n".join(pages)
+    bootstrap = "\n<script>DOCS=" + str(nav_docs).replace("'", '"') + ";renderNav();</script>"
+    # 返回完整页面骨架(骨架 page() 生成一次;首页+文档 sections+引导 script 都在 body 内)
+    return page("文档中心", home_section + doc_sections + bootstrap)
 
 out = os.path.join(OUT, "index.html")
-html = index_page() + "\n".join(pages) + "\n<script>DOCS=" + str(nav_docs).replace("'", '"') + ";renderNav();</script>"
+html = index_page()  # 完整页面骨架:首页+文档sections+DOCS引导script 一次输出
 open(out, "w", encoding="utf-8").write(html)
 print("SPA 文档站已生成:", out, "(%dB, %d 个文档)" % (len(html), len(nav_docs)))

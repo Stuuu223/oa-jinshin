@@ -97,6 +97,9 @@ ALL_FIELDS = [
     "contract_entity", "is_invoiced", "is_tax_included", "quote_amount",
     "source_snapshot", "note", "sales", "consultant", "created_at", "deal_at",
     "site_category", "site_info", "site_progress",
+    # 站点联系方式(咨询填写,衔接办证/建站)
+    "site_full_name", "site_contact_address", "site_contact_phone", "site_contact_email",
+    "site_domain", "site_icp_number", "tech_assigned",
 ]
 
 # 销售：隐藏建站类目/信息（细则原文只隐藏这两项,建站进度可见）
@@ -272,6 +275,9 @@ class ProjectAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
         if role == Role.TECH:
             # 技术只能改 site_progress，其余只读
             return base + [f for f in TECH_VISIBLE if f != "site_progress"]
+        if role == Role.CONSULTANT:
+            # 普通咨询:可填建站类目/信息/站点联系方式;归属/签约/进度非其职责只读
+            return base + ["sales", "consultant", "is_invoiced", "is_tax_included", "site_progress"]
         return base
 
     @admin.display(description="领取")

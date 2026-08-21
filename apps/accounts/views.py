@@ -177,7 +177,7 @@ def sales_workbench(request):
             })
 
     context = dict(
-        title="销售工作台",
+        title="销售部门总览" if role == Role.ADMIN else "销售工作台",
         me=me,
         role=role,
         status_groups=status_groups,
@@ -231,7 +231,7 @@ def consult_workbench(request):
     my_projects = my_projects.order_by("-deal_at")[:20]
 
     context = dict(
-        title="咨询工作台",
+        title="咨询部门总览" if role == Role.ADMIN else "咨询工作台",
         me=me,
         pending_assign=pending_assign,
         my_projects=my_projects,

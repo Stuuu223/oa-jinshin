@@ -41,7 +41,7 @@
 
 <div class="wb-wrap">
   <div class="wb-head">
-    <h2>销售工作台</h2>
+    <h2>{{ title }}</h2>
     <span class="sub">{{ me.real_name }}（{{ me.get_role_display }}）</span>
   </div>
 
@@ -52,7 +52,7 @@
   </div>
 
   <div class="wb-grid">
-    <div class="card blue"><div class="label">我的客户</div><div class="value">{{ my_total }}</div></div>
+    <div class="card blue"><div class="label">{% if role == 'admin' %}全部客户{% else %}我的客户{% endif %}</div><div class="value">{{ my_total }}</div></div>
     {% if role == 'sales_lead' %}
     <div class="card green"><div class="label">组员客户</div><div class="value">{{ total|add:"-0" }}</div></div>
     {% else %}

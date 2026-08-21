@@ -312,7 +312,8 @@ class ProjectAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
         if not project:
             self.message_user(request, "任务不存在或已被领取", msgs.ERROR)
             return redirect("/admin/tech-workbench/")
-        Project.objects.filter(pk=project.pk).update(tech_assigned=request.user)
+        # 承接=开始搭建:自动更新进度为进行中(用户:承接后不该还是待开始)
+        Project.objects.filter(pk=project.pk).update(tech_assigned=request.user, site_progress=SiteProgress.IN_PROGRESS)
         try:
             if project.consultant_id:
                 Notification.objects.create(

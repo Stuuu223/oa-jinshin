@@ -256,10 +256,11 @@ def tech_workbench(request):
     # 我承接的
     mine = Project.objects.filter(tech_assigned=me).order_by("-deal_at")
     # 进度统计
+    from django.db.models import Q as _Q
     progress = {
         "待开始": Project.objects.filter(site_progress=SiteProgress.NOT_STARTED).count(),
         "进行中": Project.objects.filter(site_progress=SiteProgress.IN_PROGRESS).count(),
-        "已完成": Project.objects.filter(site_progress=SiteProgress.DONE).count(),
+        "已完成": Project.objects.filter(_Q(site_progress=SiteProgress.COMPLETED_PENDING) | _Q(site_progress=SiteProgress.DEPLOYED)).count(),
         "我承接": mine.count(),
     }
     context = dict(

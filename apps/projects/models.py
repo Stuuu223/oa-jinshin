@@ -20,7 +20,8 @@ class SiteProgress(models.TextChoices):
     """网站搭建进度——状态化，不用自由文本，便于后续统计."""
     NOT_STARTED = "not_started", "待开始"
     IN_PROGRESS = "in_progress", "进行中"
-    DONE = "done", "已完成"
+    COMPLETED_PENDING = "completed_pending", "已完成待部署"
+    DEPLOYED = "deployed", "已部署"
 
 
 class SiteCategory(models.TextChoices):
@@ -87,7 +88,7 @@ class Project(models.Model):
     site_domain = models.TextField("域名", blank=True, help_text="支持多个域名,每行一个(如:abc.com / abc.top)")
     site_icp_number = models.TextField("备案号", blank=True, help_text="支持多个备案号,每行一个,与域名对应(如:abc.com 对应 xxxx-1号)")
     site_progress = models.CharField(
-        "网站搭建进度", max_length=16, choices=SiteProgress.choices, default=SiteProgress.NOT_STARTED
+        "网站搭建进度", max_length=32, choices=SiteProgress.choices, default=SiteProgress.NOT_STARTED
     )
     # 技术承接人:技术接单建站时记录,咨询/销售可见'谁接了'、该找谁(建站任务流转留痕)
     tech_assigned = models.ForeignKey(

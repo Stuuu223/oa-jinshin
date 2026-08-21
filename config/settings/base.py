@@ -143,10 +143,9 @@ SIMPLEUI_CONFIG = {
 
 ANONYMOUS_USER_NAME = None
 
-# 会话保持:14 天有效期(登录 Set-Cookie 已验证正确)
-# 注意:SAVE_EVERY_REQUEST 曾设 True——每次请求刷新session+Set-Cookie,高频cookie刷新在部分浏览器/代理下可能异常导致丢cookie;
-# 按 GRID Isolate 回滚为默认 False(仅登录/修改时写 session),排除该变量
-SESSION_COOKIE_AGE = 1209600  # 14 天
+# 会话保持:30 天有效期(登录 Set-Cookie 已验证正确;AUDIT 铁证:退出时 cookies 有 csrftoken 无 sessionid=浏览器端
+# sessionid cookie 单独丢失,非服务端——延长有效期减少任何过期边缘;SAVE_EVERY_REQUEST 保持默认 False)
+SESSION_COOKIE_AGE = 2592000  # 30 天
 
 LOGGING = {
     "version": 1,

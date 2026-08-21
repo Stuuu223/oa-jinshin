@@ -99,7 +99,7 @@ ALL_FIELDS = [
     "site_category", "site_info", "site_progress",
     # 站点联系方式(咨询填写,衔接办证/建站)
     "site_full_name", "site_contact_address", "site_contact_phone", "site_contact_email",
-    "site_domain", "site_icp_number", "tech_assigned",
+    "site_domain_icp", "tech_assigned",
 ]
 
 # 销售：隐藏建站类目/信息（细则原文只隐藏这两项,建站进度可见）
@@ -179,9 +179,9 @@ class ProjectAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
             "fields": (
                 ("tech_assigned", "site_progress"),
                 ("site_category", "site_info"),
-                ("site_full_name", "site_domain"),
+                ("site_full_name", "site_domain_icp"),
                 ("site_contact_address", "site_contact_phone"),
-                ("site_contact_email", "site_icp_number"),
+                ("site_contact_email",),
             ),
         }),
         ("财务汇总(自动核算)", {
@@ -428,9 +428,9 @@ class ProjectAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
                     pass
             return
         super().save_model(request, obj, form, change)
-        # 站点交接信息流转:咨询/管理层更新站点字段(域名/备案/联系方式/信息)且已有技术承接 → 通知技术
+        # 站点交接信息流转:咨询/管理层更新站点字段(域名与备案/联系方式/信息)且已有技术承接 → 通知技术
         SITE_FIELDS = {"site_info", "site_full_name", "site_contact_address", "site_contact_phone",
-                       "site_contact_email", "site_domain", "site_icp_number"}
+                       "site_contact_email", "site_domain_icp"}
         if obj.tech_assigned_id and change and (set(form.changed_data) & SITE_FIELDS):
             try:
                 from apps.accounts.models import Notification

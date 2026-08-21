@@ -45,8 +45,8 @@
         {% endif %}
         <span class="tag {% if p.site_progress == 'deployed' %}tag-d{% elif p.site_progress == 'completed_pending' %}tag-b{% elif p.site_progress == 'in_progress' or p.tech_assigned %}tag-i{% else %}tag-n{% endif %}">{% if p.site_progress == 'deployed' %}已部署{% elif p.site_progress == 'completed_pending' %}已完成待部署{% elif p.site_progress == 'in_progress' %}进行中{% if p.tech_assigned %}·{{ p.tech_assigned.real_name }}{% endif %}{% elif p.tech_assigned %}已承接·{{ p.tech_assigned.real_name }}{% else %}待领取{% endif %}</span>
         {% if p.deal_business %}<span style="color:#64748B;font-size:12px">业务:{{ p.deal_business }}</span>{% endif %}
-        {% if p.site_domain or p.site_contact_phone or p.site_icp_number or p.site_contact_email %}
-        <div style="font-size:12px;color:#64748B;margin-top:4px">站点:{% if p.site_domain %}{{ p.site_domain }}{% endif %}{% if p.site_contact_phone %} · {{ p.site_contact_phone }}{% endif %}{% if p.site_contact_email %} · {{ p.site_contact_email }}{% endif %}{% if p.site_icp_number %} · 备案:{{ p.site_icp_number }}{% endif %}</div>
+        {% if p.site_domain_icp or p.site_contact_phone or p.site_contact_email %}
+        <div style="font-size:12px;color:#64748B;margin-top:4px">站点:{% if p.site_domain_icp %}{{ p.site_domain_icp|linebreaksbr }}{% endif %}{% if p.site_contact_phone %} · {{ p.site_contact_phone }}{% endif %}{% if p.site_contact_email %} · {{ p.site_contact_email }}{% endif %}</div>
         {% endif %}
         {% if p.site_info %}<div style="font-size:12px;color:#94A3B8;margin-top:2px">备注:{{ p.site_info|truncatechars:30 }}</div>{% endif %}
       </span>
@@ -67,8 +67,8 @@
     <div class="row" style="flex-wrap:wrap">
       <span class="c">
         {{ p.company_snapshot }} <span class="tag {% if p.site_progress == 'deployed' %}tag-d{% elif p.site_progress == 'completed_pending' %}tag-b{% elif p.site_progress == 'in_progress' or p.tech_assigned %}tag-i{% else %}tag-n{% endif %}">{% if p.site_progress == 'deployed' %}已部署{% elif p.site_progress == 'completed_pending' %}已完成待部署{% elif p.site_progress == 'in_progress' %}进行中{% if p.tech_assigned %}·{{ p.tech_assigned.real_name }}{% endif %}{% elif p.tech_assigned %}已承接·{{ p.tech_assigned.real_name }}{% else %}待领取{% endif %}</span>
-        {% if p.site_domain or p.site_contact_phone or p.site_icp_number or p.site_contact_email %}
-        <div style="font-size:12px;color:#64748B;margin-top:4px">站点:{% if p.site_domain %}{{ p.site_domain }}{% endif %}{% if p.site_contact_phone %} · {{ p.site_contact_phone }}{% endif %}{% if p.site_contact_email %} · {{ p.site_contact_email }}{% endif %}{% if p.site_icp_number %} · 备案:{{ p.site_icp_number }}{% endif %}</div>
+        {% if p.site_domain_icp or p.site_contact_phone or p.site_contact_email %}
+        <div style="font-size:12px;color:#64748B;margin-top:4px">站点:{% if p.site_domain_icp %}{{ p.site_domain_icp|linebreaksbr }}{% endif %}{% if p.site_contact_phone %} · {{ p.site_contact_phone }}{% endif %}{% if p.site_contact_email %} · {{ p.site_contact_email }}{% endif %}</div>
         {% endif %}
         {% if p.site_info %}<div style="font-size:12px;color:#94A3B8;margin-top:2px">备注:{{ p.site_info|truncatechars:30 }}</div>{% endif %}
       </span>

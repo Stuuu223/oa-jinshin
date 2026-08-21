@@ -85,8 +85,10 @@ class Project(models.Model):
     site_contact_address = models.CharField("网站联系地址", max_length=255, blank=True)
     site_contact_phone = models.CharField("网站联系电话", max_length=32, blank=True)
     site_contact_email = models.EmailField("网站联系邮箱", blank=True)
-    site_domain = models.TextField("域名", blank=True, help_text="支持多个域名,每行一个(如:abc.com / abc.top)")
-    site_icp_number = models.TextField("备案号", blank=True, help_text="支持多个备案号,每行一个,与域名对应(如:abc.com 对应 xxxx-1号)")
+    site_domain_icp = models.TextField(
+        "域名与备案号", blank=True,
+        help_text="每行一个,格式:域名 备案号(如:a.com xxxx-1号 / b.com xxxx-2号)",
+    )
     site_progress = models.CharField(
         "网站搭建进度", max_length=32, choices=SiteProgress.choices, default=SiteProgress.NOT_STARTED
     )

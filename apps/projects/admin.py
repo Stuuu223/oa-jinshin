@@ -130,6 +130,8 @@ class ProjectAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
         "source_snapshot", "quote_amount", "deal_business", "note",
         # 签约主体:成交时即确定为合同签约主体(一般=公司名),只读不重复填
         "contract_entity",
+        # 建站类目:由成交业务自动带出(如成交业务'ICPEDI 双证办理'→类目ICPEDI),全员只读不再手动选
+        "site_category",
     ) + tuple(MONEY_FIELDS)
 
     def formfield_for_dbfield(self, db_field, **kwargs):

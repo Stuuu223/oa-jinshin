@@ -76,7 +76,7 @@ class Project(models.Model):
     # ── 建站信息（咨询师/技术填写） ──
     site_category = models.CharField(
         "网站搭建类目", max_length=64, blank=True, choices=SiteCategory.choices,
-        help_text="选择建站类型(如 ICPEDI/企业官网+备案),咨询师填写",
+        help_text="由成交业务自动带出(如成交业务'ICPEDI 双证办理'→类目ICPEDI),无需手动选择",
     )
     site_info = models.TextField("网站搭建信息", blank=True)
     # ── 站点信息(咨询填写,衔接办证/建站) ──

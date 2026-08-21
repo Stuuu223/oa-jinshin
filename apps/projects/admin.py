@@ -407,9 +407,9 @@ class ProjectAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
                 obj.site_category = SiteCategory.APP
         if role == Role.TECH and change:
             Project.objects.filter(pk=obj.pk).update(site_progress=obj.site_progress)
-            # 建站任务流转:技术更新进度时若无人承接 → 记录承接人 + 通知对应咨询 + 留痕
+            # 建站任务流转:技术更新进度时若无人承接 → 记录承接人 + 同步进度为进行中(承接=开工,防'已承接待开始'不一致)
             if not obj.tech_assigned_id and obj.site_progress != SiteProgress.NOT_STARTED:
-                Project.objects.filter(pk=obj.pk).update(tech_assigned=request.user)
+                Project.objects.filter(pk=obj.pk).update(tech_assigned=request.user, site_progress=SiteProgress.IN_PROGRESS)
                 try:
                     from apps.accounts.models import Notification
                     if obj.consultant_id:

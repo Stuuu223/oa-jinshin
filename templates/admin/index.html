@@ -262,7 +262,7 @@
                 icon: 'fas fa-home'
             };
         {% endif %}
-        {% if request.user.role != 'tech' %}
+        {% if request.user.role not in 'sales consultant tech' %}
         menus.unshift(home);
         {% endif %}
         // 空分组过滤:models 为空的 submenu 不显示(如技术视角'工作台'空壳)

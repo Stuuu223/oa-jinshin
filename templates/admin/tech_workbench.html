@@ -37,9 +37,24 @@
   <div class="panel">
     <h3>建站任务池(待领取)</h3>
     {% for p in pool %}
-    <div class="row">
-      <span class="c">{{ p.company_snapshot }} <span class="tag tag-{% if p.site_progress == 'in_progress' %}i{% elif p.site_progress == 'done' %}d{% else %}n{% endif %}">{{ p.get_site_progress_display }}</span></span>
-      <span class="t">{{ p.consultant.real_name|default:"未分配" }} <a class="claim" href="/admin/projects/project/{{ p.pk }}/claim/">领取</a></span>
+    <div class="row" style="flex-wrap:wrap">
+      <span class="c">
+        {{ p.company_snapshot }}
+        {% if 'ICPEDI' in p.deal_business or 'EDI' in p.deal_business or 'ICP' in p.deal_business %}
+        <span class="tag tag-n" style="background:#FDE8E8;color:#C0392B">需备案</span>
+        {% endif %}
+        <span class="tag tag-{% if p.site_progress == 'in_progress' %}i{% elif p.site_progress == 'done' %}d{% else %}n{% endif %}">{{ p.get_site_progress_display }}</span>
+        {% if p.deal_business %}<span style="color:#64748B;font-size:12px">业务:{{ p.deal_business }}</span>{% endif %}
+        {% if p.site_domain or p.site_contact_phone or p.site_icp_number or p.site_contact_email %}
+        <div style="font-size:12px;color:#64748B;margin-top:4px">站点:{% if p.site_domain %}{{ p.site_domain }}{% endif %}{% if p.site_contact_phone %} · {{ p.site_contact_phone }}{% endif %}{% if p.site_contact_email %} · {{ p.site_contact_email }}{% endif %}{% if p.site_icp_number %} · 备案:{{ p.site_icp_number }}{% endif %}</div>
+        {% endif %}
+        {% if p.site_info %}<div style="font-size:12px;color:#94A3B8;margin-top:2px">备注:{{ p.site_info|truncatechars:30 }}</div>{% endif %}
+      </span>
+      <span class="t">
+        {{ p.consultant.real_name|default:"未分配" }}
+        <a href="/admin/projects/project/{{ p.pk }}/change/" style="color:#64748B;font-size:12px;margin-right:6px">交接信息 →</a>
+        <a class="claim" href="/admin/projects/project/{{ p.pk }}/claim/">领取</a>
+      </span>
     </div>
     {% empty %}
     <div class="empty">暂无待领取任务</div>

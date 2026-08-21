@@ -421,6 +421,19 @@ class ProjectAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
                     pass
             return
         super().save_model(request, obj, form, change)
+        # 站点交接信息流转:咨询/管理层更新站点字段(域名/备案/联系方式/信息)且已有技术承接 → 通知技术
+        SITE_FIELDS = {"site_info", "site_full_name", "site_contact_address", "site_contact_phone",
+                       "site_contact_email", "site_domain", "site_icp_number"}
+        if obj.tech_assigned_id and change and (set(form.changed_data) & SITE_FIELDS):
+            try:
+                from apps.accounts.models import Notification
+                Notification.objects.create(
+                    recipient=obj.tech_assigned, title="站点交接信息已更新",
+                    content=f"「{obj.company_snapshot}」站点信息(域名/备案/联系方式/备注)已更新,请到建站工作台查看。",
+                    link="/admin/tech-workbench/",
+                )
+            except Exception:
+                pass
 
     def save_formset(self, request, form, formset, change):
         instances = formset.save(commit=False)

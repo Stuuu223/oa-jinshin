@@ -10,6 +10,44 @@ import logging
 logger = logging.getLogger("django.request")
 
 
+class SessionRecoveryMiddleware:
+    """会话自愈(架构级根治自动退出):sessionid(HttpOnly)被浏览器清理时,
+    用 jsbk(非 HttpOnly,与 csrftoken 同样不被清理)恢复会话并重发 sessionid.
+    放 AuthenticationMiddleware 之前:恢复 request.session 后,user 由恢复的 session 重新认证.
+    """
+
+    BACKUP = "jsbk"
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        from django.conf import settings
+        bk = request.COOKIES.get(self.BACKUP)
+        recovered = False
+        # 无 sessionid cookie 但有 jsbk → 用 jsbk 恢复会话(值即 session_key)
+        if bk and not request.COOKIES.get(settings.SESSION_COOKIE_NAME):
+            try:
+                store = request.session.__class__(bk)
+                store.load()
+                if store.get("_auth_user_id"):
+                    request.session = store
+                    recovered = True
+            except Exception:
+                pass
+        response = self.get_response(request)
+        max_age = getattr(settings, "SESSION_COOKIE_AGE", 2592000)
+        user = getattr(request, "user", None)
+        if user is not None and user.is_authenticated:
+            # 已认证且无 jsbk(或刚恢复):写入/刷新 backup(非 HttpOnly)
+            if not request.COOKIES.get(self.BACKUP) or recovered:
+                response.set_cookie(self.BACKUP, request.session.session_key, max_age=max_age, httponly=False, samesite="Lax")
+            # 恢复成功:重发 sessionid(HttpOnly),浏览器下次带 sessionid 保持登录
+            if recovered:
+                response.set_cookie(settings.SESSION_COOKIE_NAME, request.session.session_key, max_age=max_age, httponly=True, samesite="Lax")
+        return response
+
+
 class SessionAuditMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response

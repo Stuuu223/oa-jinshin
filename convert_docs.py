@@ -183,6 +183,8 @@ window.addEventListener('hashchange', function(){
 var tt = document.getElementById('totop');
 window.addEventListener('scroll', function(){ tt.classList.toggle('show', window.scrollY > 300); });
 tt.addEventListener('click', function(){ window.scrollTo({top:0,behavior:'smooth'}); });
+// 初始渲染导航(此时 DOCS 已在骨架前定义)
+renderNav();
 """
 
 index_rows = [
@@ -282,7 +284,8 @@ def index_page():
     # 首页也是 .page section(#home),纳入 showDoc 统一切换——避免首页与文档内容混显(layout 崩)
     home_section = '<section class="page" id="home" style="display:block"><div class="card">' + body + '</div></section>'
     doc_sections = "\n".join(pages)
-    bootstrap = "\n<script>DOCS=" + str(nav_docs).replace("'", '"') + ";renderNav();</script>"
+    # DOCS 引导 script 在骨架 JS 之前执行:只定义 DOCS(renderNav 由骨架 JS 末尾调用,避免此处 renderNav 未定义报错)
+    bootstrap = "\n<script>DOCS=" + str(nav_docs).replace("'", '"') + ";</script>"
     # 返回完整页面骨架(骨架 page() 生成一次;首页+文档 sections+引导 script 都在 body 内)
     return page("文档中心", home_section + doc_sections + bootstrap)
 

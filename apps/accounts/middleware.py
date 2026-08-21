@@ -61,17 +61,19 @@ class SessionAuditMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
+        import datetime as _dt
         path = request.path
         if path.startswith("/admin/") and not path.startswith("/static/"):
             user = request.user
             authed = bool(user.is_authenticated)
             sid = request.session.session_key or "-"
             ua = (request.META.get("HTTP_USER_AGENT") or "")[:40]
+            now = _dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             # 退出事件:访问 admin 却未认证(被踢回登录页前的最后请求)
             if authed:
                 logger.warning(
-                    "AUDIT auth=yes user=%s sid=%s path=%s ua=%s",
-                    getattr(user, "username", "?"), sid[:10], path, ua,
+                    "AUDIT [%s] auth=yes user=%s sid=%s path=%s ua=%s",
+                    now, getattr(user, "username", "?"), sid[:10], path, ua,
                 )
                 # 登录留痕:同一 session 首次认证时记录"登录"(用户干了什么都知道)
                 if not request.session.get("_login_logged"):

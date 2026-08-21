@@ -83,7 +83,7 @@
       <div class="row">
         <span class="c">{{ c.company }}</span>
         <span class="t">最后跟进:{{ c.last_follow_at|date:"m-d H:i"|default:"无" }}</span>
-        <a class="n" href="/admin/customers/customer/{{ c.pk }}/change/">去跟进 →</a>
+        {% if role != 'admin' %}<a class="n" href="/admin/customers/customer/{{ c.pk }}/change/">去跟进 →</a>{% else %}<a class="n" href="/admin/customers/customer/{{ c.pk }}/change/" style="color:#64748B">查看 →</a>{% endif %}
       </div>
       {% endfor %}
     {% else %}

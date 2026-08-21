@@ -48,7 +48,7 @@
     <div class="row">
       <span class="c">{{ p.company_snapshot }} <span class="tag tag-pending">待分配</span></span>
       <span class="t">{{ p.deal_at|date:"m-d" }} · {{ p.deal_business|default:"未填" }}</span>
-      <a class="n" href="/admin/projects/project/{{ p.pk }}/change/">分配 →</a>
+      {% if role != 'admin' %}<a class="n" href="/admin/projects/project/{{ p.pk }}/change/">分配 →</a>{% else %}<a class="n" href="/admin/projects/project/{{ p.pk }}/change/" style="color:#64748B">查看 →</a>{% endif %}
     </div>
     {% endfor %}
   </div>

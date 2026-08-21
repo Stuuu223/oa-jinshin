@@ -39,12 +39,13 @@ class SessionRecoveryMiddleware:
             except Exception:
                 stale_backup = True
         response = self.get_response(request)
-        max_age = getattr(settings, "SESSION_COOKIE_AGE", 2592000)
+        max_age = getattr(settings, "SESSION_COOKIE_AGE", 2592000)  # sessionid:30天
+        backup_max_age = 365 * 24 * 3600  # jsbk:1年(与csrftoken同生命周期——浏览器清理30天cookie时jsbk保留,自愈才可用)
         user = getattr(request, "user", None)
         if user is not None and user.is_authenticated:
-            # 已认证且无 jsbk(或刚恢复):写入/刷新 backup(非 HttpOnly,与 csrftoken 同样不被清理)
+            # 已认证且无 jsbk(或刚恢复):写入/刷新 backup(非 HttpOnly,1年——与csrftoken同样不被'清理30天内cookie'影响)
             if not request.COOKIES.get(self.BACKUP) or recovered:
-                response.set_cookie(self.BACKUP, request.session.session_key, max_age=max_age, httponly=False, samesite="Lax")
+                response.set_cookie(self.BACKUP, request.session.session_key, max_age=backup_max_age, httponly=False, samesite="Lax")
             # 恢复成功:重发 sessionid(HttpOnly),浏览器下次带 sessionid 保持登录
             if recovered:
                 response.set_cookie(settings.SESSION_COOKIE_NAME, request.session.session_key, max_age=max_age, httponly=True, samesite="Lax")

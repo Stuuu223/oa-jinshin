@@ -123,6 +123,12 @@ LIST_COLUMNS_TECH = ("company_snapshot", "deal_at", "consultant", "site_category
 class ProjectAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
     search_fields = ("company_snapshot", "contact_name_snapshot", "phone_snapshot")
     list_filter = ("site_progress", "is_invoiced")
+
+    def get_list_filter(self, request):
+        """技术列表筛选净化:只留建站进度(是否开票与己无关),其他角色保持两个筛选."""
+        if getattr(request.user, "role", None) == Role.TECH:
+            return ["site_progress"]
+        return ("site_progress", "is_invoiced")
     readonly_fields = (
         "created_at", "deal_at",
         # 快照字段:客户成交时从客户档案带入,销售已录,只读展示不重复填
@@ -301,11 +307,11 @@ class ProjectAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
         role = getattr(request.user, "role", None)
         if role not in (Role.TECH, Role.ADMIN):
             self.message_user(request, "仅技术/总经办可领取建站任务", msgs.ERROR)
-            return redirect("/admin/projects/project/")
+            return redirect("/admin/tech-workbench/")
         project = Project.objects.filter(pk=object_id, tech_assigned__isnull=True).first()
         if not project:
             self.message_user(request, "任务不存在或已被领取", msgs.ERROR)
-            return redirect("/admin/projects/project/")
+            return redirect("/admin/tech-workbench/")
         Project.objects.filter(pk=project.pk).update(tech_assigned=request.user)
         try:
             if project.consultant_id:
@@ -322,7 +328,7 @@ class ProjectAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
         except Exception:
             pass
         self.message_user(request, f"已领取建站任务:{project.company_snapshot},已通知咨询", msgs.SUCCESS)
-        return redirect("/admin/projects/project/")
+        return redirect("/admin/tech-workbench/")
 
     def get_urls(self):
         from django.urls import path

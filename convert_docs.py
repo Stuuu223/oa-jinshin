@@ -135,11 +135,9 @@ def page(title, body):
     )
 
 JS = """
-var DOCS = {};
-
 function renderNav(filter){
   var nav = document.getElementById('nav'); nav.innerHTML = '';
-  var keys = Object.keys(DOCS).filter(function(k){ return !filter || DOCS[k].toLowerCase().indexOf(filter) >= 0; });
+  var keys = Object.keys(DOCS || {}).filter(function(k){ return !filter || String(DOCS[k]).toLowerCase().indexOf(filter) >= 0; });
   keys.forEach(function(k){
     var a = document.createElement('a');
     a.className = 'item' + (location.hash === '#doc-' + k ? ' active' : '');
@@ -264,7 +262,7 @@ for name, *injects in DOCS_META:
     inj = [x for x in injects if x is not None] if injects else []
     body = render(name, md, inj)
     pages.append('<section class="page" id="doc-%s" style="display:none"><div class="card">%s</div></section>' % (name, body))
-    nav_docs[name] = (md.count("\n") + 1)
+    nav_docs[name] = ""  # 值用空字符串(搜索匹配用),避免数字导致 DOCS[k].toLowerCase 报错
 
 # 首页
 def index_page():

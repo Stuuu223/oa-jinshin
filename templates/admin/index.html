@@ -273,6 +273,14 @@
         if (_role === 'sales' || _role === 'consultant' || _role === 'tech') {
             menus = menus.filter(function (m) { return m.name !== '成交管理'; });
         }
+        // 老板(总经办)看总览不干活:工作台分组只留'老板总览面板',隐藏销售/咨询/建站工作台干活入口
+        if (_role === 'admin') {
+            menus.forEach(function (m) {
+                if (m.name === '工作台' && m.models) {
+                    m.models = m.models.filter(function (mm) { return mm.name === '老板总览面板'; });
+                }
+            });
+        }
         window.language = {
             change_password: '{% trans 'Change password' %}',
             logout: '退出',

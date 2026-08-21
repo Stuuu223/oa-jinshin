@@ -125,25 +125,25 @@ class ProjectAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
         # 快照字段:客户成交时从客户档案带入,销售已录,只读展示不重复填
         "company_snapshot", "contact_name_snapshot", "phone_snapshot",
         "source_snapshot", "quote_amount", "deal_business", "note",
+        # 签约主体:成交时即确定为合同签约主体(一般=公司名),只读不重复填
+        "contract_entity",
     ) + tuple(MONEY_FIELDS)
 
     def formfield_for_dbfield(self, db_field, **kwargs):
-        # 下拉按角色过滤:销售人员只列销售、咨询师只列咨询(不再列出全部26个用户)
+        # 下拉按角色过滤:销售人员只列销售/销售主管、咨询师只列咨询/咨询主管(不含总经办/测试账号)
         from apps.accounts.models import Role
         from django.db.models import Q
+        base_qs = kwargs.get("queryset", User.objects.all()).exclude(username__startswith="test_")
         if db_field.name == "sales":
-            kwargs["queryset"] = kwargs.get("queryset", User.objects.all()).filter(
-                Q(role=Role.SALES) | Q(role=Role.SALES_LEAD) | Q(role=Role.ADMIN)
+            kwargs["queryset"] = base_qs.filter(
+                Q(role=Role.SALES) | Q(role=Role.SALES_LEAD)
             )
         elif db_field.name == "consultant":
-            kwargs["queryset"] = kwargs.get("queryset", User.objects.all()).filter(
-                Q(role=Role.CONSULTANT) | Q(role=Role.CONSULTANT_LEAD) | Q(role=Role.ADMIN)
+            kwargs["queryset"] = base_qs.filter(
+                Q(role=Role.CONSULTANT) | Q(role=Role.CONSULTANT_LEAD)
             )
         elif db_field.name == "tech_assigned":
-            # 技术承接人只列技术角色(同类问题:sales/consultant已过滤,tech_assigned漏了)
-            kwargs["queryset"] = kwargs.get("queryset", User.objects.all()).filter(
-                Q(role=Role.TECH) | Q(role=Role.ADMIN)
-            )
+            kwargs["queryset"] = base_qs.filter(role=Role.TECH)
         return super().formfield_for_dbfield(db_field, **kwargs)
 
     # 表单布局规范:短字段并排(2列),长字段(note)独占整行,时间字段组合

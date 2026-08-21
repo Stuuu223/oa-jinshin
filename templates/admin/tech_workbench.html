@@ -25,7 +25,7 @@
   .tag-d{background:#DCFCE7;color:#15803D}
 </style>
 <div class="tb-wrap">
-  <div class="tb-head"><h2>技术建站工作台</h2><span style="color:#64748B;font-size:13px">你好,{{ me.real_name }} — 领取建站任务,更新进度</span></div>
+  <div class="tb-head"><h2>{{ title }}</h2><span style="color:#64748B;font-size:13px">你好,{{ me.real_name }} — {% if is_admin %}技术部门建站进度总览(查看各部门承接情况){% else %}领取建站任务,更新进度{% endif %}</span></div>
 
   <div class="tb-grid">
     <div class="t-card a"><div class="num">{{ progress.待开始 }}</div><div class="lbl">待开始</div></div>
@@ -53,7 +53,7 @@
       <span class="t">
         {{ p.consultant.real_name|default:"未分配" }}
         <a href="/admin/projects/project/{{ p.pk }}/change/" style="color:#64748B;font-size:12px;margin-right:6px">交接信息 →</a>
-        <a class="claim" href="/admin/projects/project/{{ p.pk }}/claim/">领取</a>
+        {% if not is_admin %}<a class="claim" href="/admin/projects/project/{{ p.pk }}/claim/">领取</a>{% else %}<a href="/admin/projects/project/{{ p.pk }}/change/" style="color:#2563EB;font-size:12px">查看 →</a>{% endif %}
       </span>
     </div>
     {% empty %}
@@ -62,6 +62,23 @@
   </div>
 
   <div class="panel">
+    {% if is_admin %}
+    <h3>技术承接分布(各部门承接情况)</h3>
+    {% for p in all_claimed %}
+    <div class="row" style="flex-wrap:wrap">
+      <span class="c">
+        {{ p.company_snapshot }} <span class="tag {% if p.site_progress == 'deployed' %}tag-d{% elif p.site_progress == 'completed_pending' %}tag-b{% elif p.site_progress == 'in_progress' or p.tech_assigned %}tag-i{% else %}tag-n{% endif %}">{% if p.site_progress == 'deployed' %}已部署{% elif p.site_progress == 'completed_pending' %}已完成待部署{% elif p.site_progress == 'in_progress' %}进行中{% endif %}</span>
+        {% if p.site_domain_icp %}<div style="font-size:12px;color:#64748B;margin-top:4px">站点:{{ p.site_domain_icp|linebreaksbr }}</div>{% endif %}
+      </span>
+      <span class="t">
+        承接:{{ p.tech_assigned.real_name }}
+        <a href="/admin/projects/project/{{ p.pk }}/change/" style="color:#2563EB">查看 →</a>
+      </span>
+    </div>
+    {% empty %}
+    <div class="empty">暂无技术承接任务</div>
+    {% endfor %}
+    {% else %}
     <h3>我承接的建站任务</h3>
     {% for p in mine %}
     <div class="row" style="flex-wrap:wrap">
@@ -80,6 +97,7 @@
     {% empty %}
     <div class="empty">你还没有承接建站任务,到上方任务池领取</div>
     {% endfor %}
+    {% endif %}
   </div>
 </div>
 {% endblock %}

@@ -263,12 +263,17 @@ def tech_workbench(request):
         "已完成": Project.objects.filter(_Q(site_progress=SiteProgress.COMPLETED_PENDING) | _Q(site_progress=SiteProgress.DEPLOYED)).count(),
         "我承接": mine.count(),
     }
+    # 总经办(老板)不干活:技术工作台=部门总览——展示承接分布,不显示个人领取/我承接
+    is_admin = role == Role.ADMIN
+    all_claimed = Project.objects.filter(tech_assigned__isnull=False).order_by("-deal_at") if is_admin else Project.objects.none()
     context = dict(
-        title="技术建站工作台",
+        title="技术部门总览" if is_admin else "技术建站工作台",
         me=me,
         role=role,
         pool=pool,
         mine=mine,
         progress=progress,
+        is_admin=is_admin,
+        all_claimed=all_claimed,
     )
     return render(request, "admin/tech_workbench.html", context)

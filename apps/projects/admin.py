@@ -18,7 +18,7 @@ from apps.accounts.admin_mixins import PROJECT_EDIT_ROLES, PROJECT_VIEW_ROLES, R
 from apps.accounts.models import Role, User
 from simple_history.admin import SimpleHistoryAdmin
 
-from .models import Project, ProjectAttachment, ProjectConsultantHistory, ProjectExpense, ProjectPayment, SiteProgress
+from .models import Project, ProjectAttachment, ProjectConsultantHistory, ProjectExpense, ProjectPayment, SiteCategory, SiteProgress
 
 
 def _next_seq(history_qs):
@@ -377,6 +377,19 @@ class ProjectAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
     def save_model(self, request, obj, form, change):
         """技术仅可更新 site_progress（表单层已只读其余字段,这里只落这一个字段）."""
         role = getattr(request.user, "role", None)
+        # 建站类目自动带出:销售成交业务已确定(如 ICPEDI 双证办理),类目空时从成交业务推断,不重复选
+        if not obj.site_category and obj.deal_business:
+            db = obj.deal_business
+            if "ICPEDI" in db:
+                obj.site_category = SiteCategory.ICPEDI
+            elif "EDI" in db:
+                obj.site_category = SiteCategory.EDI
+            elif "ICP" in db:
+                obj.site_category = SiteCategory.ICP
+            elif "官网" in db or "企业" in db:
+                obj.site_category = SiteCategory.CORP_SITE_ICP
+            elif "APP" in db.upper() or "小程序" in db:
+                obj.site_category = SiteCategory.APP
         if role == Role.TECH and change:
             Project.objects.filter(pk=obj.pk).update(site_progress=obj.site_progress)
             # 建站任务流转:技术更新进度时若无人承接 → 记录承接人 + 通知对应咨询 + 留痕

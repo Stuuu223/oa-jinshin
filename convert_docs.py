@@ -6,6 +6,25 @@ SRC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "jinshi-sys
 OUT = os.path.join(SRC, "docs-html")
 os.makedirs(OUT, exist_ok=True)
 
+# ---- 集成 Django 实时统计(总纲关键数字,老板一目了然) ----
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.dev")
+try:
+    import django
+    django.setup()
+    from apps.customers.models import Customer
+    from apps.projects.models import Project, ProjectPayment, ProjectExpense
+
+    def stats():
+        cust = Customer.objects.count()
+        proj = Project.objects.count()
+        pay = sum(p.amount or 0 for p in ProjectPayment.objects.all())
+        exp = sum(e.amount or 0 for e in ProjectExpense.objects.all())
+        pending = Project.objects.exclude(site_progress__in=["deployed", "completed_pending"]).count()
+        return cust, proj, pay, exp, pay - exp, pending
+except Exception:
+    def stats():
+        return 0, 0, 0, 0, 0, 0
+
 CSS = """
 :root{
   --bg:#fff; --fg:#1F2328; --fg2:#59636E; --fg3:#8C959F;
@@ -266,18 +285,39 @@ for name, *injects in DOCS_META:
 
 # 首页
 def index_page():
-    rows = "".join(
-        '<a class="item" href="#doc-%s"><span>%s</span></a>' % (n, n) for n, _d in nav_docs.items()
+    # 总纲(老板一目了然):关键数字 + 业务闭环 + 部门分工 + 文档导航
+    cust, proj, pay, exp, profit, pending = stats()
+    fmt = lambda v: format(v, ",.0f")
+    stat_cards = (
+        '<div class="arch">'
+        '<div class="box"><div class="t">%s 个客户档案</div><div class="d">销售建档 · 公海调配 · 撞单管控</div></div>'
+        '<div class="box"><div class="t">%s 个成交项目</div><div class="d">嘉茵分配 · 办证流转 · 建站任务</div></div>'
+        '<div class="box"><div class="t">¥%s 累计收款</div><div class="d">咨询填写 · 财务审核</div></div>'
+        '<div class="box"><div class="t">¥%s 累计支出</div><div class="d">成本申请 · 老板审核</div></div>'
+        '<div class="box"><div class="t">¥%s 累计利润</div><div class="d">收款−支出 自动核算</div></div>'
+        '<div class="box"><div class="t">%s 个待建站</div><div class="d">技术领取 · 进度同步全员</div></div>'
+        '</div>' % (cust, proj, fmt(pay), fmt(exp), fmt(profit), pending)
     )
-    cards = "".join(
-        '<div class="arch" style="margin:0 0 12px"><div class="box" style="cursor:pointer" onclick="location.hash=\'#doc-%s\'">'
-        '<div class="t">%s</div></div></div>' % (n, n) for n in nav_docs
+    depts = (
+        '<div class="arch">'
+        '<div class="box"><div class="t">销售部</div><div class="d">唯一建档 · 客户跟进 · 成交转项目 · 查看全流程进度</div></div>'
+        '<div class="box"><div class="t">咨询部</div><div class="d">嘉茵分配 · 办证节点 · 收款/支出 · 站点交接信息 · 成本申请</div></div>'
+        '<div class="box"><div class="t">技术部</div><div class="d">建站任务池 · 领取承接 · 进度(待开始/进行中/已完成待部署/已部署)</div></div>'
+        '<div class="box"><div class="t">财务/总经办</div><div class="d">全盘账务 · 成本审核 · 利润核算 · 客户资源调配</div></div>'
+        '</div>'
+    )
+    docnav = "".join(
+        '<div class="arch" style="margin:0 0 10px"><div class="box" style="cursor:pointer" onclick="location.hash=\'#doc-%s\'">'
+        '<div class="t">%s →</div></div></div>' % (n, n) for n in nav_docs
     )
     body = (
-        "<h1>文档中心</h1>"
-        "<p>金石企服客户管理系统 · 单页文档中心,点击左侧导航或下方卡片切换,右上目录可跳转章节。</p>"
-        + cards +
-        '<p style="margin-top:26px;color:var(--fg3);font-size:13px">与 markdown 源同步,系统变更后重新生成。</p>'
+        "<h1>总纲</h1>"
+        "<p>客户从 <strong>进线 → 成交 → 办证 → 建站 → 核算</strong> 全流程数字化,四部门各司其职,管理层全盘管控。</p>"
+        "<h2>关键数字(实时)</h2>" + stat_cards +
+        "<h2>核心业务闭环</h2>" + FLOW +
+        "<h2>四部门分工</h2>" + depts +
+        "<h2>文档导航</h2>" + docnav +
+        '<p style="margin-top:26px;color:var(--fg3);font-size:13px">数字为文档生成时快照,与 markdown 源同步;系统变更后重新生成。</p>'
     )
     # 首页也是 .page section(#home),纳入 showDoc 统一切换——避免首页与文档内容混显(layout 崩)
     home_section = '<section class="page" id="home" style="display:block"><div class="card">' + body + '</div></section>'
@@ -285,7 +325,7 @@ def index_page():
     # DOCS 引导 script 在骨架 JS 之前执行:只定义 DOCS(renderNav 由骨架 JS 末尾调用,避免此处 renderNav 未定义报错)
     bootstrap = "\n<script>DOCS=" + str(nav_docs).replace("'", '"') + ";</script>"
     # 返回完整页面骨架(骨架 page() 生成一次;首页+文档 sections+引导 script 都在 body 内)
-    return page("文档中心", home_section + doc_sections + bootstrap)
+    return page("总纲 · 金石企服系统", home_section + doc_sections + bootstrap)
 
 out = os.path.join(OUT, "index.html")
 html = index_page()  # 完整页面骨架:首页+文档sections+DOCS引导script 一次输出

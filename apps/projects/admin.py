@@ -385,8 +385,8 @@ class ProjectAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
     def save_model(self, request, obj, form, change):
         """技术仅可更新 site_progress（表单层已只读其余字段,这里只落这一个字段）."""
         role = getattr(request.user, "role", None)
-        # 建站类目自动带出:销售成交业务已确定(如 ICPEDI 双证办理),类目空时从成交业务推断,不重复选
-        if not obj.site_category and obj.deal_business:
+        # 建站类目=成交业务派生字段(只读):每次保存都按业务推断(非仅空时)——旧自由文本值/人工值一律纠正为业务对应类目
+        if obj.deal_business:
             db = obj.deal_business
             if "ICPEDI" in db:
                 obj.site_category = SiteCategory.ICPEDI

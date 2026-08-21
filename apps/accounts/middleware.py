@@ -23,10 +23,11 @@ class SessionRecoveryMiddleware:
 
     def __call__(self, request):
         from django.conf import settings
-        bk = request.COOKIES.get(self.BACKUP)
+        # 恢复 token 来源:jsbk cookie 或 X-JSTK 头(localStorage——浏览器清 cookie 不清 localStorage,自愈更可靠)
+        bk = request.COOKIES.get(self.BACKUP) or request.META.get("HTTP_X_JSTK")
         recovered = False
         stale_backup = False
-        # 无 sessionid cookie 但有 jsbk → 用 jsbk 恢复会话(值即 session_key)
+        # 无 sessionid cookie 但有恢复 token → 用其恢复会话(值即 session_key)
         if bk and not request.COOKIES.get(settings.SESSION_COOKIE_NAME):
             try:
                 store = request.session.__class__(bk)
@@ -43,9 +44,9 @@ class SessionRecoveryMiddleware:
         backup_max_age = 365 * 24 * 3600  # jsbk:1年(与csrftoken同生命周期——浏览器清理30天cookie时jsbk保留,自愈才可用)
         user = getattr(request, "user", None)
         if user is not None and user.is_authenticated:
-            # 已认证且无 jsbk(或刚恢复):写入/刷新 backup(非 HttpOnly,1年——与csrftoken同样不被'清理30天内cookie'影响)
-            if not request.COOKIES.get(self.BACKUP) or recovered:
-                response.set_cookie(self.BACKUP, request.session.session_key, max_age=backup_max_age, httponly=False, samesite="Lax")
+            # 已认证:总是刷新 jsbk=当前 session_key(非 HttpOnly,1年)——防止残留旧值
+            # (Django 登录会 rotate session key 并删旧 session,旧 jsbk 恢复失败→这是自愈失效的真因之一)
+            response.set_cookie(self.BACKUP, request.session.session_key, max_age=backup_max_age, httponly=False, samesite="Lax")
             # 恢复成功:重发 sessionid(HttpOnly),浏览器下次带 sessionid 保持登录
             if recovered:
                 response.set_cookie(settings.SESSION_COOKIE_NAME, request.session.session_key, max_age=max_age, httponly=True, samesite="Lax")

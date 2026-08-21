@@ -285,6 +285,15 @@
                 }
             });
         }
+        // 会话自愈:登录后把 session key 存 localStorage(浏览器清 cookie 不清 localStorage),请求带 X-JSTK 头
+        try { localStorage.setItem('jstk', '{{ request.session.session_key }}'); } catch (e) {}
+        if (window.axios) {
+            axios.interceptors.request.use(function (cfg) {
+                var t = localStorage.getItem('jstk');
+                if (t) { cfg.headers = cfg.headers || {}; cfg.headers['X-JSTK'] = t; }
+                return cfg;
+            });
+        }
         window.language = {
             change_password: '{% trans 'Change password' %}',
             logout: '退出',

@@ -50,9 +50,22 @@ class NotificationAdmin(RolePermissionsMixin, admin.ModelAdmin):
             cl.title = f"{cl.title}（未读 {unread} 条）"
         return cl
 
-    @admin.display(description="已读", boolean=True)
-    def read_badge(self, obj: Notification) -> bool:
-        return obj.is_read
+    @admin.display(description="状态")
+    def read_badge(self, obj: Notification):
+        """未读/已读状态:未读按通知类型配色角标(撞单红/承接分配蓝/撤销灰/默认琥珀),已读灰——替代 icon-no 红 x."""
+        from django.utils.html import format_html
+        if obj.is_read:
+            return format_html('<span style="color:#6B7280;background:#F3F4F6;border-radius:4px;padding:1px 8px;font-size:12px">已读</span>')
+        t = obj.title or ""
+        if "撞单" in t:
+            style = "color:#C0392B;background:#FDE8E8"
+        elif "承接" in t or "分配" in t or "调配" in t:
+            style = "color:#1D4ED8;background:#DBEAFE"
+        elif "撤销" in t:
+            style = "color:#6B7280;background:#F3F4F6"
+        else:
+            style = "color:#B45309;background:#FEF3C7"
+        return format_html('<span style="{};border-radius:4px;padding:1px 8px;font-size:12px;font-weight:600">未读</span>', style)
 
     @admin.display(description="类型")
     def type_badge(self, obj: Notification) -> str:

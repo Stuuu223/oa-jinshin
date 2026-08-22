@@ -48,13 +48,16 @@
       <span class="dup-count">{{ dup_alerts }} 条待处理</span>
     </div>
     {% for d in dup_details %}
-    <div class="dup-item">
+    <div class="dup-item" style="flex-wrap:wrap">
       <span class="co">{{ d.company }}</span>
       <span class="vs">撞</span>
       {% for t in d.dup_targets %}
         <span class="tag">{{ t }}</span>
       {% endfor %}
-      <span class="meta">{{ d.created_by }}建档 · {{ d.flagged_at|date:"m-d H:i" }}</span>
+      {% if d.match_fields %}
+      <span class="tag" style="background:#FEF3C7;color:#B45309">相同:{{ d.match_fields|join:"、" }}</span>
+      {% endif %}
+      <span class="meta">{{ d.created_by }}建档 · {{ d.flagged_at|date:"m-d H:i" }} <a href="/admin/customers/customer/{{ d.id }}/change/" style="color:#2563EB">处理 →</a></span>
     </div>
     {% endfor %}
   </div>

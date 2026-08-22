@@ -50,13 +50,13 @@
     {% for d in dup_details %}
     <div class="dup-item" style="flex-wrap:wrap">
       <span class="co">{{ d.company }}</span>
-      <span class="vs">撞</span>
-      {% for t in d.dup_targets %}
-        <span class="tag">{{ t }}</span>
+      {% for pair in d.dup_pairs %}
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;width:100%;margin-left:20px">
+        <span class="vs">撞</span>
+        <span class="tag">{{ pair.target }}</span>
+        {% if pair.fields %}<span class="tag" style="background:#FEF3C7;color:#B45309">相同:{{ pair.fields|join:"、" }}</span>{% endif %}
+      </div>
       {% endfor %}
-      {% if d.match_fields %}
-      <span class="tag" style="background:#FEF3C7;color:#B45309">相同:{{ d.match_fields|join:"、" }}</span>
-      {% endif %}
       <span class="meta">{{ d.created_by }}建档 · {{ d.flagged_at|date:"m-d H:i" }} <a href="/admin/customers/customer/{{ d.id }}/change/" style="color:#2563EB">处理 →</a></span>
     </div>
     {% endfor %}

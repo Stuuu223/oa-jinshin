@@ -5,7 +5,7 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 APPS_DIR = BASE_DIR / "apps"
 
-SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-secret-change-in-prod")
+SECRET_KEY = "dev-secret-change-in-prod"  # 写死固定:重启/不同启动环境不导致 session 签名失效(登录丢失)
 DEBUG = False
 ALLOWED_HOSTS: list[str] = []
 

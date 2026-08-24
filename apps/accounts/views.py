@@ -87,15 +87,18 @@ def dashboard(request):
         for d in targets:
             who = d.created_by.real_name if d.created_by else "未知"
             pair_fields = []
+            pair_confidence = "medium"
+            if c.phone and d.phone and c.phone == d.phone:
+                pair_fields.append(f"电话「{c.phone}」")
+                pair_confidence = "high"  # 电话=唯一标识,100%撞
             if c.company and d.company and c.company == d.company:
                 pair_fields.append(f"公司名「{c.company}」")
             if c.contact_name and d.contact_name and c.contact_name == d.contact_name:
                 pair_fields.append(f"联系人「{c.contact_name}」")
-            if c.phone and d.phone and c.phone == d.phone:
-                pair_fields.append(f"电话「{c.phone}」")
             dup_pairs.append({
                 "target": f"{d.company}（{who}建档·{d.created_at:%m-%d %H:%M}）",
                 "fields": pair_fields,
+                "confidence": pair_confidence,
             })
         dup_details.append({
             "id": c.pk,
@@ -316,3 +319,20 @@ def monitor(request):
     context = collect_metrics()
     context["title"] = "技术监控后台"
     return render(request, "admin/monitor.html", context)
+
+
+@login_required
+def resolve_dup(request, customer_id):
+    """撞单处理:标记非撞单(解除)——清除duplicate_flagged_at,退出待处理(交差)."""
+
+    role = getattr(request.user, "role", "")
+    if not (getattr(request.user, "is_superuser", False) or role == "admin"):
+        return redirect("/admin/")
+    from apps.customers.models import Customer
+    try:
+        c = Customer.objects.get(pk=customer_id)
+        c.duplicate_flagged_at = None
+        c.save(update_fields=["duplicate_flagged_at"])
+    except Customer.DoesNotExist:
+        pass
+    return redirect("/admin/dashboard/")

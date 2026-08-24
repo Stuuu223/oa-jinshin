@@ -119,18 +119,18 @@ class Customer(models.Model):
         return self.company
 
     def find_duplicates(self) -> models.QuerySet:
-        """撞单查重——按公司名/联系人/电话任一相同匹配,排除自己.
+        """撞单查重(置信度分级)——电话相同=100%高置信度(唯一标识),公司名精确=中;泛称联系人(王总等)无唯一性,不触发.
 
-        对应细则第一页·六、提醒功能:不同销售录入相同公司名/联系人/联系方式时弹窗提醒。
-        软查重不拦截,仅提示,并送总经办信息箱。
+        对应细则第一页·六、提醒功能:不同销售录入相同客户时弹窗提醒(仅高/中置信度,软查重不拦截).
         """
         from django.db.models import Q
 
-        return type(self).objects.filter(
-            Q(company__iexact=self.company)
-            | Q(contact_name__iexact=self.contact_name)
-            | Q(phone__iexact=self.phone)
-        ).exclude(pk=self.pk)
+        qs = type(self).objects.exclude(pk=self.pk)
+        # 高置信度:电话相同(唯一标识,100%撞)
+        phone_hits = qs.filter(phone__iexact=self.phone) if self.phone else qs.none()
+        # 中置信度:公司名精确相同
+        name_hits = qs.filter(company__iexact=self.company) if self.company else qs.none()
+        return phone_hits | name_hits
 
     @property
     def source_label(self) -> str:

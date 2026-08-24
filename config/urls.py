@@ -22,6 +22,7 @@ from apps.accounts import views
 urlpatterns = [
     # 注意顺序:dashboard 必须在 admin/ 之前,否则被 admin 内部 catch_all 吞掉
     path("admin/dashboard/", views.dashboard, name="dashboard"),
+    path("admin/dup-resolve/<int:customer_id>/", views.resolve_dup, name="resolve_dup"),
     path("admin/notifications/unread/", views.notification_unread, name="notification_unread"),
     path("admin/sales-workbench/", views.sales_workbench, name="sales_workbench"),
     path("admin/consult-workbench/", views.consult_workbench, name="consult_workbench"),

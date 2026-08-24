@@ -55,9 +55,10 @@
         <span class="vs">撞</span>
         <span class="tag">{{ pair.target }}</span>
         {% if pair.fields %}<span class="tag" style="background:#FEF3C7;color:#B45309">相同:{{ pair.fields|join:"、" }}</span>{% endif %}
+        {% if pair.confidence == "high" %}<span class="tag" style="background:#FEE2E2;color:#B91C1C">100% 撞(电话唯一)</span>{% endif %}
       </div>
       {% endfor %}
-      <span class="meta">{{ d.created_by }}建档 · {{ d.flagged_at|date:"m-d H:i" }} <a href="/admin/customers/customer/{{ d.id }}/change/" style="color:#2563EB">处理 →</a></span>
+      <span class="meta">{{ d.created_by }}建档 · {{ d.created_at|date:"m-d H:i" }} <a href="/admin/customers/customer/{{ d.id }}/change/" style="color:#2563EB">处理 →</a> <a href="/admin/dup-resolve/{{ d.id }}/" style="color:#16a34a">解除(非撞单)</a></span>
     </div>
     {% endfor %}
   </div>

@@ -84,8 +84,11 @@ def dashboard(request):
         if not targets:
             continue
         dup_pairs = []
-        for d in targets:
+        owner_text = ""
+        for d in sorted(targets, key=lambda x: x.created_at):  # 先建档排前=归属方(先到先得)
             who = d.created_by.real_name if d.created_by else "未知"
+            if not owner_text:
+                owner_text = f"{d.company}（{who}·{d.created_at:%m-%d %H:%M}建档）"
             dup_pairs.append({
                 "target": f"{d.company}（{who}建档·{d.created_at:%m-%d %H:%M}）",
                 "fields": c.match_fields(d),
@@ -97,6 +100,7 @@ def dashboard(request):
             "created_by": c.created_by.real_name if c.created_by else "未知",
             "flagged_at": c.duplicate_flagged_at,
             "created_at": c.created_at,
+            "owner": owner_text,  # 归属方(先建档,资源归它)
             "dup_pairs": dup_pairs,
         })
     # 横幅条数与明细条数同一数据源(标识客户数),避免"2条却显示4条"

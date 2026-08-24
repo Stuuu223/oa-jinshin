@@ -50,6 +50,9 @@
     {% for d in dup_details %}
     <div class="dup-item" style="flex-wrap:wrap">
       <span class="co">{{ d.company }} <span style="color:#94A3B8;font-size:12px;font-weight:400">（撞单方·{{ d.created_at|date:"m-d H:i" }}建档）</span></span>
+      {% if d.owner %}
+      <div style="width:100%;margin-left:20px;margin-top:4px;color:#B45309;font-size:12px;background:#FEF3C7;padding:6px 10px;border-radius:6px">⚠ 重复录入:客户资源归先建档销售 {{ d.owner }}</div>
+      {% endif %}
       {% for pair in d.dup_pairs %}
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;width:100%;margin-left:20px">
         <span class="vs">撞</span>

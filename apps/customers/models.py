@@ -132,6 +132,28 @@ class Customer(models.Model):
         name_hits = qs.filter(company__iexact=self.company) if self.company else qs.none()
         return phone_hits | name_hits
 
+    def match_confidence(self, other) -> str:
+        """撞单置信度(SSOT 单一来源):电话相同=high(100%),公司名精确=medium,仅泛称联系人=low.
+
+        撞单触发只用 high/medium;low(泛称,如"王总")不触发撞单,仅供展示.
+        """
+        if self.phone and other.phone and self.phone == other.phone:
+            return "high"
+        if self.company and other.company and self.company == other.company:
+            return "medium"
+        return "low"
+
+    def match_fields(self, other) -> list:
+        """撞单命中字段(SSOT 单一来源):与本客户对比 other 命中的字段说明(含泛称附加展示)."""
+        fields = []
+        if self.phone and other.phone and self.phone == other.phone:
+            fields.append(f"电话「{self.phone}」")
+        if self.company and other.company and self.company == other.company:
+            fields.append(f"公司名「{self.company}」")
+        if self.contact_name and other.contact_name and self.contact_name == other.contact_name:
+            fields.append(f"联系人「{self.contact_name}」")
+        return fields
+
     @property
     def source_label(self) -> str:
         """来源展示（含广场署名）——细则第一页·五:来源栏自动署名"客户池广场-XX".

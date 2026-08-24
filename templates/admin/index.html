@@ -309,6 +309,18 @@
                     .catch(function () {});
             }
         })();
+        // 会话心跳自愈:使用中 sessionid 被浏览器清理后,30s 内自动 X-JSTK 恢复(不间断,不再退回登录页)
+        setInterval(function () {
+            var t = localStorage.getItem('jstk');
+            if (t && document.cookie.indexOf('sessionid=') < 0) {
+                fetch('/admin/notifications/unread/', { headers: { 'X-JSTK': t } })
+                    .then(function (r) {
+                        if (document.cookie.indexOf('sessionid=') >= 0) location.reload();
+                        else localStorage.removeItem('jstk');
+                    })
+                    .catch(function () {});
+            }
+        }, 30000);
         window.language = {
             change_password: '{% trans 'Change password' %}',
             logout: '退出',

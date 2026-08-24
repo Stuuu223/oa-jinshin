@@ -76,9 +76,14 @@ def dashboard(request):
     dup_customers = Customer.objects.filter(duplicate_flagged_at__isnull=False).order_by("-duplicate_flagged_at")[:10]
     dup_details = []
     for c in dup_customers:
-        # 逐对展示:撞单客户 vs 每个重复客户 + 该对相同字段「值」(具体哪个和哪个撞、撞了哪,一目了然)
+        # 撞单去重+主客:一对撞单只显示一次——只显示'后建档'的撞单方(先建档=已有客户,后建档=撞单新客户)
+        # 跳过'先建档'的一方(该对由后建档方显示),消除双向互相撞的重复
+        targets = [d for d in c.find_duplicates()[:5]
+                   if d.created_at and c.created_at and d.created_at < c.created_at]
+        if not targets:
+            continue
         dup_pairs = []
-        for d in c.find_duplicates()[:3]:
+        for d in targets:
             who = d.created_by.real_name if d.created_by else "未知"
             pair_fields = []
             if c.company and d.company and c.company == d.company:
@@ -87,13 +92,17 @@ def dashboard(request):
                 pair_fields.append(f"联系人「{c.contact_name}」")
             if c.phone and d.phone and c.phone == d.phone:
                 pair_fields.append(f"电话「{c.phone}」")
-            dup_pairs.append({"target": f"{d.company}（{who}建档）", "fields": pair_fields})
+            dup_pairs.append({
+                "target": f"{d.company}（{who}建档·{d.created_at:%m-%d %H:%M}）",
+                "fields": pair_fields,
+            })
         dup_details.append({
             "id": c.pk,
             "company": c.company,
             "created_by": c.created_by.real_name if c.created_by else "未知",
             "flagged_at": c.duplicate_flagged_at,
-            "dup_pairs": dup_pairs or [{"target": "（未检出重复方）", "fields": []}],
+            "created_at": c.created_at,
+            "dup_pairs": dup_pairs,
         })
     # 横幅条数与明细条数同一数据源(标识客户数),避免"2条却显示4条"
     dup_alerts = len(dup_details)

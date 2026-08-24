@@ -476,9 +476,9 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
             )
         except Exception:
             pass  # 日志失败不影响查重
+        # 录入前查重只认高置信度(与 find_duplicates SSOT 统一):公司名/电话精确相同才提示;泛称联系人(王总)无唯一性,不触发
         for field, value in (
             ("company", request.GET.get("company", "")),
-            ("contact_name", request.GET.get("contact", "")),
             ("phone", request.GET.get("phone", "")),
         ):
             value = value.strip()

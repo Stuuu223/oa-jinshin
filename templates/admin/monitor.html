@@ -63,6 +63,38 @@
     <div class="mon-row"><span>{{ p.path|truncatechars:36 }}</span><b>{{ p.c }}</b></div>
     {% endfor %}
   </div>
+  <div class="mon-card">
+    <h3>在线用户(5分钟内)</h3>
+    {% if active_list %}
+      {% for u in active_list %}
+      <div class="mon-row"><span>{{ u.user__real_name|default:u.user__username }}</span><b>{{ u.last|date:"H:i:s" }}</b></div>
+      {% endfor %}
+    {% else %}
+    <div class="mon-label">当前无活跃用户</div>
+    {% endif %}
+  </div>
+  <div class="mon-card">
+    <h3>用户访问排行 TOP5</h3>
+    {% for u in user_top %}
+    <div class="mon-row"><span>{{ u.user__real_name|default:u.user__username }}</span><b>{{ u.c }}</b></div>
+    {% endfor %}
+  </div>
+  <div class="mon-card">
+    <h3>系统信息</h3>
+    <div class="mon-row"><span>Django</span><b>{{ sys_info.django }}</b></div>
+    <div class="mon-row"><span>Python</span><b>{{ sys_info.python }}</b></div>
+    <div class="mon-row"><span>DEBUG</span><b>{{ sys_info.debug }}</b></div>
+    <div class="mon-row"><span>数据库</span><b>{{ sys_info.db }}</b></div>
+  </div>
+  <div class="mon-panel">
+    <h3>24 小时访问趋势(按小时)</h3>
+    <table class="mon-tbl">
+      <tr><th>时段</th><th>访问量</th></tr>
+      {% for h in hours %}
+      <tr><td>{{ h.label }}</td><td>{{ h.c }}</td></tr>
+      {% endfor %}
+    </table>
+  </div>
   <div class="mon-panel">
     <h3>最近被踢 / 异常事件(302/404/500)</h3>
     {% if events %}

@@ -315,7 +315,7 @@ def monitor(request):
     from apps.projects.models import Project
     from django.utils import timezone
     from datetime import timedelta
-    from django.db.models import Count
+    from django.db.models import Count, Max
 
     today = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
     now = timezone.now()
@@ -346,9 +346,40 @@ def monitor(request):
         srv_up = False
     finally:
         s.close()
+    # 在线用户(最近5分钟活跃明细)
+    active_list = list(
+        VisitLog.objects.filter(created_at__gte=now - timedelta(minutes=5), user__isnull=False)
+        .values("user__real_name", "user__username").annotate(last=Max("created_at")).order_by("-last")[:10]
+    )
+    # 24h 访问/登录趋势(按小时)
+    from django.db.models import Max
+    hours, login_trend = [], []
+    for i in range(23, -1, -1):
+        h0, h1 = now - timedelta(hours=i + 1), now - timedelta(hours=i)
+        hours.append({"label": f"{h1:%H}时", "c": VisitLog.objects.filter(created_at__gte=h0, created_at__lt=h1).count()})
+        login_trend.append({"label": f"{h1:%H}时", "c": OperationLog.objects.filter(action="登录", created_at__gte=h0, created_at__lt=h1).count()})
+    # 用户访问排行TOP5
+    user_top = list(
+        VisitLog.objects.exclude(user__isnull=True).values("user__real_name", "user__username")
+        .annotate(c=Count("id")).order_by("-c")[:5]
+    )
+    # 系统信息
+    import django, sys
+    from django.conf import settings
+    sys_info = {
+        "django": django.get_version(),
+        "python": sys.version.split()[0],
+        "debug": settings.DEBUG,
+        "db": settings.DATABASES["default"]["ENGINE"].split(".")[-1],
+    }
     return render(request, "admin/monitor.html", {
         "title": "技术监控后台",
         "srv_up": srv_up,
+        "active_list": active_list,
+        "hours": hours,
+        "login_trend": login_trend,
+        "user_top": user_top,
+        "sys_info": sys_info,
         "login_today": login_today,
         "kick_today": kick_today,
         "active_users": active_users,

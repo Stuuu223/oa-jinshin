@@ -76,6 +76,7 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 AUTH_USER_MODEL = "accounts.User"
+LOGIN_URL = "/admin/login/"  # 未登录访问(含独立后台/ops/monitor/)跳业务登录页,避免默认/accounts/login/ 404
 
 SIMPLEUI_HOME_TITLE = "金石管理系统"
 SIMPLEUI_HOME_INFO = False

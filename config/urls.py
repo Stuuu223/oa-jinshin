@@ -26,7 +26,8 @@ urlpatterns = [
     path("admin/sales-workbench/", views.sales_workbench, name="sales_workbench"),
     path("admin/consult-workbench/", views.consult_workbench, name="consult_workbench"),
     path("admin/tech-workbench/", views.tech_workbench, name="tech_workbench"),
-    path("admin/monitor/", views.monitor, name="monitor"),
+    path("ops/monitor/", views.monitor, name="monitor"),
+    path("admin/monitor/", views.monitor, name="monitor_legacy"),  # 业务系统内访问后台→视图内302回业务(后台完全独立)
     path("admin/", admin.site.urls),
 ]
 

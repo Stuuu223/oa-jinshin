@@ -25,7 +25,7 @@
   .tag-d{background:#DCFCE7;color:#15803D}
 </style>
 <div class="tb-wrap">
-  <div class="tb-head"><h2>{{ title }}</h2><span style="color:#64748B;font-size:13px">你好,{{ me.real_name }} — {% if is_admin %}技术部门建站进度总览(查看各部门承接情况){% else %}领取建站任务,更新进度{% endif %}</span><a href="/admin/monitor/" style="margin-left:auto;color:#2563EB;font-size:13px">技术监控后台 →</a></div>
+  <div class="tb-head"><h2>{{ title }}</h2><span style="color:#64748B;font-size:13px">你好,{{ me.real_name }} — {% if is_admin %}技术部门建站进度总览(查看各部门承接情况){% else %}领取建站任务,更新进度{% endif %}</span></div>
 
   <div class="tb-grid">
     <div class="t-card a"><div class="num">{{ progress.待开始 }}</div><div class="lbl">待开始</div></div>

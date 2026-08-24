@@ -299,7 +299,17 @@ def tech_workbench(request):
 
 @login_required
 def monitor(request):
-    """技术监控总览(独立后台):服务状态/会话事件/访问统计/异常列表——技术部与总经办可查(基于VisitLog/OperationLog)."""
+    """技术监控后台(独立系统,完全脱离业务):业务系统内(/admin/前缀)任何人访问一律302回业务;独立/ops/后台仅管理层."""
+
+    # 业务系统内(/admin/ 前缀)访问后台 → 任何人(含管理层)302回业务——后台完全独立于业务系统
+    if request.path.startswith("/admin/"):
+        return redirect("/admin/")
+    # 独立后台(/ops/):仅管理层(总经办/系统管理员);业务岗(技术/销售/咨询)302回工作台
+    role = getattr(request.user, "role", "")
+    if not (getattr(request.user, "is_superuser", False) or role == "admin"):
+        if role == "tech":
+            return redirect("tech_workbench")
+        return redirect("/admin/")
 
     from apps.customers.models import VisitLog, OperationLog
     from django.utils import timezone

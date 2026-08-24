@@ -154,11 +154,16 @@
 <script>
 // 会话自愈(登录页):刷新/被302到登录页时,若 localStorage 有 jstk → 先 X-JSTK 恢复(后端 Set-Cookie sessionid),
 // 成功则自动进系统,不显示登录页(破"刷新302登录页死结"——首页自愈JS在登录页不执行)
+// 注意:notifications/unread 未认证也返回 200(r.ok 误判)——必须检查 document.cookie 是否真拿到 sessionid,
+// 否则旧 jstk(失效)会"假成功"跳转→302回登录页→死循环重定向刷新
 try {
     var jstk = localStorage.getItem('jstk');
     if (jstk) {
         fetch('/admin/notifications/unread/', { headers: { 'X-JSTK': jstk } })
-            .then(function (r) { if (r.ok) location.href = '/admin/'; })
+            .then(function (r) {
+                if (document.cookie.indexOf('sessionid=') >= 0) location.href = '/admin/';
+                else localStorage.removeItem('jstk');  // 旧 jstk 失效:清理并停,避免死循环
+            })
             .catch(function () {});
     }
 } catch (e) {}

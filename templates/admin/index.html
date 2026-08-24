@@ -296,12 +296,16 @@
         }
         // 页面加载自愈:sessionid cookie 被浏览器清理(iframe 原生导航不带 X-JSTK 会 302 登录页=看到的"退出")
         // → 检测无 sessionid 但有 localStorage jstk 时,带 X-JSTK 调轻接口,后端恢复并 Set-Cookie sessionid,再刷新
+        // 注意:notifications/unread 未认证也返回 200——必须检查 document.cookie 是否真拿到 sessionid,否则旧 jstk 死循环
         (function () {
             var t = localStorage.getItem('jstk');
             var hasSid = document.cookie.split(';').some(function (c) { return c.trim().indexOf('sessionid=') === 0; });
             if (t && !hasSid && window.axios) {
                 axios.get('/admin/notifications/unread/', { headers: { 'X-JSTK': t } })
-                    .then(function () { location.reload(); })
+                    .then(function () {
+                        if (document.cookie.indexOf('sessionid=') >= 0) location.reload();
+                        else localStorage.removeItem('jstk');  // 旧 jstk 失效:清理并停,避免死循环
+                    })
                     .catch(function () {});
             }
         })();

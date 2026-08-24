@@ -9,113 +9,82 @@
   .mon-header h1 { margin:0; font-size:18px; }
   .mon-header .sub { color:#94a3b8; font-size:12px; }
   .mon-header .mon-back { color:#93c5fd; font-size:12px; text-decoration:none; margin-left:auto; }
-  .mon-status { margin:16px 20px 0; padding:12px 16px; border-radius:8px; font-size:14px; display:flex; align-items:center; gap:10px; }
+  .mon-tabs { display:flex; gap:6px; padding:14px 20px 0; }
+  .mon-tab { padding:8px 20px; border:1px solid #e2e8f0; background:#fff; border-radius:6px 6px 0 0; cursor:pointer; font-size:14px; color:#64748B; }
+  .mon-tab.active { background:#2563EB; color:#fff; border-color:#2563EB; font-weight:600; }
+  .mon-tabpage { display:none; padding:0 20px 20px; }
+  .mon-tabpage.active { display:block; }
+  .mon-status { margin-top:16px; padding:12px 16px; border-radius:8px; font-size:14px; display:flex; align-items:center; gap:10px; }
   .mon-status.ok { background:#DCFCE7; color:#15803D; }
   .mon-status.bad { background:#FEE2E2; color:#B91C1C; }
   .dot { width:10px; height:10px; border-radius:50%; display:inline-block; }
   .dot.ok { background:#16a34a; } .dot.bad { background:#dc2626; }
-  .mon-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:16px; padding:20px; }
+  .mon-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:16px; padding:16px 0; }
   .mon-card { background:#fff; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,.08); padding:16px; }
   .mon-card h3 { margin:0 0 12px; font-size:15px; color:#1e293b; border-left:4px solid #2563EB; padding-left:8px; }
   .mon-num { font-size:30px; font-weight:700; color:#2563EB; }
   .mon-label { color:#64748B; font-size:13px; margin-bottom:10px; }
   .mon-row { display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px dashed #e2e8f0; font-size:13px; }
-  .mon-panel { grid-column:1/-1; background:#fff; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,.08); padding:16px; }
+  .mon-panel { background:#fff; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,.08); padding:16px; margin-top:16px; }
+  .mon-panel h3 { margin:0 0 12px; font-size:15px; color:#1e293b; border-left:4px solid #2563EB; padding-left:8px; }
   table.mon-tbl { width:100%; border-collapse:collapse; font-size:13px; }
   table.mon-tbl th, table.mon-tbl td { padding:8px 10px; border-bottom:1px solid #f1f5f9; text-align:left; }
   .mon-bad { color:#dc2626; font-weight:600; }
   .mon-warn { color:#d97706; }
   .mon-info { color:#64748B; }
-  .mon-sub { color:#64748B; font-size:12px; margin-left:8px; }
 </style>
 </head>
 <body>
 <div class="mon-header">
   <h1>技术监控后台</h1>
-  <span class="sub">控制台 · 系统状态 / 数据概览 / 会话 / 访问 / 事件</span>
+  <span class="sub">控制台 · 运维 / 日志 / 观测</span>
   <a class="mon-back" href="/admin/">← 返回业务系统</a>
 </div>
 
-<div class="mon-status {% if srv_up %}ok{% else %}bad{% endif %}">
-  <span class="dot {% if srv_up %}ok{% else %}bad{% endif %}"></span>
-  {% if srv_up %}服务运行中(127.0.0.1:8000 监听正常){% else %}服务异常(8000 端口未监听){% endif %}
+<div class="mon-tabs">
+  <button class="mon-tab active" data-tab="ops">运维总览</button>
+  <button class="mon-tab" data-tab="logs">日志中心</button>
+  <button class="mon-tab" data-tab="observe">观测中心</button>
 </div>
 
-<div class="mon-status {% if health.srv and health.cpu_ok and health.mem_ok and health.disk_ok and health.err_ok %}ok{% else %}bad{% endif %}">
-  <span class="dot {% if health.srv and health.cpu_ok and health.mem_ok and health.disk_ok and health.err_ok %}ok{% else %}bad{% endif %}"></span>
-  系统健康度:{% if not health.cpu_ok %}CPU 过高{% elif not health.mem_ok %}内存过高{% elif not health.disk_ok %}磁盘过高{% elif not health.err_ok %}今日 404/500 异常较多{% else %}全部正常{% endif %}
+<!-- ===== ① 运维总览:服务 / 健康度 / 资源 / DB ===== -->
+<div id="tab-ops" class="mon-tabpage active">
+  <div class="mon-status {% if srv_up %}ok{% else %}bad{% endif %}">
+    <span class="dot {% if srv_up %}ok{% else %}bad{% endif %}"></span>
+    {% if srv_up %}服务运行中(127.0.0.1:8000 监听正常){% else %}服务异常(8000 端口未监听){% endif %}
+  </div>
+  <div class="mon-status {% if health.srv and health.cpu_ok and health.mem_ok and health.disk_ok and health.err_ok %}ok{% else %}bad{% endif %}">
+    <span class="dot {% if health.srv and health.cpu_ok and health.mem_ok and health.disk_ok and health.err_ok %}ok{% else %}bad{% endif %}"></span>
+    系统健康度:{% if not health.cpu_ok %}CPU 过高{% elif not health.mem_ok %}内存过高{% elif not health.disk_ok %}磁盘过高{% elif not health.err_ok %}今日 404/500 异常较多{% else %}全部正常{% endif %}
+  </div>
+  <div class="mon-grid">
+    <div class="mon-card">
+      <h3>资源监控</h3>
+      <div class="mon-row"><span>CPU 使用率</span><b>{{ resources.cpu }}%</b></div>
+      <div class="mon-row"><span>内存使用率</span><b>{{ resources.mem }}%</b></div>
+      <div class="mon-row"><span>磁盘使用率</span><b>{{ resources.disk }}%</b></div>
+      <div class="mon-row"><span>系统运行时长</span><b>{{ resources.uptime_days }}天</b></div>
+    </div>
+    <div class="mon-card">
+      <h3>数据库监控</h3>
+      <div class="mon-row"><span>会话表</span><b>{{ db_stats.sessions }}</b></div>
+      <div class="mon-row"><span>用户行为</span><b>{{ db_stats.visitlog }}</b></div>
+      <div class="mon-row"><span>操作日志</span><b>{{ db_stats.operationlog }}</b></div>
+      <div class="mon-row"><span>客户 / 项目</span><b>{{ db_stats.customers }} / {{ db_stats.projects }}</b></div>
+    </div>
+    <div class="mon-card">
+      <h3>数据概览</h3>
+      <div class="mon-row"><span>客户总数</span><b>{{ customers_total }}</b></div>
+      <div class="mon-row"><span>客户今日新增</span><b>{{ customers_today }}</b></div>
+      <div class="mon-row"><span>项目总数</span><b>{{ projects_total }}</b></div>
+      <div class="mon-row"><span>项目今日新增</span><b>{{ projects_today }}</b></div>
+      <div class="mon-row"><span>建站:进行中 / 未开始</span><b>{{ site_progress.in_progress|default:0 }} / {{ site_progress.not_started|default:0 }}</b></div>
+    </div>
+  </div>
 </div>
 
-<div class="mon-grid">
-  <div class="mon-card">
-    <h3>资源监控</h3>
-    <div class="mon-row"><span>CPU 使用率</span><b>{{ resources.cpu }}%</b></div>
-    <div class="mon-row"><span>内存使用率</span><b>{{ resources.mem }}%</b></div>
-    <div class="mon-row"><span>磁盘使用率</span><b>{{ resources.disk }}%</b></div>
-    <div class="mon-row"><span>系统运行时长</span><b>{{ resources.uptime_days }}天</b></div>
-  </div>
-  <div class="mon-card">
-    <h3>数据库监控</h3>
-    <div class="mon-row"><span>会话表</span><b>{{ db_stats.sessions }}</b></div>
-    <div class="mon-row"><span>用户行为</span><b>{{ db_stats.visitlog }}</b></div>
-    <div class="mon-row"><span>操作日志</span><b>{{ db_stats.operationlog }}</b></div>
-    <div class="mon-row"><span>客户 / 项目</span><b>{{ db_stats.customers }} / {{ db_stats.projects }}</b></div>
-  </div>
-  <div class="mon-card">
-    <h3>数据概览</h3>
-    <div class="mon-row"><span>客户总数</span><b>{{ customers_total }}</b></div>
-    <div class="mon-row"><span>客户今日新增</span><b>{{ customers_today }}</b></div>
-    <div class="mon-row"><span>项目总数</span><b>{{ projects_total }}</b></div>
-    <div class="mon-row"><span>项目今日新增</span><b>{{ projects_today }}</b></div>
-    <div class="mon-row"><span>建站:进行中 / 未开始</span><b>{{ site_progress.in_progress|default:0 }} / {{ site_progress.not_started|default:0 }}</b></div>
-  </div>
-  <div class="mon-card">
-    <h3>会话监控</h3>
-    <div class="mon-num">{{ login_today }}</div>
-    <div class="mon-label">今日登录次数<span class="mon-sub">被踢需反复登录的直接体现</span></div>
-    <div class="mon-row"><span>302 被踢事件(今日)</span><b class="mon-bad">{{ kick_today }}</b></div>
-    <div class="mon-row"><span>活跃用户(5分钟内)</span><b>{{ active_users }}</b></div>
-  </div>
-  <div class="mon-card">
-    <h3>访问统计</h3>
-    <div class="mon-num">{{ visits_today }}</div>
-    <div class="mon-label">今日页面访问量</div>
-    {% for p in top_paths %}
-    <div class="mon-row"><span>{{ p.path|truncatechars:36 }}</span><b>{{ p.c }}</b></div>
-    {% endfor %}
-  </div>
-  <div class="mon-card">
-    <h3>在线用户(5分钟内)</h3>
-    {% if active_list %}
-      {% for u in active_list %}
-      <div class="mon-row"><span>{{ u.user__real_name|default:u.user__username }}</span><b>{{ u.last|date:"H:i:s" }}</b></div>
-      {% endfor %}
-    {% else %}
-    <div class="mon-label">当前无活跃用户</div>
-    {% endif %}
-  </div>
-  <div class="mon-card">
-    <h3>用户访问排行 TOP5</h3>
-    {% for u in user_top %}
-    <div class="mon-row"><span>{{ u.user__real_name|default:u.user__username }}</span><b>{{ u.c }}</b></div>
-    {% endfor %}
-  </div>
-  <div class="mon-card">
-    <h3>系统信息</h3>
-    <div class="mon-row"><span>Django</span><b>{{ sys_info.django }}</b></div>
-    <div class="mon-row"><span>Python</span><b>{{ sys_info.python }}</b></div>
-    <div class="mon-row"><span>DEBUG</span><b>{{ sys_info.debug }}</b></div>
-    <div class="mon-row"><span>数据库</span><b>{{ sys_info.db }}</b></div>
-  </div>
-  <div class="mon-panel">
-    <h3>24 小时访问趋势(按小时)</h3>
-    <table class="mon-tbl">
-      <tr><th>时段</th><th>访问量</th></tr>
-      {% for h in hours %}
-      <tr><td>{{ h.label }}</td><td>{{ h.c }}</td></tr>
-      {% endfor %}
-    </table>
-  </div>
+<!-- ===== ② 日志中心:告警中心 / 日志流 ===== -->
+<div id="tab-logs" class="mon-tabpage">
   <div class="mon-panel">
     <h3>告警中心(今日 404/500:{{ err_today }} · 302 被踢:{{ kick_today }})</h3>
     {% if events %}
@@ -146,6 +115,59 @@
       {% endfor %}
     </table>
   </div>
+</div>
+
+<!-- ===== ③ 观测中心:审计追踪 / 会话 / 访问 / 在线 / 排行 / 趋势 ===== -->
+<div id="tab-observe" class="mon-tabpage">
+  <div class="mon-grid">
+    <div class="mon-card">
+      <h3>会话监控</h3>
+      <div class="mon-num">{{ login_today }}</div>
+      <div class="mon-label">今日登录次数</div>
+      <div class="mon-row"><span>302 被踢事件(今日)</span><b class="mon-bad">{{ kick_today }}</b></div>
+      <div class="mon-row"><span>活跃用户(5分钟内)</span><b>{{ active_users }}</b></div>
+    </div>
+    <div class="mon-card">
+      <h3>访问统计</h3>
+      <div class="mon-num">{{ visits_today }}</div>
+      <div class="mon-label">今日页面访问量</div>
+      {% for p in top_paths %}
+      <div class="mon-row"><span>{{ p.path|truncatechars:36 }}</span><b>{{ p.c }}</b></div>
+      {% endfor %}
+    </div>
+    <div class="mon-card">
+      <h3>在线用户(5分钟内)</h3>
+      {% if active_list %}
+        {% for u in active_list %}
+        <div class="mon-row"><span>{{ u.user__real_name|default:u.user__username }}</span><b>{{ u.last|date:"H:i:s" }}</b></div>
+        {% endfor %}
+      {% else %}
+      <div class="mon-label">当前无活跃用户</div>
+      {% endif %}
+    </div>
+    <div class="mon-card">
+      <h3>用户访问排行 TOP5</h3>
+      {% for u in user_top %}
+      <div class="mon-row"><span>{{ u.user__real_name|default:u.user__username }}</span><b>{{ u.c }}</b></div>
+      {% endfor %}
+    </div>
+    <div class="mon-card">
+      <h3>系统信息</h3>
+      <div class="mon-row"><span>Django</span><b>{{ sys_info.django }}</b></div>
+      <div class="mon-row"><span>Python</span><b>{{ sys_info.python }}</b></div>
+      <div class="mon-row"><span>DEBUG</span><b>{{ sys_info.debug }}</b></div>
+      <div class="mon-row"><span>数据库</span><b>{{ sys_info.db }}</b></div>
+    </div>
+  </div>
+  <div class="mon-panel">
+    <h3>24 小时访问趋势(按小时)</h3>
+    <table class="mon-tbl">
+      <tr><th>时段</th><th>访问量</th></tr>
+      {% for h in hours %}
+      <tr><td>{{ h.label }}</td><td>{{ h.c }}</td></tr>
+      {% endfor %}
+    </table>
+  </div>
   <div class="mon-panel">
     <h3>审计追踪(最近行为链:谁 / IP / 设备 / 方法 / 路径 / 成败)</h3>
     <table class="mon-tbl">
@@ -164,5 +186,17 @@
     </table>
   </div>
 </div>
+
+<script>
+// Tab 切换(纯前端,参考高星后台 Tab 布局)
+document.querySelectorAll('.mon-tab').forEach(function (b) {
+  b.addEventListener('click', function () {
+    document.querySelectorAll('.mon-tab').forEach(function (x) { x.classList.remove('active'); });
+    b.classList.add('active');
+    document.querySelectorAll('.mon-tabpage').forEach(function (p) { p.classList.remove('active'); });
+    document.getElementById('tab-' + b.dataset.tab).classList.add('active');
+  });
+});
+</script>
 </body>
 </html>

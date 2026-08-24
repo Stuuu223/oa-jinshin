@@ -28,6 +28,7 @@ from .models import (
     CustomerStatus,
     FollowUp,
     OperationLog,
+    VisitLog,
     OwnerHistorySourceType,
     PoolType,
     RecycledCustomer,
@@ -799,6 +800,17 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
         if skipped:
             msg += f"；{skipped} 个已成交或无历史记录，已跳过"
         self.message_user(request, msg, messages.SUCCESS if cnt else messages.WARNING)
+
+
+@admin.register(VisitLog)
+class VisitLogAdmin(RolePermissionsMixin, admin.ModelAdmin):
+    """用户行为——谁/何时/访问了什么路径/状态码(302=被踢回登录页事件),行为后台可查."""
+
+    list_display = ("created_at", "user", "path", "status")
+    list_filter = ("user", "status")
+    search_fields = ("path",)
+    readonly_fields = ("created_at", "user", "path", "status", "session_key")
+    date_hierarchy = "created_at"
 
 
 @admin.register(OperationLog)

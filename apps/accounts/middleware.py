@@ -95,4 +95,17 @@ class SessionAuditMiddleware:
                     "AUDIT auth=NO sid=%s path=%s ua=%s cookies=%s",
                     sid[:10], path, ua, ck,
                 )
-        return self.get_response(request)
+        response = self.get_response(request)
+        # 用户行为记录(VisitLog):页面访问(排除轮询接口)+302被踢回登录页事件——行为后台可查,不猜
+        try:
+            if path.startswith("/admin/") and not path.startswith("/static/"):
+                from apps.customers.models import VisitLog
+                if not path.startswith("/admin/notifications/") or response.status_code >= 302:
+                    VisitLog.objects.create(
+                        user=request.user if getattr(request.user, "is_authenticated", False) else None,
+                        path=path, status=response.status_code,
+                        session_key=request.session.session_key or "",
+                    )
+        except Exception:
+            pass
+        return response

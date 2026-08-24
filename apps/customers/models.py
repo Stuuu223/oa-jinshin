@@ -310,3 +310,18 @@ class OperationLog(models.Model):
     def __str__(self) -> str:
         who = self.user.real_name if self.user else "未知"
         return f"{self.created_at:%m-%d %H:%M} {who} {self.action} {self.target[:20]}"
+
+
+class VisitLog(models.Model):
+    """用户行为记录:谁/何时/访问了什么路径/状态码(302=被踢回登录页事件)——行为后台可查,不猜."""
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="用户")
+    path = models.CharField("路径", max_length=255)
+    status = models.SmallIntegerField("状态码", default=200)
+    session_key = models.CharField("会话", max_length=64, blank=True)
+    created_at = models.DateTimeField("时间", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "用户行为"
+        verbose_name_plural = verbose_name
+        ordering = ("-created_at",)

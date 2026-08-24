@@ -113,6 +113,7 @@ SIMPLEUI_CONFIG = {
                 {"name": "客户公海池", "url": "/admin/customers/customer/?status__exact=pool", "icon": "fa fa-globe", "permission": "accounts.view_sales_workbench"},
                 {"name": "回收站", "url": "/admin/customers/recycledcustomer/", "icon": "fa fa-trash-o", "permission": "accounts.view_sales_workbench"},
                 {"name": "操作日志", "url": "/admin/customers/operationlog/", "icon": "fa fa-history", "permission": "accounts.view_user"},
+                {"name": "用户行为", "url": "/admin/customers/visitlog/", "icon": "fa fa-eye", "permission": "accounts.view_user"},
             ],
         },
         {

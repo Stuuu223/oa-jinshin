@@ -294,3 +294,33 @@ def tech_workbench(request):
         all_claimed=all_claimed,
     )
     return render(request, "admin/tech_workbench.html", context)
+
+
+def monitor(request):
+    """技术监控总览:服务状态/会话事件/访问统计/异常列表——技术部与总经办可查(基于VisitLog/OperationLog)."""
+
+    from apps.customers.models import VisitLog, OperationLog
+    from django.utils import timezone
+    from datetime import timedelta
+    from django.db.models import Count
+
+    today = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    now = timezone.now()
+    # 会话监控:今日登录/302被踢事件/活跃用户(最近5分钟)
+    login_today = OperationLog.objects.filter(action="登录", created_at__gte=today).count()
+    kick_today = VisitLog.objects.filter(status=302, created_at__gte=today).count()
+    active_users = VisitLog.objects.filter(created_at__gte=now - timedelta(minutes=5)).values("user__username").distinct().count()
+    # 访问统计:今日访问量/热门路径TOP5
+    visits_today = VisitLog.objects.filter(created_at__gte=today).count()
+    top_paths = list(VisitLog.objects.values("path").annotate(c=Count("id")).order_by("-c")[:5])
+    # 事件列表:最近被踢回登录页(302)/异常(404/500)
+    events = list(VisitLog.objects.filter(status__in=[302, 404, 500]).order_by("-created_at")[:10])
+    return render(request, "admin/monitor.html", {
+        "title": "技术监控",
+        "login_today": login_today,
+        "kick_today": kick_today,
+        "active_users": active_users,
+        "visits_today": visits_today,
+        "top_paths": top_paths,
+        "events": events,
+    })

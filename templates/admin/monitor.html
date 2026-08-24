@@ -1,0 +1,50 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<style>
+  .mon-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:16px; padding:16px; }
+  .mon-card { background:#fff; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,.08); padding:16px; }
+  .mon-card h3 { margin:0 0 12px; font-size:15px; color:#1e293b; }
+  .mon-num { font-size:32px; font-weight:700; color:#2563EB; }
+  .mon-label { color:#64748B; font-size:13px; margin-bottom:10px; }
+  .mon-row { display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px dashed #e2e8f0; font-size:13px; }
+  .mon-panel { grid-column:1/-1; background:#fff; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,.08); padding:16px; }
+  table.mon-tbl { width:100%; border-collapse:collapse; font-size:13px; }
+  table.mon-tbl th, table.mon-tbl td { padding:8px 10px; border-bottom:1px solid #f1f5f9; text-align:left; }
+  .mon-bad { color:#dc2626; font-weight:600; }
+</style>
+<div class="mon-grid">
+  <div class="mon-card">
+    <h3>会话监控</h3>
+    <div class="mon-num">{{ login_today }}</div>
+    <div class="mon-label">今日登录次数</div>
+    <div class="mon-row"><span>302 被踢事件(今日)</span><b class="mon-bad">{{ kick_today }}</b></div>
+    <div class="mon-row"><span>活跃用户(5分钟内)</span><b>{{ active_users }}</b></div>
+  </div>
+  <div class="mon-card">
+    <h3>访问统计</h3>
+    <div class="mon-num">{{ visits_today }}</div>
+    <div class="mon-label">今日页面访问量</div>
+    {% for p in top_paths %}
+    <div class="mon-row"><span>{{ p.path|truncatechars:36 }}</span><b>{{ p.c }}</b></div>
+    {% endfor %}
+  </div>
+  <div class="mon-panel">
+    <h3>最近被踢 / 异常事件(302/404/500)</h3>
+    {% if events %}
+    <table class="mon-tbl">
+      <tr><th>时间</th><th>用户</th><th>路径</th><th>状态</th></tr>
+      {% for e in events %}
+      <tr>
+        <td>{{ e.created_at|date:"m-d H:i:s" }}</td>
+        <td>{{ e.user.real_name|default:"—" }}</td>
+        <td>{{ e.path|truncatechars:44 }}</td>
+        <td>{% if e.status == 302 %}<span class="mon-bad">302 被踢</span>{% else %}<span class="mon-bad">{{ e.status }}</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    {% else %}
+    <div class="mon-label">无被踢/异常事件,系统运行正常。</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

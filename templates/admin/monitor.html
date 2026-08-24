@@ -1,7 +1,15 @@
-{% extends "admin/base_site.html" %}
-{% block content %}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>技术监控后台</title>
 <style>
-  .mon-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:16px; padding:16px; }
+  body { margin:0; font-family:"Microsoft YaHei","PingFang SC",sans-serif; background:#f1f5f9; color:#1e293b; }
+  .mon-header { background:#0f172a; color:#fff; padding:14px 24px; display:flex; align-items:center; gap:12px; }
+  .mon-header h1 { margin:0; font-size:18px; }
+  .mon-header .sub { color:#94a3b8; font-size:12px; }
+  .mon-header .mon-back { color:#93c5fd; font-size:12px; text-decoration:none; margin-left:auto; }
+  .mon-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:16px; padding:20px; }
   .mon-card { background:#fff; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,.08); padding:16px; }
   .mon-card h3 { margin:0 0 12px; font-size:15px; color:#1e293b; }
   .mon-num { font-size:32px; font-weight:700; color:#2563EB; }
@@ -12,6 +20,13 @@
   table.mon-tbl th, table.mon-tbl td { padding:8px 10px; border-bottom:1px solid #f1f5f9; text-align:left; }
   .mon-bad { color:#dc2626; font-weight:600; }
 </style>
+</head>
+<body>
+<div class="mon-header">
+  <h1>技术监控后台</h1>
+  <span class="sub">独立运维监控 · 会话 / 访问 / 被踢事件</span>
+  <a class="mon-back" href="/admin/">← 返回业务系统</a>
+</div>
 <div class="mon-grid">
   <div class="mon-card">
     <h3>会话监控</h3>
@@ -47,4 +62,5 @@
     {% endif %}
   </div>
 </div>
-{% endblock %}
+</body>
+</html>

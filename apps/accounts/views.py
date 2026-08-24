@@ -4,6 +4,7 @@ from decimal import Decimal
 
 from django.contrib import messages
 from django.contrib.auth.views import redirect_to_login
+from django.contrib.auth.decorators import login_required
 from django.db.models import Count, Q, Sum
 from django.shortcuts import redirect, render
 from django.urls import reverse
@@ -296,8 +297,9 @@ def tech_workbench(request):
     return render(request, "admin/tech_workbench.html", context)
 
 
+@login_required
 def monitor(request):
-    """技术监控总览:服务状态/会话事件/访问统计/异常列表——技术部与总经办可查(基于VisitLog/OperationLog)."""
+    """技术监控总览(独立后台):服务状态/会话事件/访问统计/异常列表——技术部与总经办可查(基于VisitLog/OperationLog)."""
 
     from apps.customers.models import VisitLog, OperationLog
     from django.utils import timezone

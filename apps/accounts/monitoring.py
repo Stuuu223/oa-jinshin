@@ -18,6 +18,7 @@ def collect_metrics():
     activity = _collect_activity(now, today)
     database = _collect_database(today)
     logs = _collect_logs()
+    audit = _collect_audit()
     health = _compute_health(system, today)
     return {
         "srv_up": system["srv_up"],
@@ -26,6 +27,7 @@ def collect_metrics():
         **activity,
         **database,
         **logs,
+        **audit,
         **health,
     }
 
@@ -161,4 +163,15 @@ def _compute_health(system, today):
             "disk_ok": res["disk"] < 90,
             "err_ok": err_today < 10,
         },
+    }
+
+
+def _collect_audit():
+    """采集器:审计追踪——最近行为链(谁/IP/设备/方法/路径/成败),可回溯可查."""
+    from apps.customers.models import VisitLog
+
+    return {
+        "audit_entries": list(
+            VisitLog.objects.select_related("user").order_by("-created_at")[:30]
+        ),
     }

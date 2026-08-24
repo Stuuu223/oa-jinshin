@@ -96,7 +96,7 @@ class SessionAuditMiddleware:
                     sid[:10], path, ua, ck,
                 )
         response = self.get_response(request)
-        # 用户行为记录(VisitLog):页面访问(排除轮询接口)+302被踢回登录页事件——行为后台可查,不猜
+        # 用户行为记录(VisitLog):全链路审计——谁/IP/设备(UA)/方法/路径/状态(成败),行为后台可查可回溯
         try:
             if path.startswith("/admin/") and not path.startswith("/static/"):
                 from apps.customers.models import VisitLog
@@ -104,6 +104,9 @@ class SessionAuditMiddleware:
                     VisitLog.objects.create(
                         user=request.user if getattr(request.user, "is_authenticated", False) else None,
                         path=path, status=response.status_code,
+                        method=request.method,
+                        ip=(request.META.get("HTTP_X_FORWARDED_FOR") or request.META.get("REMOTE_ADDR") or "")[:64],
+                        user_agent=(request.META.get("HTTP_USER_AGENT") or "")[:200],
                         session_key=request.session.session_key or "",
                     )
         except Exception:

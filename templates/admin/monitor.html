@@ -146,6 +146,23 @@
       {% endfor %}
     </table>
   </div>
+  <div class="mon-panel">
+    <h3>审计追踪(最近行为链:谁 / IP / 设备 / 方法 / 路径 / 成败)</h3>
+    <table class="mon-tbl">
+      <tr><th>时间</th><th>用户</th><th>IP</th><th>设备(UA)</th><th>方法</th><th>路径</th><th>状态</th></tr>
+      {% for e in audit_entries %}
+      <tr>
+        <td>{{ e.created_at|date:"m-d H:i:s" }}</td>
+        <td>{{ e.user.real_name|default:"—" }}</td>
+        <td>{{ e.ip|default:"—" }}</td>
+        <td>{{ e.user_agent|truncatechars:28 }}</td>
+        <td>{{ e.method|default:"—" }}</td>
+        <td>{{ e.path|truncatechars:34 }}</td>
+        <td>{{ e.status }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
 </div>
 </body>
 </html>

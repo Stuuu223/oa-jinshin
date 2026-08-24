@@ -318,6 +318,9 @@ class VisitLog(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, verbose_name="用户")
     path = models.CharField("路径", max_length=255)
     status = models.SmallIntegerField("状态码", default=200)
+    method = models.CharField("方法", max_length=10, blank=True)
+    ip = models.CharField("IP", max_length=64, blank=True)
+    user_agent = models.CharField("设备/浏览器", max_length=255, blank=True)
     session_key = models.CharField("会话", max_length=64, blank=True)
     created_at = models.DateTimeField("时间", auto_now_add=True)
 

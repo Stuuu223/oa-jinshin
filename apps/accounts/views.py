@@ -311,7 +311,8 @@ def monitor(request):
             return redirect("tech_workbench")
         return redirect("/admin/")
 
-    from apps.customers.models import VisitLog, OperationLog
+    from apps.customers.models import VisitLog, OperationLog, Customer
+    from apps.projects.models import Project
     from django.utils import timezone
     from datetime import timedelta
     from django.db.models import Count
@@ -327,12 +328,36 @@ def monitor(request):
     top_paths = list(VisitLog.objects.values("path").annotate(c=Count("id")).order_by("-c")[:5])
     # 事件列表:最近被踢回登录页(302)/异常(404/500)
     events = list(VisitLog.objects.filter(status__in=[302, 404, 500]).order_by("-created_at")[:10])
+    # 数据概览(业务全貌):客户/项目/建站进度
+    customers_total = Customer.objects.count()
+    customers_today = Customer.objects.filter(created_at__gte=today).count()
+    projects_total = Project.objects.count()
+    projects_today = Project.objects.filter(created_at__gte=today).count()
+    site_progress = dict(Project.objects.values_list("site_progress").annotate(c=Count("id")))
+    # 系统状态:8000 端口是否监听(服务运行中)
+    import socket
+    srv_up = False
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.settimeout(1)
+    try:
+        s.connect(("127.0.0.1", 8000))
+        srv_up = True
+    except Exception:
+        srv_up = False
+    finally:
+        s.close()
     return render(request, "admin/monitor.html", {
-        "title": "技术监控",
+        "title": "技术监控后台",
+        "srv_up": srv_up,
         "login_today": login_today,
         "kick_today": kick_today,
         "active_users": active_users,
         "visits_today": visits_today,
         "top_paths": top_paths,
         "events": events,
+        "customers_total": customers_total,
+        "customers_today": customers_today,
+        "projects_total": projects_total,
+        "projects_today": projects_today,
+        "site_progress": site_progress,
     })

@@ -9,29 +9,49 @@
   .mon-header h1 { margin:0; font-size:18px; }
   .mon-header .sub { color:#94a3b8; font-size:12px; }
   .mon-header .mon-back { color:#93c5fd; font-size:12px; text-decoration:none; margin-left:auto; }
-  .mon-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:16px; padding:20px; }
+  .mon-status { margin:16px 20px 0; padding:12px 16px; border-radius:8px; font-size:14px; display:flex; align-items:center; gap:10px; }
+  .mon-status.ok { background:#DCFCE7; color:#15803D; }
+  .mon-status.bad { background:#FEE2E2; color:#B91C1C; }
+  .dot { width:10px; height:10px; border-radius:50%; display:inline-block; }
+  .dot.ok { background:#16a34a; } .dot.bad { background:#dc2626; }
+  .mon-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:16px; padding:20px; }
   .mon-card { background:#fff; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,.08); padding:16px; }
-  .mon-card h3 { margin:0 0 12px; font-size:15px; color:#1e293b; }
-  .mon-num { font-size:32px; font-weight:700; color:#2563EB; }
+  .mon-card h3 { margin:0 0 12px; font-size:15px; color:#1e293b; border-left:4px solid #2563EB; padding-left:8px; }
+  .mon-num { font-size:30px; font-weight:700; color:#2563EB; }
   .mon-label { color:#64748B; font-size:13px; margin-bottom:10px; }
   .mon-row { display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px dashed #e2e8f0; font-size:13px; }
   .mon-panel { grid-column:1/-1; background:#fff; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,.08); padding:16px; }
   table.mon-tbl { width:100%; border-collapse:collapse; font-size:13px; }
   table.mon-tbl th, table.mon-tbl td { padding:8px 10px; border-bottom:1px solid #f1f5f9; text-align:left; }
   .mon-bad { color:#dc2626; font-weight:600; }
+  .mon-sub { color:#64748B; font-size:12px; margin-left:8px; }
 </style>
 </head>
 <body>
 <div class="mon-header">
   <h1>技术监控后台</h1>
-  <span class="sub">独立运维监控 · 会话 / 访问 / 被踢事件</span>
+  <span class="sub">控制台 · 系统状态 / 数据概览 / 会话 / 访问 / 事件</span>
   <a class="mon-back" href="/admin/">← 返回业务系统</a>
 </div>
+
+<div class="mon-status {% if srv_up %}ok{% else %}bad{% endif %}">
+  <span class="dot {% if srv_up %}ok{% else %}bad{% endif %}"></span>
+  {% if srv_up %}服务运行中(127.0.0.1:8000 监听正常){% else %}服务异常(8000 端口未监听){% endif %}
+</div>
+
 <div class="mon-grid">
+  <div class="mon-card">
+    <h3>数据概览</h3>
+    <div class="mon-row"><span>客户总数</span><b>{{ customers_total }}</b></div>
+    <div class="mon-row"><span>客户今日新增</span><b>{{ customers_today }}</b></div>
+    <div class="mon-row"><span>项目总数</span><b>{{ projects_total }}</b></div>
+    <div class="mon-row"><span>项目今日新增</span><b>{{ projects_today }}</b></div>
+    <div class="mon-row"><span>建站:进行中 / 未开始</span><b>{{ site_progress.in_progress|default:0 }} / {{ site_progress.not_started|default:0 }}</b></div>
+  </div>
   <div class="mon-card">
     <h3>会话监控</h3>
     <div class="mon-num">{{ login_today }}</div>
-    <div class="mon-label">今日登录次数</div>
+    <div class="mon-label">今日登录次数<span class="mon-sub">被踢需反复登录的直接体现</span></div>
     <div class="mon-row"><span>302 被踢事件(今日)</span><b class="mon-bad">{{ kick_today }}</b></div>
     <div class="mon-row"><span>活跃用户(5分钟内)</span><b>{{ active_users }}</b></div>
   </div>

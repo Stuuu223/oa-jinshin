@@ -372,6 +372,49 @@ def monitor(request):
         "debug": settings.DEBUG,
         "db": settings.DATABASES["default"]["ENGINE"].split(".")[-1],
     }
+    # 资源监控(psutil:CPU/内存/磁盘/运行时长)
+    import psutil
+    cpu = psutil.cpu_percent(interval=0.3)
+    mem = psutil.virtual_memory()
+    disk_pct = 0
+    try:
+        disk_pct = psutil.disk_usage("/").percent
+    except Exception:
+        disk_pct = psutil.disk_usage(str(settings.BASE_DIR)[:3] + "/").percent
+    uptime_days = (timezone.now().timestamp() - psutil.boot_time()) / 86400
+    resources = {"cpu": cpu, "mem": mem.percent, "disk": disk_pct, "uptime_days": round(uptime_days, 1)}
+    # 日志流:server.log 尾部(最近20行,ERROR/WARN/INFO 分级)
+    log_lines = []
+    try:
+        with open(settings.BASE_DIR / "server.log", "r", encoding="utf-8", errors="ignore") as f:
+            tail = f.readlines()[-40:]
+        for ln in tail[-20:]:
+            level = "INFO"
+            if "ERROR" in ln:
+                level = "ERROR"
+            elif "WARN" in ln or "WARNING" in ln:
+                level = "WARN"
+            log_lines.append({"level": level, "text": ln.strip()[:110]})
+    except Exception:
+        log_lines = []
+    # DB监控:核心表记录数
+    from django.contrib.sessions.models import Session
+    db_stats = {
+        "sessions": Session.objects.count(),
+        "visitlog": VisitLog.objects.count(),
+        "operationlog": OperationLog.objects.count(),
+        "customers": Customer.objects.count(),
+        "projects": Project.objects.count(),
+    }
+    # 健康度总览:服务/资源/错误综合
+    err_today = VisitLog.objects.filter(status__in=[404, 500], created_at__gte=today).count()
+    health = {
+        "srv": srv_up,
+        "cpu_ok": resources["cpu"] < 90,
+        "mem_ok": resources["mem"] < 90,
+        "disk_ok": resources["disk"] < 90,
+        "err_ok": err_today < 10,
+    }
     return render(request, "admin/monitor.html", {
         "title": "技术监控后台",
         "srv_up": srv_up,
@@ -380,6 +423,11 @@ def monitor(request):
         "login_trend": login_trend,
         "user_top": user_top,
         "sys_info": sys_info,
+        "resources": resources,
+        "log_lines": log_lines,
+        "db_stats": db_stats,
+        "health": health,
+        "err_today": err_today,
         "login_today": login_today,
         "kick_today": kick_today,
         "active_users": active_users,

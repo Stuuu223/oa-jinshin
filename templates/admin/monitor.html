@@ -24,6 +24,8 @@
   table.mon-tbl { width:100%; border-collapse:collapse; font-size:13px; }
   table.mon-tbl th, table.mon-tbl td { padding:8px 10px; border-bottom:1px solid #f1f5f9; text-align:left; }
   .mon-bad { color:#dc2626; font-weight:600; }
+  .mon-warn { color:#d97706; }
+  .mon-info { color:#64748B; }
   .mon-sub { color:#64748B; font-size:12px; margin-left:8px; }
 </style>
 </head>
@@ -39,7 +41,26 @@
   {% if srv_up %}服务运行中(127.0.0.1:8000 监听正常){% else %}服务异常(8000 端口未监听){% endif %}
 </div>
 
+<div class="mon-status {% if health.srv and health.cpu_ok and health.mem_ok and health.disk_ok and health.err_ok %}ok{% else %}bad{% endif %}">
+  <span class="dot {% if health.srv and health.cpu_ok and health.mem_ok and health.disk_ok and health.err_ok %}ok{% else %}bad{% endif %}"></span>
+  系统健康度:{% if not health.cpu_ok %}CPU 过高{% elif not health.mem_ok %}内存过高{% elif not health.disk_ok %}磁盘过高{% elif not health.err_ok %}今日 404/500 异常较多{% else %}全部正常{% endif %}
+</div>
+
 <div class="mon-grid">
+  <div class="mon-card">
+    <h3>资源监控</h3>
+    <div class="mon-row"><span>CPU 使用率</span><b>{{ resources.cpu }}%</b></div>
+    <div class="mon-row"><span>内存使用率</span><b>{{ resources.mem }}%</b></div>
+    <div class="mon-row"><span>磁盘使用率</span><b>{{ resources.disk }}%</b></div>
+    <div class="mon-row"><span>系统运行时长</span><b>{{ resources.uptime_days }}天</b></div>
+  </div>
+  <div class="mon-card">
+    <h3>数据库监控</h3>
+    <div class="mon-row"><span>会话表</span><b>{{ db_stats.sessions }}</b></div>
+    <div class="mon-row"><span>用户行为</span><b>{{ db_stats.visitlog }}</b></div>
+    <div class="mon-row"><span>操作日志</span><b>{{ db_stats.operationlog }}</b></div>
+    <div class="mon-row"><span>客户 / 项目</span><b>{{ db_stats.customers }} / {{ db_stats.projects }}</b></div>
+  </div>
   <div class="mon-card">
     <h3>数据概览</h3>
     <div class="mon-row"><span>客户总数</span><b>{{ customers_total }}</b></div>
@@ -96,7 +117,7 @@
     </table>
   </div>
   <div class="mon-panel">
-    <h3>最近被踢 / 异常事件(302/404/500)</h3>
+    <h3>告警中心(今日 404/500:{{ err_today }} · 302 被踢:{{ kick_today }})</h3>
     {% if events %}
     <table class="mon-tbl">
       <tr><th>时间</th><th>用户</th><th>路径</th><th>状态</th></tr>
@@ -112,6 +133,18 @@
     {% else %}
     <div class="mon-label">无被踢/异常事件,系统运行正常。</div>
     {% endif %}
+  </div>
+  <div class="mon-panel">
+    <h3>日志流(server.log 最近)</h3>
+    <table class="mon-tbl">
+      <tr><th>级别</th><th>内容</th></tr>
+      {% for l in log_lines %}
+      <tr>
+        <td><b class="{% if l.level == 'ERROR' %}mon-bad{% elif l.level == 'WARN' %}mon-warn{% else %}mon-info{% endif %}">{{ l.level }}</b></td>
+        <td>{{ l.text }}</td>
+      </tr>
+      {% endfor %}
+    </table>
   </div>
 </div>
 </body>

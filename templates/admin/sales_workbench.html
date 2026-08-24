@@ -107,10 +107,18 @@
   <h3>撞单标识客户</h3>
     {% if duplicates %}
       {% for c in duplicates %}
-      <div class="row">
-        <span class="c">{{ c.company }} <span class="tag tag-warn">撞单</span></span>
-        <span class="t">{{ c.duplicate_flagged_at|date:"m-d H:i" }}</span>
-        <a class="n" href="/admin/customers/customer/{{ c.pk }}/change/">查看 →</a>
+      <div class="row" style="flex-direction:column;align-items:flex-start;gap:4px;padding:8px 0">
+        <span class="c">{{ c.company }} <span class="tag tag-warn">撞单</span>
+          <span class="t">{{ c.created_at|date:"m-d H:i" }}建档</span>
+          <a class="n" href="/admin/customers/customer/{{ c.id }}/change/">查看 →</a>
+        </span>
+        {% if c.owner %}<div style="font-size:12px;color:#B45309;margin-left:16px">⚠ 资源归先建档销售 {{ c.owner }}</div>{% endif %}
+        {% for p in c.dup_pairs %}
+        <div style="font-size:12px;color:#475569;margin-left:16px">
+          {{ p.direction }} {{ p.target }}{% if p.fields %} · 相同:{{ p.fields|join:"、" }}{% endif %}
+          {% if p.confidence == "high" %}<span style="color:#B91C1C">🔴100%撞(电话唯一)</span>{% endif %}
+        </div>
+        {% endfor %}
       </div>
       {% endfor %}
     {% else %}

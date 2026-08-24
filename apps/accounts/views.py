@@ -175,8 +175,33 @@ def sales_workbench(request):
         last_follow_at__lt=week_ago,
     ).order_by("last_follow_at")[:10]
 
-    # 撞单标识客户
-    dup = my_customers.filter(duplicate_flagged_at__isnull=False)[:10]
+    # 撞单标识客户(信息维度对齐总览):撞谁/被撞/相同字段/置信度/归属
+    dup_customers = my_customers.filter(duplicate_flagged_at__isnull=False)[:10]
+    dup = []
+    for c in dup_customers:
+        # 不去先后过滤:撞单标识客户可能是撞单方(后建档)或被撞方(先建档),都显示全部撞单对
+        targets = [d for d in c.find_duplicates()[:5]]
+        pairs = []
+        owner_text = ""
+        for d in sorted(targets, key=lambda x: x.created_at):  # 最早建档=归属方
+            who = d.created_by.real_name if d.created_by else "未知"
+            if not owner_text:
+                owner_text = f"{d.company}（{who}·{d.created_at:%m-%d %H:%M}建档）"
+            direction = "被撞" if d.created_at > c.created_at else "撞"
+            pairs.append({
+                "target": f"{d.company}（{who}建档·{d.created_at:%m-%d %H:%M}）",
+                "direction": direction,
+                "fields": c.match_fields(d),
+                "confidence": c.match_confidence(d),
+            })
+        dup.append({
+            "id": c.pk,
+            "company": c.company,
+            "created_at": c.created_at,
+            "flagged_at": c.duplicate_flagged_at,
+            "owner": owner_text,  # 归属方(先建档,资源归它)
+            "dup_pairs": pairs,
+        })
     # 我成交的项目(销售/主管:查看自己成交项目进度,细则[20];普通职员侧边栏已无'成交管理',此入口在工作台)
     my_deals = Project.objects.filter(sales=me).order_by("-deal_at")[:20]
 

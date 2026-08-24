@@ -153,6 +153,28 @@ SESSION_COOKIE_AGE = 2592000  # 30 天
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
-    "handlers": {"console": {"class": "logging.StreamHandler"}},
+    "formatters": {
+        "verbose": {
+            "format": "{asctime} {levelname} {name} {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {"class": "logging.StreamHandler"},
+        # 错误日志独立采集(error.log):ERROR/WARN + 异常 traceback 集中,报错可追溯(不淹没在 server.log AUDIT 里)
+        "error_file": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": BASE_DIR / "error.log",
+            "maxBytes": 5 * 1024 * 1024,
+            "backupCount": 2,
+            "encoding": "utf-8",
+            "formatter": "verbose",
+        },
+    },
+    "loggers": {
+        "django": {"handlers": ["error_file"], "level": "ERROR", "propagate": False},
+        "django.request": {"handlers": ["error_file"], "level": "ERROR", "propagate": False},
+        "": {"handlers": ["error_file"], "level": "ERROR"},
+    },
     "root": {"handlers": ["console"], "level": "WARNING"},
 }

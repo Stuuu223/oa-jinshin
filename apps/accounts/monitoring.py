@@ -19,6 +19,8 @@ def collect_metrics():
     database = _collect_database(today)
     logs = _collect_logs()
     audit = _collect_audit()
+    errors = _collect_errors()
+    analysis = _collect_analysis(now, today)
     health = _compute_health(system, today)
     return {
         "srv_up": system["srv_up"],
@@ -28,6 +30,8 @@ def collect_metrics():
         **database,
         **logs,
         **audit,
+        **errors,
+        **analysis,
         **health,
     }
 
@@ -175,3 +179,35 @@ def _collect_audit():
             VisitLog.objects.select_related("user").order_by("-created_at")[:30]
         ),
     }
+
+
+def _collect_errors():
+    """采集器:错误日志——error.log 最近记录(ERROR/WARN/异常 traceback),报错可追溯."""
+    err_lines = []
+    try:
+        with open(settings.BASE_DIR / "error.log", "r", encoding="utf-8", errors="ignore") as f:
+            tail = f.readlines()[-60:]
+        for ln in tail[-30:]:
+            txt = ln.strip()
+            if not txt:
+                continue
+            level = "ERROR" if "ERROR" in txt else ("WARN" if ("WARN" in txt or "WARNING" in txt) else "TRACE")
+            err_lines.append({"level": level, "text": txt[:120]})
+    except Exception:
+        err_lines = []
+    return {"err_lines": err_lines}
+
+
+def _collect_analysis(now, today):
+    """采集器:活动分析——按用户活动分布 + 按时段活动分布(谁活跃/何时活跃)."""
+    from apps.customers.models import VisitLog
+
+    user_activity = list(
+        VisitLog.objects.exclude(user__isnull=True).values("user__real_name", "user__username")
+        .annotate(c=Count("id")).order_by("-c")[:8]
+    )
+    hour_activity = []
+    for i in range(23, -1, -1):
+        h0, h1 = now - timedelta(hours=i + 1), now - timedelta(hours=i)
+        hour_activity.append({"label": f"{h1:%H}时", "c": VisitLog.objects.filter(created_at__gte=h0, created_at__lt=h1).count()})
+    return {"user_activity": user_activity, "hour_activity": hour_activity}

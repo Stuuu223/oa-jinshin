@@ -82,11 +82,13 @@ def _collect_activity(now, today):
 
     return {
         "login_today": OperationLog.objects.filter(action="登录", created_at__gte=today).count(),
-        "kick_today": VisitLog.objects.filter(status=302, created_at__gte=today).count(),
+        # 真被踢:业务路径302(排除/admin/login/——登录流程正常跳转不算被踢)
+        "kick_today": VisitLog.objects.filter(status=302, created_at__gte=today).exclude(path__startswith="/admin/login/").count(),
         "active_users": VisitLog.objects.filter(created_at__gte=now - timedelta(minutes=5)).values("user__username").distinct().count(),
         "visits_today": VisitLog.objects.filter(created_at__gte=today).count(),
         "top_paths": list(VisitLog.objects.values("path").annotate(c=Count("id")).order_by("-c")[:5]),
-        "events": list(VisitLog.objects.filter(status__in=[302, 404, 500]).order_by("-created_at")[:10]),
+        # 告警事件:排除 /admin/login/ 302(登录流程正常跳转非异常)
+        "events": list(VisitLog.objects.filter(status__in=[302, 404, 500]).exclude(path__startswith="/admin/login/").order_by("-created_at")[:10]),
         "active_list": list(
             VisitLog.objects.filter(created_at__gte=now - timedelta(minutes=5), user__isnull=False)
             .values("user__real_name", "user__username").annotate(last=Max("created_at")).order_by("-last")[:10]

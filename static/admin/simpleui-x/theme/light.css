@@ -154,13 +154,14 @@ a:visited {
 .quick-card a:hover {
   color: rgba(64, 158, 255, 0.8) !important;
 }
-/* 金石修复:模块标题背景深灰+文字改白(原#666深灰看不清)——对比清晰 */
+/* 金石修复:模块标题配色——浅灰白背景+深色文字(原#606266深灰底扎眼/视疲劳),蓝色竖条#2563EB在浅底上清晰 */
 .module h2,
 .module caption,
 .inline-group h2,
 .selector-chosen h2 {
-  background: #606266 !important;
-  color: #fff !important;
+  background: #f5f7fa !important;
+  color: #333 !important;
+  border-bottom: 1px solid #e4e7ed;
 }
 #changelist .actions {
   min-height: 38px;

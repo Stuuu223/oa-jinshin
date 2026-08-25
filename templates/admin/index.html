@@ -382,8 +382,12 @@
         document.querySelectorAll('.waves-ripple').forEach(function (r) { r.remove(); });
     };
     _disableWaves();
-    setTimeout(_disableWaves, 500);
-    setTimeout(_disableWaves, 2000);
+    // MutationObserver 持续禁用:Vue 动态渲染/重新挂载的元素会重新带 waves-effect(v-waves 指令 inserted 时 Waves.attach)
+    // → 不持续监控则 ripple 重新累积(火狐特有:用着用着累积到 JS 卡死,按钮全失效)
+    if (window.MutationObserver) {
+        var _mo = new MutationObserver(function () { _disableWaves(); });
+        _mo.observe(document.documentElement, { childList: true, subtree: true });
+    }
     // waves-ripple 残留清理:防动画 div 累积(5s 未清除的 ripple 移除)
     setInterval(function () {
         var now = Date.now();

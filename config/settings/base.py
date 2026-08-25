@@ -81,7 +81,7 @@ LOGIN_URL = "/admin/login/"  # 未登录访问(含独立后台/ops/monitor/)跳�
 SIMPLEUI_HOME_TITLE = "金石管理系统"
 SIMPLEUI_HOME_INFO = False
 SIMPLEUI_LOGO = ""
-SIMPLEUI_DEFAULT_THEME = "light"
+SIMPLEUI_DEFAULT_THEME = "light.css"
 # 首页跳转到老板总览面板(simpleui 官方配置)
 SIMPLEUI_HOME_PAGE = "/admin/dashboard/"
 SIMPLEUI_INDEX = "/admin/dashboard/"  # 首页/logo点击跳转目标(缺失时goIndex('')跳转空白)

@@ -81,12 +81,11 @@ document.addEventListener('click', function (e) {
     var el = e.target.closest ? e.target.closest('[url], a[href]') : null;
     if (!el) return;
     var url = el.getAttribute('url') || el.getAttribute('href');
+    // 直接跳转(诊断定位:原400ms检测URL是否已变——个别环境URL有无GET的变化(如hash)被误判'已导航'→不跳转→添加没GET);直接导航到目标(url唯一——admin正常时也导航同一URL,无冲突)
     if (url && url.indexOf('javascript') !== 0) {
-        var cur = location.href;
-        setTimeout(function () {
-            if (location.href === cur) { location.href = url; }
-        }, 400);
+        location.href = url;
     }
 }, true);
 </script>
+
 {% endblock %}

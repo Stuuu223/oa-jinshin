@@ -193,6 +193,13 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
         ("广播证", "广播电视节目制作经营许可证"),
     )
 
+    def add_view(self, request, form_url="", extra_context=None):
+        """从公海池进入添加客户:标题明确'增加 公海池客户'(而非笼统'增加 客户'),来源定位清晰."""
+        extra_context = extra_context or {}
+        if "status__exact=pool" in request.GET.get("_changelist_filters", ""):
+            extra_context.setdefault("title", "增加 公海池客户")
+        return super().add_view(request, form_url, extra_context)
+
     def formfield_for_dbfield(self, db_field, **kwargs):
         if db_field.name == "qualification_interest":
             # JSONField 的 formfield 会传 encoder 参数给 MultipleChoiceField 导致 TypeError,

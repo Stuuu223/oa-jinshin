@@ -371,27 +371,7 @@
 {% block script %}
     {#    预留脚本block 可以实现基础该页面，添加自定义脚本#}
     <script type="text/javascript">
-    // 顶栏用户下拉兜底:el-dropdown 偶发不展开(点击无反应,菜单 display:none)——强制展开 aria-controls 对应菜单
-    document.addEventListener('click', function (e) {
-        var btn = e.target.closest ? e.target.closest('.el-dropdown-selfdefine') : null;
-        if (btn) {
-            var menuId = btn.getAttribute('aria-controls');
-            var menu = menuId ? document.getElementById(menuId) : null;
-            if (menu && menu.style.display === 'none') {
-                menu.style.display = 'block';
-            }
-        }
-    }, true);
-    // 点击外部关闭(兜底展开后的关闭)
-    document.addEventListener('click', function (e) {
-        document.querySelectorAll('.el-dropdown-menu').forEach(function (menu) {
-            var btn = document.querySelector('[aria-controls="' + menu.id + '"]');
-            if (menu.style.display === 'block' && btn && !menu.contains(e.target) && !btn.contains(e.target)) {
-                menu.style.display = 'none';
-            }
-        });
-    }, false);
-    // waves-ripple 残留清理:防动画 div 累积(用户贴的 HTML 按钮残留 15+ 个 ripple)干扰按钮点击
+    // waves-ripple 残留清理:防动画 div 累积(不干预 Element UI dropdown 原生展开/折叠状态)
     setInterval(function () {
         var now = Date.now();
         document.querySelectorAll('.waves-ripple').forEach(function (r) {

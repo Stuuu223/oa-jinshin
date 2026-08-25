@@ -78,10 +78,10 @@
 /* 事件容错层(iframe 内容页——主框架监听不到 iframe 内点击,事件不跨 iframe):
    带 url 属性的按钮(如"增加"add_item)点击后未导航(URL 未变)时原生跳转——系统侧兼容(个别浏览器 profile 的 Vue/JS 事件绑定未响应) */
 document.addEventListener('click', function (e) {
-    var el = e.target.closest ? e.target.closest('button[url], a[href]') : null;
+    var el = e.target.closest ? e.target.closest('[url], a[href]') : null;
     if (!el) return;
     var url = el.getAttribute('url') || el.getAttribute('href');
-    if (url && url.indexOf('javascript') !== 0 && el.tagName === 'BUTTON') {
+    if (url && url.indexOf('javascript') !== 0) {
         var cur = location.href;
         setTimeout(function () {
             if (location.href === cur) { location.href = url; }

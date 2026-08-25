@@ -303,8 +303,9 @@
             if (t && !hasSid && window.axios) {
                 axios.get('/admin/notifications/unread/', { headers: { 'X-JSTK': t } })
                     .then(function () {
-                        if (document.cookie.indexOf('sessionid=') >= 0) location.reload();
-                        else localStorage.removeItem('jstk');  // 旧 jstk 失效:清理并停,避免死循环
+                        // 会话已恢复(Set-Cookie sessionid),不刷新页面——避免打断用户操作
+                        // (变化点根因完整修复:自愈JS的所有location.reload(心跳6a14d1d+页面加载)恢复后均不刷新——08-24加入的reload打断交互)
+                        if (document.cookie.indexOf('sessionid=') < 0) localStorage.removeItem('jstk');  // 旧 jstk 失效:清理并停,避免死循环
                     })
                     .catch(function () {});
             }

@@ -118,7 +118,7 @@
             tabs: [home],
             tabModel: 0,
             tabIndex: 0,
-            // 金石修复:单内容区模式——curUrl 驱动主 iframe,点菜单直接切换
+            // 单内容区模式:curUrl 驱动主 iframe,点菜单直接切换
             curUrl: (typeof home !== 'undefined' && home.url) ? home.url : '/admin/dashboard/',
             menus: [],
             menuActive: '0',
@@ -478,7 +478,7 @@
                 if (data.breadcrumbs) {
                     this.breadcrumbs = data.breadcrumbs;
                 }
-                // 金石修复:单内容区模式——点菜单直接切换主 iframe
+                // 单内容区模式:点菜单直接切换主 iframe
                 if (data.url) {
                     this.curUrl = data.url;
                 }
@@ -511,7 +511,7 @@
 
                 if (exists) {
                     this.tabModel = exists.id;
-                    // 金石修复:iframe 内导航后(如工作台→客户池)再点侧边栏菜单,
+                    // iframe 内导航后(如工作台→客户池)再点侧边栏菜单,
                     // 若 tab 实际内容(newUrl)与菜单目标(url)不一致,重置 url 强制 iframe 重新加载,避免"锁死回不去"
                     if (exists.newUrl && data.url && exists.newUrl != data.url) {
                         exists.url = data.url;
@@ -531,7 +531,7 @@
                     // data.id = new Date().getTime() + "" + Math.random();
                     data.id = data.eid;
                     data.index = index;
-                    // 金石修复:tab 数量上限(默认12个),超限自动关闭最旧的,防止堆积几十个tab导致工作台tab被挤丢
+                    // tab 数量上限(默认12个):超限自动关闭最旧的,防止堆积导致工作台tab被挤丢
                     var MAX_TABS = 12;
                     if (this.tabs.length >= MAX_TABS) {
                         for (var k = 0; k < this.tabs.length; k++) {

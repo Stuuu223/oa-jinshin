@@ -370,8 +370,21 @@
 {% endblock %}
 {% block script %}
     {#    预留脚本block 可以实现基础该页面，添加自定义脚本#}
+    <style>
+    /* waves-ripple 疯狂累积(mousemove 高频产生+清理不执行)→ DOM 爆炸→JS 卡死→所有按钮失效(火狐特有)
+       隐藏 ripple 减少 DOM 压力;装饰性动画,无功能损失 */
+    .waves-ripple { display: none !important; pointer-events: none !important; }
+    </style>
     <script type="text/javascript">
-    // waves-ripple 残留清理:防动画 div 累积(不干预 Element UI dropdown 原生展开/折叠状态)
+    // waves 动画禁用:ripple 累积导致 JS 卡死(所有按钮无响应)的根因修复——移除 waves-effect 绑定,不再产生 ripple
+    var _disableWaves = function () {
+        document.querySelectorAll('.waves-effect').forEach(function (el) { el.classList.remove('waves-effect'); });
+        document.querySelectorAll('.waves-ripple').forEach(function (r) { r.remove(); });
+    };
+    _disableWaves();
+    setTimeout(_disableWaves, 500);
+    setTimeout(_disableWaves, 2000);
+    // waves-ripple 残留清理:防动画 div 累积(5s 未清除的 ripple 移除)
     setInterval(function () {
         var now = Date.now();
         document.querySelectorAll('.waves-ripple').forEach(function (r) {

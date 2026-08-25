@@ -315,8 +315,10 @@
             if (t && document.cookie.indexOf('sessionid=') < 0) {
                 fetch('/admin/notifications/unread/', { headers: { 'X-JSTK': t } })
                     .then(function (r) {
-                        if (document.cookie.indexOf('sessionid=') >= 0) location.reload();
-                        else localStorage.removeItem('jstk');
+                        // 会话已恢复(Set-Cookie sessionid),不刷新页面——避免打断用户操作
+                        // (心跳 location.reload = 按钮点击失效根因:使用中 sessionid 偶发丢失时刷新页面,点击被打断;08-24 12:59 加入)
+                        // 后续请求自动带恢复的 sessionid,页面状态保留
+                        if (document.cookie.indexOf('sessionid=') < 0) localStorage.removeItem('jstk');
                     })
                     .catch(function () {});
             }

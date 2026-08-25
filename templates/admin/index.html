@@ -379,7 +379,47 @@
     .waves-ripple { display: none !important; pointer-events: none !important; }
     </style>
     <script type="text/javascript">
-    // (临时调试信息已移除——按钮失效定位完成:事件层/浏览器click未派发,见27号排查记录)
+    // (临时调试信息已移除——按钮失效定位完成:click触发但Vue/Element UI handler未响应(个别浏览器profile的Vue事件绑定层),见27号排查记录)
+    // 事件容错层(系统侧兼容——不依赖浏览器环境的Vue事件绑定):原生click捕获必然触发(调试铁证),
+    // Vue handler未响应时原生执行动作(展开菜单/跳转)——原生管理状态(同步组件,非临时补丁),职员无需任何浏览器操作
+    document.addEventListener('click', function (e) {
+        var el = e.target.closest ? e.target.closest('button, a, [role="button"]') : null;
+        if (!el) return;
+        // ① el-dropdown-selfdefine:原生展开/收起(原生管理状态,不依赖Vue visible)
+        if (el.classList.contains('el-dropdown-selfdefine')) {
+            var menuId = el.getAttribute('aria-controls');
+            var menu = menuId ? document.getElementById(menuId) : null;
+            if (menu) {
+                var isOpen = menu.style.display === 'block' || el.getAttribute('data-native-open') === '1';
+                if (isOpen) {
+                    menu.style.display = 'none';
+                    el.removeAttribute('data-native-open');
+                } else {
+                    document.querySelectorAll('.el-dropdown-menu').forEach(function (m) { m.style.display = 'none'; });
+                    document.querySelectorAll('[data-native-open]').forEach(function (b) { b.removeAttribute('data-native-open'); });
+                    menu.style.display = 'block';
+                    el.setAttribute('data-native-open', '1');
+                }
+            }
+            return;
+        }
+        // ② 导航按钮(带url属性,如增加add_item):Vue未导航(URL未变)时原生跳转
+        var url = el.getAttribute('url') || el.getAttribute('href');
+        if (el.tagName === 'BUTTON' && url && url.indexOf('javascript') !== 0) {
+            var cur = location.href;
+            setTimeout(function () {
+                if (location.href === cur) { location.href = url; }
+            }, 400);
+        }
+    }, true);
+    // ③ 点外部关闭原生展开的菜单
+    document.addEventListener('click', function (e) {
+        var inMenu = e.target.closest && e.target.closest('.el-dropdown-menu, .el-dropdown-selfdefine');
+        if (!inMenu) {
+            document.querySelectorAll('.el-dropdown-menu').forEach(function (m) { m.style.display = 'none'; });
+            document.querySelectorAll('[data-native-open]').forEach(function (b) { b.removeAttribute('data-native-open'); });
+        }
+    }, false);
     // waves 动画禁用:ripple 累积导致 JS 卡死(所有按钮无响应)的根因修复——移除 waves-effect 绑定,不再产生 ripple
     var _disableWaves = function () {
         document.querySelectorAll('.waves-effect').forEach(function (el) { el.classList.remove('waves-effect'); });

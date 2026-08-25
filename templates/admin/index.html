@@ -379,6 +379,7 @@
     .waves-ripple { display: none !important; pointer-events: none !important; }
     </style>
     <script type="text/javascript">
+    // (临时调试信息已移除——按钮失效定位完成:事件层/浏览器click未派发,见27号排查记录)
     // waves 动画禁用:ripple 累积导致 JS 卡死(所有按钮无响应)的根因修复——移除 waves-effect 绑定,不再产生 ripple
     var _disableWaves = function () {
         document.querySelectorAll('.waves-effect').forEach(function (el) { el.classList.remove('waves-effect'); });

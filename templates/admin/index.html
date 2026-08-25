@@ -383,9 +383,14 @@
     };
     _disableWaves();
     // MutationObserver 持续禁用:Vue 动态渲染/重新挂载的元素会重新带 waves-effect(v-waves 指令 inserted 时 Waves.attach)
-    // → 不持续监控则 ripple 重新累积(火狐特有:用着用着累积到 JS 卡死,按钮全失效)
+    // → 不持续监控则 ripple 重新累积(用着用着累积到 JS 卡死,按钮全失效)
+    // 节流:DOM 变化高频触发(动画/Vue 渲染)时,100ms 内只执行一次清理,防全量扫描阻塞主线程(hover/click 无响应)
     if (window.MutationObserver) {
-        var _mo = new MutationObserver(function () { _disableWaves(); });
+        var _moTimer = null;
+        var _mo = new MutationObserver(function () {
+            if (_moTimer) return;
+            _moTimer = setTimeout(function () { _moTimer = null; _disableWaves(); }, 100);
+        });
         _mo.observe(document.documentElement, { childList: true, subtree: true });
     }
     // waves-ripple 残留清理:防动画 div 累积(5s 未清除的 ripple 移除)

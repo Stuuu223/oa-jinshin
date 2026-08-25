@@ -290,7 +290,10 @@
 
             this.menus = window.menus
 
-            this.theme = getCookie('theme');
+            // 主题 URL 规范化:旧 cookie theme 值可能无 .css 后缀(无后缀→MIME application/octet-stream→浏览器拒绝加载样式)
+            var _themeVal = getCookie('theme');
+            if (_themeVal && _themeVal.indexOf('.css') < 0) { _themeVal += '.css'; }
+            this.theme = _themeVal;
             this.themeName = getCookie('theme_name');
 
 

@@ -568,6 +568,12 @@
 
             }
             ,
+            clearCache: function () {
+                try { sessionStorage.clear(); } catch (e) {}
+                try { localStorage.clear(); } catch (e) {}
+                alert('缓存已清除,页面即将刷新');
+                setTimeout(function () { location.reload(); }, 800);
+            },
             changePassword: function () {
                 var width = document.documentElement.clientWidth || document.body.clientWidth;
                 if (width > 800) {

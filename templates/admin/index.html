@@ -165,6 +165,9 @@
                                     {% endif %}
 
                                     {% verbatim mycode %}
+                                        <el-dropdown-item icon="el-icon-refresh" data-clear-cache
+                                                          @click.native="clearCache()"
+                                                          divided>清除缓存</el-dropdown-item>
                                         <el-dropdown-item icon="el-icon-close"
                                                           @click.native="logout()"
                                                           divided>{{ language.logout }}</el-dropdown-item>
@@ -383,9 +386,17 @@
     // 事件容错层(系统侧兼容——不依赖浏览器环境的Vue事件绑定):原生click捕获必然触发(调试铁证),
     // Vue handler未响应时原生执行动作(展开菜单/跳转)——原生管理状态(同步组件,非临时补丁),职员无需任何浏览器操作
     document.addEventListener('click', function (e) {
-        var el = e.target.closest ? e.target.closest('button, a, [role="button"]') : null;
+        var el = e.target.closest ? e.target.closest('button, a, [role="button"], [data-clear-cache]') : null;
         if (!el) return;
-        // ① el-dropdown-selfdefine:原生展开/收起(原生管理状态,不依赖Vue visible)
+        // ①'清除缓存'菜单项:原生清缓存+刷新(不依赖Vue clearCache——系统侧兼容,小程序/任意环境可用)
+        if (el.hasAttribute('data-clear-cache')) {
+            try { sessionStorage.clear(); } catch (e) {}
+            try { localStorage.clear(); } catch (e) {}
+            alert('缓存已清除,页面即将刷新');
+            location.reload();
+            return;
+        }
+        // ② el-dropdown-selfdefine:原生展开/收起(原生管理状态,不依赖Vue visible)
         if (el.classList.contains('el-dropdown-selfdefine')) {
             var menuId = el.getAttribute('aria-controls');
             var menu = menuId ? document.getElementById(menuId) : null;
@@ -397,13 +408,19 @@
                 } else {
                     document.querySelectorAll('.el-dropdown-menu').forEach(function (m) { m.style.display = 'none'; });
                     document.querySelectorAll('[data-native-open]').forEach(function (b) { b.removeAttribute('data-native-open'); });
+                    // 原生展开时补 popper 定位(Element UI 组件未响应时定位未应用——fixed 到按钮下方,退出项完整可见)
+                    var rect = el.getBoundingClientRect();
+                    menu.style.position = 'fixed';
+                    menu.style.top = (rect.bottom + 4) + 'px';
+                    menu.style.left = rect.left + 'px';
+                    menu.style.zIndex = '9999';
                     menu.style.display = 'block';
                     el.setAttribute('data-native-open', '1');
                 }
             }
             return;
         }
-        // ② 导航按钮(带url属性,如增加add_item):Vue未导航(URL未变)时原生跳转
+        // ③ 导航按钮(带url属性,如增加add_item):Vue未导航(URL未变)时原生跳转
         var url = el.getAttribute('url') || el.getAttribute('href');
         if (el.tagName === 'BUTTON' && url && url.indexOf('javascript') !== 0) {
             var cur = location.href;

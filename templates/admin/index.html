@@ -135,15 +135,10 @@
                             <el-button
                                     :icon="this.zoom?'fas fa-compress-arrows-alt':'fas fa-expand-arrows-alt'"
                                     @click="goZoom()" circle></el-button>
-                            <el-button icon="fas fa-home" @click="goIndex('{{ 'SIMPLEUI_INDEX'|get_config }}')" circle
+                            <el-button icon="fas fa-home" data-home-url="{{ 'SIMPLEUI_INDEX'|get_config }}"
+                                       @click="goIndex('{{ 'SIMPLEUI_INDEX'|get_config }}')" circle
                                        v-waves></el-button>
                             {% verbatim mycode %}
-                                <el-button @click="themeDialogVisible=true" v-waves>
-                                    <i class="fas fa-palette"></i>
-                                    <span v-text="getLanuage('Change theme')"></span><i
-                                        class="el-icon-arrow-down el-icon--right"></i>
-                                </el-button>
-
                             {% endverbatim mycode %}
                             <el-dropdown>
                                 <el-button v-waves>
@@ -210,23 +205,7 @@
     </el-dialog>
 
     {% block theme_dialog %}
-        <el-dialog
-                :title="getLanuage('Change theme')"
-                :visible.sync="themeDialogVisible"
-                :width="small?'90%':'50%'">
-            {% block theme_body %}
-                <div class="change-theme clearfix">
-                    <div v-waves :class="{'theme-item':true,active:themeName==item.text}" v-for="(item,i) in themes"
-                         :key="item.text"
-                         :title="getLanuage(item.text)" @click="setTheme(item)">
-                        <div class="theme-menu" :style="{background:item.menu}">
-                            <div class="theme-logo" :style="{background: item.logo}"></div>
-                        </div>
-                        <div class="theme-top" :style="{background: item.top}"></div>
-                    </div>
-                </div>
-            {% endblock %}
-        </el-dialog>
+        {# 主题切换弹窗已移除——固定主题(light),主题切换入口/弹窗均不保留 #}
     {% endblock %}
 
     {% block font_dialog %}
@@ -386,6 +365,11 @@
     // 事件容错层(系统侧兼容——不依赖浏览器环境的Vue事件绑定):原生click捕获必然触发(调试铁证),
     // Vue handler未响应时原生执行动作(展开菜单/跳转)——原生管理状态(同步组件,非临时补丁),职员无需任何浏览器操作
     document.addEventListener('click', function (e) {
+        // ④ v-modal 遮罩残留移除:对话框(退出确认等)关闭时 Vue 状态更新未生效(个别浏览器 profile)会残留全屏遮罩(z-index:2000)遮挡页面——点击被拦截"什么都点不了";点击时先清残留遮罩,让点击落到按钮
+        var vm = document.querySelector('.v-modal');
+        if (vm && vm.style.display !== 'none' && !(e.target.closest && e.target.closest('.el-dialog, .el-message-box'))) {
+            vm.remove();
+        }
         var el = e.target.closest ? e.target.closest('button, a, [role="button"], [data-clear-cache]') : null;
         if (!el) return;
         // ①'清除缓存'菜单项:原生清缓存+刷新(不依赖Vue clearCache——系统侧兼容,小程序/任意环境可用)
@@ -394,6 +378,13 @@
             try { localStorage.clear(); } catch (e) {}
             alert('缓存已清除,页面即将刷新');
             location.reload();
+            return;
+        }
+        // ⑤ home 按钮:Vue goIndex 未响应时原生回首页(不依赖 Vue——系统侧兼容)
+        if (el.hasAttribute('data-home-url')) {
+            var homeUrl = el.getAttribute('data-home-url');
+            if (!homeUrl || homeUrl === 'None') homeUrl = '/';
+            window.open(homeUrl);
             return;
         }
         // ② el-dropdown-selfdefine:原生展开/收起(原生管理状态,不依赖Vue visible)

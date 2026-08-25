@@ -597,22 +597,15 @@
             }
             ,
             logout: function () {
-                this.$confirm(language.confirm, Lanuages.Tips, {
-                    confirmButtonText: language.yes,
-                    cancelButtonText: language.no,
-                    type: 'warning'
-                }).then(function () {
-                    //清除cookie主题设置和sessionStore数据
-                    delete sessionStorage['tabs'];
-                    setCookie('theme', '');
-                    setCookie('theme_name', '');
+                // 原生 confirm 替代 Element UI $confirm——$confirm 的 v-modal 遮罩在个别浏览器 profile 关闭流程未生效会残留(遮挡页面点不了)
+                if (!window.confirm(language.confirm)) return;
+                //清除cookie主题设置和sessionStore数据
+                delete sessionStorage['tabs'];
+                setCookie('theme', '');
+                setCookie('theme_name', '');
 
-                    //创建一个form post方式提交
-                    document.querySelector("#logout_form").submit();
-                    // window.location.href = window.urls.logout;
-                }).catch(function () {
-
-                });
+                //创建一个form post方式提交
+                document.querySelector("#logout_form").submit();
             }
             ,
             goIndex: function (url) {

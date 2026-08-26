@@ -1,0 +1,26 @@
+#!/bin/bash
+# 金石系统标准部署脚本:拉取最新代码 + 重建容器
+# 用法:bash deploy.sh(在服务器 /opt/jinshi 下执行)
+set -e
+cd /opt/jinshi
+
+echo "== [1/2] 拉取最新代码 =="
+PULLED=0
+for i in 1 2 3; do
+  if timeout 90 git pull origin main; then
+    PULLED=1
+    break
+  fi
+  echo "第 ${i} 次 pull 失败(服务器→GitHub 网络不稳定),5 秒后重试..."
+  sleep 5
+done
+if [ "$PULLED" = "0" ]; then
+  echo "警告:3 次 pull 均失败,继续用当前代码重建。"
+  echo "提示:网络持续不通时,可用 git bundle 方式同步(见部署文档)。"
+fi
+
+echo "== [2/2] 重建并重启容器 =="
+docker compose up -d --build
+
+echo "== 部署完成 =="
+docker ps --filter name=jinshi --format "{{.Names}} {{.Status}}"

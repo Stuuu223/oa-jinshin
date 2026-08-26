@@ -1,0 +1,27 @@
+# === Git ===
+.git/
+.gitignore
+
+# === 敏感:环境变量与凭据(绝不进镜像) ===
+.env
+.env.*
+!.env.example
+.mcp.json
+*.key
+*.pem
+
+# === 运行产物/日志 ===
+*.log
+__pycache__/
+*.pyc
+db.sqlite3
+media/
+staticfiles/
+venv/
+.venv/
+
+# === 部署脚本/临时 ===
+deploy.sh
+部署命令.txt
+*.bak
+*.tmp

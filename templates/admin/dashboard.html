@@ -38,15 +38,28 @@
   .dup-item .vs { color: #C2410C; font-weight: 600; white-space: nowrap; }
   .dup-item .tag { display: inline-block; background: #FDE8E8; color: #B45309; border-radius: 6px; padding: 2px 8px; margin-right: 4px; }
   .dup-item .meta { margin-left: auto; color: #94A3B8; font-size: 12px; white-space: nowrap; }
+  .dup-panel .dup-head .dup-right { display: flex; align-items: center; gap: 10px; }
+  .dup-toggle { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border: 1px solid #FDBA74; background: #fff; color: #C2410C; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background .15s, border-color .15s; }
+  .dup-toggle:hover { background: #FEF3C7; border-color: #F59E0B; }
+  .dup-toggle .arrow { display: inline-block; transition: transform .2s; font-size: 10px; }
+  .dup-panel.collapsed .dup-toggle .arrow { transform: rotate(-90deg); }
+  .dup-panel .dup-body { overflow: hidden; }
+  .dup-panel.collapsed .dup-body { display: none; }
 </style>
 
 <div class="dash-wrap">
   {% if dup_alerts %}
-  <div class="dup-panel">
+  <div class="dup-panel" id="dupPanel">
     <div class="dup-head">
       <b>撞单提醒</b>
-      <span class="dup-count">{{ dup_alerts }} 条待处理</span>
+      <div class="dup-right">
+        <span class="dup-count">{{ dup_alerts }} 条待处理</span>
+        <button type="button" class="dup-toggle" id="dupToggle" aria-expanded="true">
+          <span class="arrow">▼</span><span class="txt">收起</span>
+        </button>
+      </div>
     </div>
+    <div class="dup-body">
     {% for d in dup_details %}
     <div class="dup-item" style="flex-wrap:wrap">
       <span class="co">{{ d.company }} <span style="color:#94A3B8;font-size:12px;font-weight:400">（撞单方·{{ d.created_at|date:"m-d H:i" }}建档）</span></span>
@@ -64,6 +77,7 @@
       <span class="meta">{{ d.created_by }}建档 · {{ d.created_at|date:"m-d H:i" }} <a href="/admin/customers/customer/{{ d.id }}/change/" style="color:#2563EB">处理 →</a> <a href="/admin/dup-resolve/{{ d.id }}/" style="color:#16a34a">解除(非撞单)</a></span>
     </div>
     {% endfor %}
+    </div>
   </div>
   {% else %}
   <div class="alert-banner ok">暂无撞单提醒,客户数据干净。</div>
@@ -129,4 +143,17 @@
     </div>
   </div>
 </div>
+<script>
+(function(){
+  var panel = document.getElementById('dupPanel');
+  var toggle = document.getElementById('dupToggle');
+  if(!panel || !toggle) return;
+  toggle.addEventListener('click', function(){
+    var collapsed = panel.classList.toggle('collapsed');
+    toggle.querySelector('.arrow').textContent = collapsed ? '▶' : '▼';
+    toggle.querySelector('.txt').textContent = collapsed ? '展开' : '收起';
+    toggle.setAttribute('aria-expanded', String(!collapsed));
+  });
+})();
+</script>
 {% endblock %}

@@ -156,6 +156,11 @@ def page(title, body):
 JS = """
 function renderNav(filter){
   var nav = document.getElementById('nav'); nav.innerHTML = '';
+  var home = document.createElement('a');
+  home.className = 'item' + (!location.hash || location.hash === '#home' ? ' active' : '');
+  home.href = '#home';
+  home.textContent = '总纲';
+  nav.appendChild(home);
   var keys = Object.keys(DOCS || {}).filter(function(k){ return !filter || String(DOCS[k]).toLowerCase().indexOf(filter) >= 0; });
   keys.forEach(function(k){
     var a = document.createElement('a');
@@ -205,11 +210,11 @@ renderNav();
 """
 
 index_rows = [
-    ("22-项目文档", "架构 / 技术栈 / 模块 / 数据模型 / 权限体系 / 部署"),
-    ("23-使用手册", "19 个账号密码 / 各角色操作指南 / 演示流程 / FAQ"),
-    ("24-功能介绍", "细则 22 项功能对照表 + 增强功能 + 演示数据"),
-    ("25-文档更新日志", "同步更新机制 + 变更日志"),
-    ("26-细则歧义记录", "细则设计意图疑问/歧义/意见/预期(供老板审阅)"),
+    ("01-项目文档", "架构 / 技术栈 / 模块 / 数据模型 / 权限体系 / 部署"),
+    ("02-使用手册", "19 个账号密码 / 各角色操作指南 / 演示流程 / FAQ"),
+    ("03-功能介绍", "细则 22 项功能对照表 + 增强功能 + 演示数据"),
+    ("04-文档更新日志", "同步更新机制 + 变更日志"),
+    ("05-细则歧义记录", "细则设计意图疑问/歧义/意见/预期(供老板审阅)"),
 ]
 
 # ---- 可视化注入(22 项目文档) ----
@@ -264,17 +269,18 @@ def render(name, body_md, injects):
     return clean_emoji(body)
 
 DOCS_META = [
-    ("22-项目文档", "## 三、架构与模块", ARCH, "## 四、权限体系", PERM_MATRIX, "## 五、核心业务闭环", FLOW),
-    ("23-使用手册", None, None, None, None, None, None),
-    ("24-功能介绍", None, None, None, None, None, None),
-    ("25-文档更新日志", None, None, None, None, None, None),
-    ("26-细则歧义记录", None, None, None, None, None, None),
+    # (显示名, 源文件名, injects...)
+    ("01-项目文档", "22-项目文档", "## 三、架构与模块", ARCH, "## 四、权限体系", PERM_MATRIX, "## 五、核心业务闭环", FLOW),
+    ("02-使用手册", "23-使用手册", None, None, None, None, None, None),
+    ("03-功能介绍", "24-功能介绍", None, None, None, None, None, None),
+    ("04-文档更新日志", "25-文档更新日志", None, None, None, None, None, None),
+    ("05-细则歧义记录", "26-细则歧义记录", None, None, None, None, None, None),
 ]
 
 pages = []
 nav_docs = {}
-for name, *injects in DOCS_META:
-    md_path = os.path.join(SRC, name + ".md")
+for name, src, *injects in DOCS_META:
+    md_path = os.path.join(SRC, src + ".md")
     if not os.path.exists(md_path):
         continue
     md = open(md_path, encoding="utf-8").read()
@@ -290,12 +296,12 @@ def index_page():
     fmt = lambda v: format(v, ",.0f")
     stat_cards = (
         '<div class="arch">'
-        '<div class="box"><div class="t">%s 个客户档案</div><div class="d">销售建档 · 公海调配 · 撞单管控</div></div>'
-        '<div class="box"><div class="t">%s 个成交项目</div><div class="d">嘉茵分配 · 办证流转 · 建站任务</div></div>'
-        '<div class="box"><div class="t">¥%s 累计收款</div><div class="d">咨询填写 · 财务审核</div></div>'
-        '<div class="box"><div class="t">¥%s 累计支出</div><div class="d">成本申请 · 老板审核</div></div>'
-        '<div class="box"><div class="t">¥%s 累计利润</div><div class="d">收款−支出 自动核算</div></div>'
-        '<div class="box"><div class="t">%s 个待建站</div><div class="d">技术领取 · 进度同步全员</div></div>'
+        '<div class="box"><div class="t">%s 个客户档案</div><div class="d">全公司客户总量 · 销售唯一建档入口(进线/咨询/线索) · 含公海与成交</div></div>'
+        '<div class="box"><div class="t">%s 个成交项目</div><div class="d">已成交并转立项 · 自动流转咨询部办证 · 进度全程可查</div></div>'
+        '<div class="box"><div class="t">¥%s 累计收款</div><div class="d">项目回款合计 · 咨询填写收款、财务审核后计入</div></div>'
+        '<div class="box"><div class="t">¥%s 累计支出</div><div class="d">项目成本合计 · 成本申请、老板审核后计入</div></div>'
+        '<div class="box"><div class="t">¥%s 累计利润</div><div class="d">收款 − 支出 · 系统自动核算</div></div>'
+        '<div class="box"><div class="t">%s 个待建站</div><div class="d">技术部待领取建站任务 · 领取后进度同步全员</div></div>'
         '</div>' % (cust, proj, fmt(pay), fmt(exp), fmt(profit), pending)
     )
     depts = (

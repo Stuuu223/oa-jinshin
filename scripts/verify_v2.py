@@ -75,10 +75,10 @@ team_consult, _ = Team.objects.get_or_create(name="咨询组", department=dept_c
 def mk_user(username, real_name, role, dept, team=None, lead=False):
     u, created = User.objects.get_or_create(
         username=username,
-        defaults=dict(real_name=real_name, role=role, department=dept, team=team, is_team_lead=lead),
+        defaults=dict(real_name=real_name, role=role, department=dept, team=team, is_team_lead=lead, is_staff=True),
     )
     if not created:  # 已存在则同步字段
-        u.real_name, u.role, u.department, u.team, u.is_team_lead = real_name, role, dept, team, lead
+        u.real_name, u.role, u.department, u.team, u.is_team_lead, u.is_staff = real_name, role, dept, team, lead, True
         u.save()
     return u
 

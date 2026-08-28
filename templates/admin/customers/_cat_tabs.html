@@ -1,14 +1,38 @@
 {% comment %}客户管理大类 tab(我的客户/公司客户池/成交客户/回收站),active_tab: my|pool|deal|recycle{% endcomment %}
 <style>
+  /* 对抗 simpleui 的 a:link,a:visited{color:#409eff!important}(base.css):同特异性+!important+源码顺序后置取胜
+     ——与 modern_form.css .claim 领取建站按钮同一套路 */
   .cat-tabs { display:flex; gap:10px; margin:0 0 14px; flex-wrap:wrap; }
-  .cat-tab { display:inline-flex; align-items:center; gap:6px; padding:9px 20px; border-radius:10px; border:1px solid #D0D7DE; background:#fff; color:#334155; font-size:14px; font-weight:600; text-decoration:none; transition:all .15s; }
-  .cat-tab:hover { border-color:#2563EB; color:#2563EB; }
-  .cat-tab.active { background:#2563EB; color:#fff; border-color:#2563EB; }
-  .cat-tab .ok { color:#22C55E; font-weight:800; }
-  .cat-tab.active .ok { color:#BBF7D0; }
+  .cat-tab,
+  .cat-tab:link,
+  .cat-tab:visited {
+    display:inline-flex; align-items:center; gap:6px; padding:9px 20px; border-radius:10px;
+    border:1px solid #D0D7DE; background:#fff; color:#334155 !important; font-size:14px;
+    font-weight:600; text-decoration:none; transition:all .15s;
+  }
+  .cat-tab:hover,
+  .cat-tab:focus { border-color:#2563EB !important; color:#2563EB !important; text-decoration:none; }
+  .cat-tab.active,
+  .cat-tab.active:link,
+  .cat-tab.active:visited {
+    background:#2563EB !important; color:#fff !important; border-color:#2563EB !important;
+  }
+  .cat-tab .ok { color:#22C55E !important; font-weight:800; }
+  .cat-tab.active .ok { color:#BBF7D0 !important; }
   .cat-sub { display:flex; gap:8px; margin:-4px 0 14px 2px; flex-wrap:wrap; }
-  .cat-sub a { font-size:12.5px; padding:4px 12px; border-radius:999px; border:1px solid #D0D7DE; background:#fff; color:#475569; text-decoration:none; }
-  .cat-sub a.active { background:#DBEAFE; border-color:#60A5FA; color:#1D4ED8; font-weight:600; }
+  .cat-sub a,
+  .cat-sub a:link,
+  .cat-sub a:visited {
+    font-size:12.5px; padding:4px 12px; border-radius:999px; border:1px solid #D0D7DE;
+    background:#fff; color:#475569 !important; text-decoration:none;
+  }
+  .cat-sub a:hover,
+  .cat-sub a:focus { border-color:#60A5FA !important; color:#1D4ED8 !important; text-decoration:none; }
+  .cat-sub a.active,
+  .cat-sub a.active:link,
+  .cat-sub a.active:visited {
+    background:#DBEAFE !important; border-color:#60A5FA !important; color:#1D4ED8 !important; font-weight:600;
+  }
 </style>
 <div class="cat-tabs">
   <a class="cat-tab {% if active_tab == 'my' %}active{% endif %}" href="/admin/customers/customer/">{% if active_tab == 'my' %}<span class="ok">✓</span>{% endif %}我的客户</a>

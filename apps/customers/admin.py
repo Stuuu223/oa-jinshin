@@ -9,6 +9,7 @@
 """
 import threading
 
+from django import forms
 from django.contrib import admin, messages
 from django.db.models import Q
 from django.http import JsonResponse
@@ -303,6 +304,12 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
             }),
         )
 
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
+        # 客户意向(1-5星):模型 choices 会让表单渲染为 Select 下拉(★选项),按验收改为 input 数字 1-5
+        if db_field.name == "intention":
+            kwargs["widget"] = forms.NumberInput(attrs={"min": 1, "max": 5, "style": "width:80px"})
+        return super().formfield_for_dbfield(db_field, request, **kwargs)
+
     def get_readonly_fields(self, request, obj=None):
         base = list(super().get_readonly_fields(request, obj))
         if obj is not None:
@@ -431,19 +438,26 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
         _request_local.request = request
         return cl
 
-    @admin.display(description="状态栏(最近操作)")
+    @admin.display(description="状态栏(客户意向/最近操作)")
     def status_bar(self, obj):
-        """客户状态栏:最近一条 新建/转入/转回 操作(账号+操作+时间),其余操作不展示."""
+        """客户状态栏:客户意向(x星) + 最近一条 新建/转入/转回 操作(账号+操作+时间)."""
+        cells = []
+        if obj.intention:
+            cells.append(format_html('<span style="color:#B45309;font-weight:700">{}</span>', f"{obj.intention}星"))
         h = obj.owner_history.filter(source_type__in=_STATUS_BAR_TYPES).order_by("-seq").first()
-        if not h:
+        if h:
+            who = h.operator or h.to_user
+            who_name = "系统"
+            if who:
+                who_name = getattr(who, "real_name", None) or who.username
+            op = _STATUS_BAR_TYPES.get(h.source_type, str(h.source_type))
+            when = h.assigned_at.strftime("%m-%d %H:%M") if h.assigned_at else ""
+            cells.append(format_html('<span style="font-size:12px;color:#475569">{}</span>', f"{who_name} {op} {when}"))
+        if not cells:
             return "—"
-        who = h.operator or h.to_user
-        who_name = "系统"
-        if who:
-            who_name = getattr(who, "real_name", None) or who.username
-        op = _STATUS_BAR_TYPES.get(h.source_type, str(h.source_type))
-        when = h.assigned_at.strftime("%m-%d %H:%M") if h.assigned_at else ""
-        return format_html('<span style="font-size:12px;color:#475569">{}</span>', f"{who_name} {op} {when}")
+        if len(cells) == 1:
+            return cells[0]
+        return format_html("{} {}", cells[0], cells[1])
 
     # ---------- 保存与软删 ----------
 

@@ -172,9 +172,11 @@ _ROLE_ACTIONS = {
                  "soft_delete", "assign_pool", "revoke_assignment"},
 }
 
-# 按列表上下文区分的动作:公海池列表只保留公海专属动作(领取/调配公海),
-# 普通列表只保留归属类动作——与 get_queryset 的视图区分(URL status=pool)一致
-_POOL_ACTIONS = {"claim_from_pool", "assign_pool"}
+# 按列表上下文区分的动作:
+# 公海池列表 = 领取/调配公海 + 管理动作(标记流失/删除回收站——动作体本身支持 POOL 状态客户);
+#   成交(mark_deal)只处理 LEAD/FOLLOWING,公海客户须先领取再成交,故不放公海池;释放/撤回对公海客户无意义
+# 普通列表 = 归属类动作(不含领取/调配公海)——与 get_queryset 的视图区分(URL status=pool)一致
+_POOL_ACTIONS = {"claim_from_pool", "assign_pool", "mark_lost", "soft_delete"}
 _OWNED_ACTIONS = {"mark_deal", "move_to_pool", "mark_lost", "release_to_square", "revoke_assignment", "soft_delete"}
 
 

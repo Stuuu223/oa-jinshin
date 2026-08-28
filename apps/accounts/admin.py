@@ -6,7 +6,7 @@ from django.utils import timezone
 from django.utils.html import format_html
 
 from .admin_mixins import ADMIN_ONLY, RolePermissionsMixin
-from .models import Department, Notification, Role, Team, User
+from .models import Department, Importance, Notification, NotificationCategory, Role, Team, User
 
 
 @admin.register(Notification)
@@ -18,8 +18,8 @@ class NotificationAdmin(RolePermissionsMixin, admin.ModelAdmin):
     未读数只增不减。现在所有人可标记自己收件箱的已读状态(表单字段全只读,
     唯一可变的是 read_at)。
     """
-    list_display = ("read_badge", "type_badge", "title_display", "content_preview", "recipient", "created_at")
-    list_filter = ("recipient", "read_at")
+    list_display = ("read_badge", "type_badge", "importance_display", "title_display", "content_preview", "recipient", "created_at")
+    list_filter = ("recipient", "category", "importance", "read_at")
     search_fields = ("title", "content")
     readonly_fields = ("recipient", "title", "content", "link", "created_at", "read_at")
     date_hierarchy = "created_at"
@@ -35,13 +35,26 @@ class NotificationAdmin(RolePermissionsMixin, admin.ModelAdmin):
         return False
 
     def get_queryset(self, request):
+        from django.db.models import Case, IntegerField, Value, When
+
         qs = super().get_queryset(request)
         user = request.user
         if user.is_superuser or getattr(user, "role", None) == Role.ADMIN:
-            return qs  # 总经办信息箱:可见全部（含发给其他管理员的撞单提醒）
-        if user.is_authenticated:
-            return qs.filter(recipient=user)  # 普通员工只看自己的
-        return qs.none()
+            pass  # 总经办信息箱:可见全部（含发给其他管理员的撞单提醒）
+        elif user.is_authenticated:
+            qs = qs.filter(recipient=user)  # 普通员工只看自己的
+        else:
+            return qs.none()
+        # 排序:未读置顶 → 高重要置顶 → 新到旧(生产级:重要通知不被淹没)
+        return qs.annotate(
+            _unread_flag=Case(When(read_at__isnull=True, then=Value(0)), default=Value(1), output_field=IntegerField()),
+            _imp_flag=Case(
+                When(importance=Importance.HIGH, then=Value(0)),
+                When(importance=Importance.MEDIUM, then=Value(1)),
+                default=Value(2),
+                output_field=IntegerField(),
+            ),
+        ).order_by("_unread_flag", "_imp_flag", "-created_at")
 
     def get_changelist_instance(self, request):
         cl = super().get_changelist_instance(request)
@@ -50,38 +63,50 @@ class NotificationAdmin(RolePermissionsMixin, admin.ModelAdmin):
             cl.title = f"{cl.title}（未读 {unread} 条）"
         return cl
 
+    # 事件类型 → (中文标签, 角标配色)——字段驱动,不再按标题字符串匹配(改文案不断)
+    _CAT_STYLE = {
+        NotificationCategory.DUPLICATE: ("撞单提醒", "color:#C0392B;background:#FDE8E8"),
+        NotificationCategory.ASSIGN_CUSTOMER: ("客户分配", "color:#1D4ED8;background:#DBEAFE"),
+        NotificationCategory.DEAL_CONVERT: ("成交立项", "color:#B45309;background:#FEF3C7"),
+        NotificationCategory.PROJECT_ASSIGN: ("咨询分配", "color:#1D4ED8;background:#DBEAFE"),
+        NotificationCategory.COST_APPLY: ("成本申请", "color:#B45309;background:#FEF3C7"),
+        NotificationCategory.PAYMENT_RECORD: ("收款录入", "color:#1D4ED8;background:#DBEAFE"),
+        NotificationCategory.SITE_TASK: ("建站任务", "color:#1D4ED8;background:#DBEAFE"),
+        NotificationCategory.SITE_TAKEN: ("任务承接", "color:#1D4ED8;background:#DBEAFE"),
+        NotificationCategory.SITE_DONE: ("建站完工", "color:#1A7F37;background:#DAFBE1"),
+        NotificationCategory.SITE_INFO: ("站点信息", "color:#1D4ED8;background:#DBEAFE"),
+        NotificationCategory.POOL_FLOW: ("公海流转", "color:#6B7280;background:#F3F4F6"),
+    }
+    _DEFAULT_STYLE = ("其他", "color:#6B7280;background:#F3F4F6")
+
     @admin.display(description="状态")
     def read_badge(self, obj: Notification):
-        """未读/已读状态:未读按通知类型配色角标(撞单红/承接分配蓝/撤销灰/默认琥珀),已读灰——替代 icon-no 红 x."""
+        """未读/已读状态:未读按重要程度配色(高=红强调,其余=琥珀),已读灰——替代 icon-no 红 x."""
         from django.utils.html import format_html
         if obj.is_read:
             return format_html('<span style="color:#6B7280;background:#F3F4F6;border-radius:4px;padding:1px 8px;font-size:12px">已读</span>')
-        t = obj.title or ""
-        if "撞单" in t:
-            style = "color:#C0392B;background:#FDE8E8"
-        elif "承接" in t or "分配" in t or "调配" in t:
-            style = "color:#1D4ED8;background:#DBEAFE"
-        elif "撤销" in t:
-            style = "color:#6B7280;background:#F3F4F6"
-        else:
-            style = "color:#B45309;background:#FEF3C7"
+        style = "color:#C0392B;background:#FDE8E8" if obj.importance == Importance.HIGH else "color:#B45309;background:#FEF3C7"
         return format_html('<span style="{};border-radius:4px;padding:1px 8px;font-size:12px;font-weight:600">未读</span>', style)
 
     @admin.display(description="类型")
     def type_badge(self, obj: Notification) -> str:
-        """按标题归类通知类型,给色标,让用户一眼知道是什么通知."""
-        t = obj.title or ""
-        style = "color:#B45309;background:#FEF3C7;border-radius:4px;padding:1px 8px;font-size:12px"
-        if "撞单" in t:
-            label, style = "撞单提醒", "color:#C0392B;background:#FDE8E8;border-radius:4px;padding:1px 8px;font-size:12px"
-        elif "分配" in t or "调配" in t:
-            label, style = "分配", "color:#1D4ED8;background:#DBEAFE;border-radius:4px;padding:1px 8px;font-size:12px"
-        elif "撤销" in t:
-            label, style = "撤销", "color:#6B7280;background:#F3F4F6;border-radius:4px;padding:1px 8px;font-size:12px"
+        """事件类型角标——按 category 字段驱动(2026-08-29 升级,不再按标题字符串匹配)."""
+        cat = obj.category
+        if cat in NotificationCategory.values:
+            label, style = self._CAT_STYLE.get(NotificationCategory(cat), self._DEFAULT_STYLE)
         else:
-            label = t[:6]
-        return format_html('<span style="{}">{}</span>', style, label)
-    type_badge.admin_order_field = "title"  # type: ignore[attr-defined]
+            label, style = self._DEFAULT_STYLE
+        return format_html('<span style="{};border-radius:4px;padding:1px 8px;font-size:12px">{}</span>', style, label)
+    type_badge.admin_order_field = "category"  # type: ignore[attr-defined]
+
+    @admin.display(description="重要程度", ordering="importance")
+    def importance_display(self, obj: Notification) -> str:
+        """重要程度分级:高=红/中=琥珀/低=灰——高重要一眼可见."""
+        if obj.importance == Importance.HIGH:
+            return format_html('<span style="color:#C0392B;background:#FDE8E8;border-radius:4px;padding:1px 8px;font-size:12px;font-weight:600">高</span>')
+        if obj.importance == Importance.LOW:
+            return format_html('<span style="color:#6B7280;background:#F3F4F6;border-radius:4px;padding:1px 8px;font-size:12px">低</span>')
+        return format_html('<span style="color:#B45309;background:#FEF3C7;border-radius:4px;padding:1px 8px;font-size:12px">中</span>')
 
     @admin.display(description="标题")
     def title_display(self, obj: Notification) -> str:

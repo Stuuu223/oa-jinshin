@@ -19,7 +19,8 @@ from django.utils import timezone
 from django.utils.html import format_html
 
 from apps.accounts.admin_mixins import FIRST_PAGE_ROLES, RolePermissionsMixin
-from apps.accounts.models import Notification, Role, User
+from apps.accounts.models import Importance, NotificationCategory, Role, User
+from apps.accounts.services import notify
 from simple_history.admin import SimpleHistoryAdmin
 
 from .models import (
@@ -526,13 +527,20 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
                 level=messages.WARNING,
             )
             admins = User.objects.filter(role=Role.ADMIN, is_active=True)
-            for admin_user in admins:
-                Notification.objects.create(
-                    recipient=admin_user,
+            try:
+                notify(
+                    category=NotificationCategory.DUPLICATE,
+                    importance=Importance.HIGH,
+                    recipients=list(admins),
                     title="撞单提醒",
                     content=f"客户「{obj.company}」与「{dup_names}」疑似重复（录入人:{request.user.real_name}），请核查归属。",
                     link="/admin/customers/customer/",
+                    actor=request.user,
+                    entity_type="customer",
+                    entity_id=obj.pk,
                 )
+            except Exception:
+                pass
 
     def save_formset(self, request, form, formset, change):
         """补齐 inline 署名;跟进记录落库后联动客户 last_follow_at（30天掉公海的数据源）."""
@@ -772,7 +780,7 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
                 )
                 update_fields += ["owner", "pool_type"]
             customer.save(update_fields=update_fields)
-            Project.objects.get_or_create(
+            project, created = Project.objects.get_or_create(
                 customer=customer,
                 defaults=dict(
                     company_snapshot=customer.company,
@@ -784,6 +792,23 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
                     consultant=None,
                 ),
             )
+            if created:
+                # 成交转立项 → 先通知咨询部主管(嘉茵),由主管分配具体咨询师后再通知该咨询师
+                try:
+                    leads = User.objects.filter(role=Role.CONSULTANT_LEAD, is_active=True)
+                    notify(
+                        category=NotificationCategory.DEAL_CONVERT,
+                        importance=Importance.HIGH,
+                        recipients=list(leads),
+                        title="新项目待分配咨询师",
+                        content=f"「{customer.company}」已成交转立项（成交人:{request.user.real_name}），请分配咨询师。",
+                        link=f"/admin/projects/project/{project.pk}/change/",
+                        actor=request.user,
+                        entity_type="project",
+                        entity_id=project.pk,
+                    )
+                except Exception:
+                    pass
             cnt += 1
         self.message_user(request, f"{cnt} 个客户已成交，已自动创建对应项目，等待嘉茵分配咨询师。", messages.SUCCESS)
 
@@ -933,6 +958,22 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
             status=CustomerStatus.POOL, pool_type=PoolType.AUTO, owner=None,
             pool_entered_at=timezone.now(), updated_at=timezone.now(),
         )
+        # 公海流转:释放进公海 → 知会销售主管/总经办
+        try:
+            leads = User.objects.filter(role=Role.SALES_LEAD, is_active=True)
+            admins = User.objects.filter(role=Role.ADMIN, is_active=True)
+            pool_recipients = list({u.pk: u for u in list(leads) + list(admins)}.values())
+            notify(
+                category=NotificationCategory.POOL_FLOW,
+                importance=Importance.LOW,
+                recipients=pool_recipients,
+                title="客户进入公海",
+                content=f"{request.user.real_name} 将 {updated} 个客户释放到公海（自动入池）。",
+                link="/admin/customers/customer/?status__exact=pool",
+                actor=request.user,
+            )
+        except Exception:
+            pass
         self.message_user(request, f"{updated} 个客户已释放到公海", messages.SUCCESS)
 
     @admin.action(description="标记流失")
@@ -946,6 +987,22 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
         updated = queryset.filter(status__in=[CustomerStatus.FOLLOWING, CustomerStatus.POOL]).update(
             status=CustomerStatus.LOST, updated_at=timezone.now()
         )
+        # 公海流转:标记流失 → 知会销售主管/总经办
+        try:
+            leads = User.objects.filter(role=Role.SALES_LEAD, is_active=True)
+            admins = User.objects.filter(role=Role.ADMIN, is_active=True)
+            pool_recipients = list({u.pk: u for u in list(leads) + list(admins)}.values())
+            notify(
+                category=NotificationCategory.POOL_FLOW,
+                importance=Importance.MEDIUM,
+                recipients=pool_recipients,
+                title="客户标记流失",
+                content=f"{request.user.real_name} 将 {updated} 个客户标记为流失。",
+                link="/admin/customers/customer/",
+                actor=request.user,
+            )
+        except Exception:
+            pass
         self.message_user(request, f"{updated} 个客户已标记流失", messages.SUCCESS)
 
     @admin.action(description="删除（进入回收站）")
@@ -1040,12 +1097,18 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
                     operator=request.user, seq=_next_seq(customer.owner_history),
                 )
                 cnt += 1
-            Notification.objects.create(
-                recipient=new_owner,
-                title="客户分配通知",
-                content=f"{request.user.real_name} 将 {cnt} 个客户分配给你（理由:{reason}），请及时跟进。",
-                link="/admin/customers/customer/",
-            )
+            try:
+                notify(
+                    category=NotificationCategory.ASSIGN_CUSTOMER,
+                    importance=Importance.MEDIUM,
+                    recipients=new_owner,
+                    title="客户分配通知",
+                    content=f"{request.user.real_name} 将 {cnt} 个客户分配给你（理由:{reason}），请及时跟进。",
+                    link="/admin/customers/customer/",
+                    actor=request.user,
+                )
+            except Exception:
+                pass
             self.message_user(
                 request,
                 f"已将 {cnt} 个客户分配给 {new_owner.real_name}（理由: {reason}），已通知对方",
@@ -1095,6 +1158,22 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
                     seq=_next_seq(customer.owner_history), source_note=reason,
                 )
                 cnt += 1
+            # 公海流转:释放到客户池广场 → 知会销售主管/总经办
+            try:
+                leads = User.objects.filter(role=Role.SALES_LEAD, is_active=True)
+                admins = User.objects.filter(role=Role.ADMIN, is_active=True)
+                pool_recipients = list({u.pk: u for u in list(leads) + list(admins)}.values())
+                notify(
+                    category=NotificationCategory.POOL_FLOW,
+                    importance=Importance.LOW,
+                    recipients=pool_recipients,
+                    title="客户释放到公海",
+                    content=f"{request.user.real_name} 将 {cnt} 个客户释放到客户池广场（理由:{reason}）。",
+                    link="/admin/customers/customer/?status__exact=pool",
+                    actor=request.user,
+                )
+            except Exception:
+                pass
             self.message_user(request, f"已释放 {cnt} 个客户到客户池广场（理由: {reason}）", messages.SUCCESS)
             return None
         candidates = queryset.filter(status__in=[CustomerStatus.LEAD, CustomerStatus.FOLLOWING])

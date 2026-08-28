@@ -15,7 +15,8 @@ from django.template.response import TemplateResponse
 from django.utils.html import format_html
 
 from apps.accounts.admin_mixins import PROJECT_EDIT_ROLES, PROJECT_VIEW_ROLES, RolePermissionsMixin
-from apps.accounts.models import Role, User
+from apps.accounts.models import Importance, NotificationCategory, Role, User
+from apps.accounts.services import notify
 from simple_history.admin import SimpleHistoryAdmin
 
 from .models import Project, ProjectAttachment, ProjectConsultantHistory, ProjectExpense, ProjectPayment, SiteCategory, SiteProgress
@@ -302,7 +303,6 @@ class ProjectAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
         """技术领取建站:记录承接人+通知咨询+留痕,302回列表."""
         from django.shortcuts import redirect
         from django.contrib import messages as msgs
-        from apps.accounts.models import Notification
         from apps.customers.models import OperationLog
         role = getattr(request.user, "role", None)
         if role not in (Role.TECH, Role.ADMIN):
@@ -316,10 +316,16 @@ class ProjectAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
         Project.objects.filter(pk=project.pk).update(tech_assigned=request.user, site_progress=SiteProgress.IN_PROGRESS)
         try:
             if project.consultant_id:
-                Notification.objects.create(
-                    recipient=project.consultant, title="建站任务已承接",
+                notify(
+                    category=NotificationCategory.SITE_TAKEN,
+                    importance=Importance.MEDIUM,
+                    recipients=project.consultant,
+                    title="建站任务已承接",
                     content=f"「{project.company_snapshot}」建站任务由 {request.user.real_name} 领取,后续建站事宜请联系该技术。",
                     link=f"/admin/projects/project/{project.pk}/change/",
+                    actor=request.user,
+                    entity_type="project",
+                    entity_id=project.pk,
                 )
             OperationLog.objects.create(
                 user=request.user, action="承接建站",
@@ -411,12 +417,17 @@ class ProjectAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
             if not obj.tech_assigned_id and obj.site_progress != SiteProgress.NOT_STARTED:
                 Project.objects.filter(pk=obj.pk).update(tech_assigned=request.user, site_progress=SiteProgress.IN_PROGRESS)
                 try:
-                    from apps.accounts.models import Notification
                     if obj.consultant_id:
-                        Notification.objects.create(
-                            recipient=obj.consultant, title="建站任务已承接",
+                        notify(
+                            category=NotificationCategory.SITE_TAKEN,
+                            importance=Importance.MEDIUM,
+                            recipients=obj.consultant,
+                            title="建站任务已承接",
                             content=f"「{obj.company_snapshot}」建站任务由 {request.user.real_name} 接手（进度:{obj.get_site_progress_display()}），后续建站事宜请联系该技术。",
                             link=f"/admin/projects/project/{obj.pk}/change/",
+                            actor=request.user,
+                            entity_type="project",
+                            entity_id=obj.pk,
                         )
                     from apps.customers.models import OperationLog
                     OperationLog.objects.create(
@@ -426,18 +437,66 @@ class ProjectAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
                     )
                 except Exception:
                     pass
+            # 建站完工 → 同步咨询/销售/管理层(闭环亮点:完工状态同步全员)
+            if obj.site_progress == SiteProgress.DONE:
+                try:
+                    done_users = []
+                    if obj.consultant_id:
+                        done_users.append(obj.consultant)
+                    if obj.sales_id and obj.sales not in done_users:
+                        done_users.append(obj.sales)
+                    admins = list(
+                        User.objects.filter(role=Role.ADMIN, is_active=True).exclude(pk__in=[u.pk for u in done_users])
+                    )
+                    notify(
+                        category=NotificationCategory.SITE_DONE,
+                        importance=Importance.HIGH,
+                        recipients=done_users + admins,
+                        title="建站任务已完工",
+                        content=f"「{obj.company_snapshot}」建站任务已完工,进度同步全员。",
+                        link=f"/admin/projects/project/{obj.pk}/change/",
+                        actor=request.user,
+                        entity_type="project",
+                        entity_id=obj.pk,
+                    )
+                except Exception:
+                    pass
             return
         super().save_model(request, obj, form, change)
+        # 建站任务进池:确认建站类目(由成交业务自动带出)且尚无技术承接 → 通知技术部领取
+        if obj.tech_assigned_id is None and obj.site_category and change and (
+            set(form.changed_data) & {"deal_business", "site_category"}
+        ):
+            try:
+                techs = list(User.objects.filter(role=Role.TECH, is_active=True))
+                notify(
+                    category=NotificationCategory.SITE_TASK,
+                    importance=Importance.HIGH,
+                    recipients=techs,
+                    title="新建站任务待领取",
+                    content=f"「{obj.company_snapshot}」建站任务已进入任务池（类目:{obj.get_site_category_display()}），请到建站工作台领取。",
+                    link="/admin/tech-workbench/",
+                    actor=request.user,
+                    entity_type="project",
+                    entity_id=obj.pk,
+                )
+            except Exception:
+                pass
         # 站点交接信息流转:咨询/管理层更新站点字段(域名与备案/联系方式/信息)且已有技术承接 → 通知技术
         SITE_FIELDS = {"site_info", "site_full_name", "site_contact_address", "site_contact_phone",
                        "site_contact_email", "site_domain_icp"}
         if obj.tech_assigned_id and change and (set(form.changed_data) & SITE_FIELDS):
             try:
-                from apps.accounts.models import Notification
-                Notification.objects.create(
-                    recipient=obj.tech_assigned, title="站点交接信息已更新",
+                notify(
+                    category=NotificationCategory.SITE_INFO,
+                    importance=Importance.MEDIUM,
+                    recipients=obj.tech_assigned,
+                    title="站点交接信息已更新",
                     content=f"「{obj.company_snapshot}」站点信息(域名/备案/联系方式/备注)已更新,请到建站工作台查看。",
                     link="/admin/tech-workbench/",
+                    actor=request.user,
+                    entity_type="project",
+                    entity_id=obj.pk,
                 )
             except Exception:
                 pass
@@ -453,6 +512,37 @@ class ProjectAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
             if isinstance(instance, ProjectAttachment) and not instance.uploaded_by_id:
                 instance.uploaded_by = request.user
             instance.save()
+            # 收款录入/成本申请 → 通知财务/总经办(财务部角色搁置,由总经办承担;留痕不复核,记录即知会)
+            try:
+                admins = list(User.objects.filter(role=Role.ADMIN, is_active=True))
+                if isinstance(instance, ProjectPayment) and admins:
+                    notify(
+                        category=NotificationCategory.PAYMENT_RECORD,
+                        importance=Importance.HIGH,
+                        recipients=admins,
+                        title="收款记录已录入",
+                        content=f"「{instance.project.company_snapshot}」录入收款 ¥{instance.amount}（{request.user.real_name}），请知悉。",
+                        link=f"/admin/projects/project/{instance.project_id}/change/",
+                        actor=request.user,
+                        entity_type="project",
+                        entity_id=instance.project_id,
+                        dedup=False,
+                    )
+                elif isinstance(instance, ProjectExpense) and admins:
+                    notify(
+                        category=NotificationCategory.COST_APPLY,
+                        importance=Importance.HIGH,
+                        recipients=admins,
+                        title="成本支出已申请",
+                        content=f"「{instance.project.company_snapshot}」申请支出 ¥{instance.amount}（{instance.note or '无备注'}），请知悉。",
+                        link=f"/admin/projects/project/{instance.project_id}/change/",
+                        actor=request.user,
+                        entity_type="project",
+                        entity_id=instance.project_id,
+                        dedup=False,
+                    )
+            except Exception:
+                pass
         formset.save_m2m()
 
     # ---------- 建站领取 Action（技术/总经办专用） ----------
@@ -464,17 +554,22 @@ class ProjectAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
         if role not in (Role.TECH, Role.ADMIN):
             self.message_user(request, "仅技术/总经办可领取建站任务", messages.ERROR)
             return
-        from apps.accounts.models import Notification
         from apps.customers.models import OperationLog
         cnt = 0
         for project in queryset.filter(tech_assigned__isnull=True):
             Project.objects.filter(pk=project.pk).update(tech_assigned=request.user)
             try:
                 if project.consultant_id:
-                    Notification.objects.create(
-                        recipient=project.consultant, title="建站任务已承接",
+                    notify(
+                        category=NotificationCategory.SITE_TAKEN,
+                        importance=Importance.MEDIUM,
+                        recipients=project.consultant,
+                        title="建站任务已承接",
                         content=f"「{project.company_snapshot}」建站任务由 {request.user.real_name} 领取,后续建站事宜请联系该技术。",
                         link=f"/admin/projects/project/{project.pk}/change/",
+                        actor=request.user,
+                        entity_type="project",
+                        entity_id=project.pk,
                     )
                 OperationLog.objects.create(
                     user=request.user, action="承接建站",
@@ -514,6 +609,19 @@ class ProjectAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
                 project.consultant = new_consultant
                 project.save(update_fields=["consultant"])
                 cnt += 1
+            # 主管分配后 → 通知具体咨询师(用户要求:成交立项先通知主管,分配后通知咨询师本人)
+            try:
+                notify(
+                    category=NotificationCategory.PROJECT_ASSIGN,
+                    importance=Importance.MEDIUM,
+                    recipients=new_consultant,
+                    title="项目分配通知",
+                    content=f"{request.user.real_name} 将 {cnt} 个项目分配给你,请及时办证跟进。",
+                    link="/admin/projects/project/",
+                    actor=request.user,
+                )
+            except Exception:
+                pass
             self.message_user(request, f"已将 {cnt} 个项目分配给 {new_consultant.real_name}", messages.SUCCESS)
             return None
         consultants = User.objects.filter(role=Role.CONSULTANT, is_active=True)

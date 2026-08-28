@@ -106,14 +106,54 @@ class User(AbstractUser):
         return f"{self.real_name} ({self.get_role_display()})"
 
 
+class NotificationCategory(models.TextChoices):
+    """通知事件类型——按业务流转归类,消费端按类型配色/筛选."""
+    DUPLICATE = "duplicate", "撞单提醒"          # 销售建档撞单 → 总经办
+    ASSIGN_CUSTOMER = "assign_customer", "客户分配"  # 公海调配/分配 → 新归属销售
+    DEAL_CONVERT = "deal_convert", "成交立项"    # 成交转立项 → 咨询部主管
+    PROJECT_ASSIGN = "project_assign", "咨询分配"  # 主管分配项目 → 具体咨询师
+    CERT_PROGRESS = "cert_progress", "办证进度"  # 办证节点更新 → 销售(全程可视)
+    COST_APPLY = "cost_apply", "成本申请"        # 成本申请提交 → 老板/总经办
+    COST_REVIEW = "cost_review", "成本审核"      # 成本审核结果 → 咨询师
+    PAYMENT_RECORD = "payment_record", "收款录入"  # 收款录入 → 财务/总经办
+    PAYMENT_REVIEW = "payment_review", "收款审核"  # 收款审核结果 → 咨询/销售
+    SITE_TASK = "site_task", "建站任务"          # 新建站任务进池 → 技术部
+    SITE_TAKEN = "site_taken", "任务承接"        # 技术领取任务 → 咨询师
+    SITE_PROGRESS = "site_progress", "建站进度"  # 建站进度更新 → 咨询/销售
+    SITE_DONE = "site_done", "建站完工"          # 建站完工 → 咨询/销售/管理层
+    SITE_INFO = "site_info", "站点信息"          # 站点信息更新 → 技术
+    POOL_FLOW = "pool_flow", "公海流转"          # 释放/流失公海 → 主管/总经办
+    OTHER = "other", "其他"
+
+
+class Importance(models.TextChoices):
+    """通知重要程度——高/中/低,消费端分级展示."""
+    HIGH = "high", "高"
+    MEDIUM = "medium", "中"
+    LOW = "low", "低"
+
+
 class Notification(models.Model):
-    """站内信息箱——对应细则第一页·六"且发送到总经办信息箱（明显的未读数量标识）".
+    """站内信息箱——对应细则第一页·六"且发送到总经办信息箱（明显的未读数量标识）.
 
     用途:撞单提醒/分配/撤销等系统事件推送给接收人。ADMIN 首页徽标按 unread_count 展示。
+    2026-08-29 升级:加 category(事件类型)/importance(重要程度)/actor(触发人)/entity(实体关联),
+    消费端按类型与重要程度分级展示;创建统一走 services.notify()(幂等/防刷屏/失败静默)。
     """
     recipient = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name="notifications", verbose_name="接收人"
     )
+    category = models.CharField(
+        "事件类型", max_length=32, choices=NotificationCategory.choices, default=NotificationCategory.OTHER
+    )
+    importance = models.CharField(
+        "重要程度", max_length=16, choices=Importance.choices, default=Importance.MEDIUM
+    )
+    actor = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL, related_name="+", verbose_name="触发人"
+    )
+    entity_type = models.CharField("实体类型", max_length=16, blank=True)
+    entity_id = models.PositiveIntegerField("实体ID", null=True, blank=True)
     title = models.CharField("标题", max_length=128)
     content = models.CharField("内容", max_length=500)
     link = models.CharField("跳转链接", max_length=255, blank=True)
@@ -124,6 +164,10 @@ class Notification(models.Model):
         verbose_name = "站内通知"
         verbose_name_plural = verbose_name
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["recipient", "read_at", "-created_at"], name="notif_recipient_unread"),
+            models.Index(fields=["recipient", "importance"], name="notif_recipient_imp"),
+        ]
 
     def __str__(self) -> str:
         return f"[{self.recipient.real_name}] {self.title}"

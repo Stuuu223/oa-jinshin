@@ -79,3 +79,110 @@ class DashboardRedirectTests(TestCase):
         self.assertEqual(resp.status_code, 302)
         self.assertIn("login", resp["Location"])
         self.assertIn("next", resp["Location"])
+
+
+class NotifyServiceTests(TestCase):
+    """通知服务 notify():幂等防刷屏/批量/失败隔离/字段落库(2026-08-29 升级)."""
+
+    def setUp(self):
+        self.admin = User.objects.create_user(
+            username="t_admin", password=PWD, real_name="总办", role=Role.ADMIN,
+            is_staff=True, is_superuser=True,
+        )
+        self.sales = User.objects.create_user(
+            username="t_sales", password=PWD, real_name="销售", role=Role.SALES, is_staff=True,
+        )
+
+    def test_notify_creates_with_all_fields(self):
+        from apps.accounts.models import Importance, NotificationCategory
+        from apps.accounts.services import notify
+        n = notify(
+            category=NotificationCategory.SITE_DONE, importance=Importance.HIGH,
+            recipients=self.sales, title="完工", content="x",
+            actor=self.admin, entity_type="project", entity_id=7,
+        )
+        self.assertEqual(n, 1)
+        row = Notification.objects.get(recipient=self.sales)
+        self.assertEqual(row.category, NotificationCategory.SITE_DONE)
+        self.assertEqual(row.importance, Importance.HIGH)
+        self.assertEqual(row.actor, self.admin)
+        self.assertEqual(row.entity_id, 7)
+
+    def test_notify_dedup_suppresses_within_window(self):
+        from apps.accounts.models import NotificationCategory
+        from apps.accounts.services import notify
+        notify(category=NotificationCategory.SITE_DONE, recipients=self.sales, title="完工", content="x",
+               entity_type="project", entity_id=7)
+        second = notify(category=NotificationCategory.SITE_DONE, recipients=self.sales, title="完工", content="x",
+                        entity_type="project", entity_id=7)
+        self.assertEqual(second, 0)
+        self.assertEqual(Notification.objects.filter(recipient=self.sales).count(), 1)
+        # 不同 entity 不幂等
+        third = notify(category=NotificationCategory.SITE_DONE, recipients=self.sales, title="完工", content="x",
+                       entity_type="project", entity_id=8)
+        self.assertEqual(third, 1)
+
+    def test_notify_batch_and_empty(self):
+        from apps.accounts.services import notify
+        self.assertEqual(notify(category="pool_flow", recipients=[self.admin, self.sales], title="公海", content="x"), 2)
+        self.assertEqual(notify(category="other", recipients=[], title="x", content="x"), 0)
+
+    def test_notify_skips_inactive_recipient(self):
+        from apps.accounts.services import notify
+        dead = User.objects.create_user(
+            username="t_dead", password=PWD, real_name="离职", role=Role.SALES, is_staff=True, is_active=False,
+        )
+        self.assertEqual(notify(category="other", recipients=[dead, self.sales], title="x", content="x"), 1)
+
+
+class FlowNotifyTests(TestCase):
+    """关键流转触发:成交转立项→咨询主管、释放公海→销售主管/总经办."""
+
+    def setUp(self):
+        self.sales = User.objects.create_user(
+            username="f_sales", password=PWD, real_name="销售", role=Role.SALES, is_staff=True,
+        )
+        self.sales_lead = User.objects.create_user(
+            username="f_slead", password=PWD, real_name="销售主管", role=Role.SALES_LEAD, is_staff=True,
+        )
+        self.lead = User.objects.create_user(
+            username="f_lead", password=PWD, real_name="咨询主管", role=Role.CONSULTANT_LEAD, is_staff=True,
+        )
+        self.admin = User.objects.create_user(
+            username="f_admin", password=PWD, real_name="总办", role=Role.ADMIN,
+            is_staff=True, is_superuser=True,
+        )
+
+    def test_mark_deal_notifies_consultant_lead(self):
+        from apps.accounts.models import Notification, NotificationCategory
+        from apps.customers.models import Customer, CustomerStatus
+        from apps.projects.models import Project
+        c = Customer.objects.create(
+            company="单测成交X", contact_name="测", phone="13700000001",
+            owner=self.sales, status=CustomerStatus.LEAD, created_by=self.sales,
+        )
+        cli = Client()
+        cli.force_login(self.admin)
+        cli.post("/admin/customers/customer/", {"action": "mark_deal", "_selected_action": [str(c.pk)]}, follow=True)
+        n = Notification.objects.filter(category=NotificationCategory.DEAL_CONVERT).first()
+        self.assertIsNotNone(n, "成交转立项应通知咨询主管")
+        self.assertEqual(n.recipient, self.lead)
+        self.assertEqual(n.importance, "high")
+        self.assertTrue(Project.objects.filter(customer=c).exists())
+
+    def test_move_to_pool_notifies_leads_and_admins(self):
+        from apps.accounts.models import Notification, NotificationCategory, Role
+        from apps.customers.models import Customer, CustomerStatus
+        c = Customer.objects.create(
+            company="单测公海X", contact_name="测", phone="13700000002",
+            owner=self.sales, status=CustomerStatus.LEAD, created_by=self.sales,
+        )
+        cli = Client()
+        cli.force_login(self.admin)
+        cli.post("/admin/customers/customer/", {"action": "move_to_pool", "_selected_action": [str(c.pk)]}, follow=True)
+        roles = set(
+            Notification.objects.filter(category=NotificationCategory.POOL_FLOW)
+            .values_list("recipient__role", flat=True)
+        )
+        self.assertIn(Role.SALES_LEAD, roles)
+        self.assertIn(Role.ADMIN, roles)

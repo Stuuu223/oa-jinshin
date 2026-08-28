@@ -26,6 +26,7 @@ from .models import (
     CustomerAttachment,
     CustomerOwnerHistory,
     CustomerStatus,
+    DealStatus,
     FollowUp,
     OperationLog,
     VisitLog,
@@ -163,28 +164,41 @@ class CustomerAttachmentInline(admin.TabularInline):
         return getattr(request.user, "role", None) in FIRST_PAGE_ROLES or request.user.is_superuser
 
 
+# 成交客户管理动作(status=deal 列表):转入已完结/搁置 + 转回我的客户/公司客户池 + 复制
+_DEAL_ACTIONS = {"deal_to_done", "deal_to_on_hold", "deal_back_to_my", "deal_back_to_pool", "deal_copy_to_my", "deal_copy_to_pool"}
+
 # 各角色可用动作白名单——get_actions 按此过滤,默认 delete_selected(硬删)一并不再暴露
 _ROLE_ACTIONS = {
-    Role.SALES: {"mark_deal", "move_to_pool", "mark_lost", "claim_from_pool", "release_to_square", "soft_delete"},
+    Role.SALES: {"mark_deal", "move_to_pool", "mark_lost", "claim_from_pool", "release_to_square", "soft_delete"} | _DEAL_ACTIONS,
     Role.SALES_LEAD: {"mark_deal", "move_to_pool", "mark_lost", "claim_from_pool", "release_to_square",
-                      "soft_delete", "assign_pool", "revoke_assignment"},
+                      "soft_delete", "assign_pool", "revoke_assignment"} | _DEAL_ACTIONS,
     Role.ADMIN: {"mark_deal", "move_to_pool", "mark_lost", "release_to_square",
-                 "soft_delete", "assign_pool", "revoke_assignment"},
+                 "soft_delete", "assign_pool", "revoke_assignment"} | _DEAL_ACTIONS,
 }
 
 # 按列表上下文区分的动作:
-# 公海池列表 = 领取/调配公海 + 管理动作(标记流失/删除回收站——动作体本身支持 POOL 状态客户);
-#   成交(mark_deal)只处理 LEAD/FOLLOWING,公海客户须先领取再成交,故不放公海池;释放/撤回对公海客户无意义
-# 普通列表 = 归属类动作(不含领取/调配公海)——与 get_queryset 的视图区分(URL status=pool)一致
-_POOL_ACTIONS = {"claim_from_pool", "assign_pool", "mark_lost", "soft_delete"}
+# 公海池列表 = 领取/调配公海 + 管理动作(标记流失/删除) + 直接成交(老板验收:公司客户池可转入成交)
+# 成交客户列表(status=deal) = 转入已完结/搁置 + 转回我的客户/公司客户池 + 复制
+# 普通列表 = 归属类动作(不含领取/调配公海)——与 get_queryset 的视图区分一致
+_POOL_ACTIONS = {"claim_from_pool", "assign_pool", "mark_deal", "mark_lost", "soft_delete"}
 _OWNED_ACTIONS = {"mark_deal", "move_to_pool", "mark_lost", "release_to_square", "revoke_assignment", "soft_delete"}
+
+# 客户状态栏(列表每行)展示的操作:仅 新建/转入/转回(老板验收:显示哪个账号操作了什么+时间)
+_STATUS_BAR_TYPES = {
+    OwnerHistorySourceType.DIRECT_INPUT: "新建",
+    OwnerHistorySourceType.SALES_CLAIM: "领取转入",
+    OwnerHistorySourceType.MANAGER_ASSIGN: "主管分配转入",
+    OwnerHistorySourceType.BOSS_ASSIGN: "总经办分配转入",
+    OwnerHistorySourceType.DEAL_BACK_MY: "成交转回",
+    OwnerHistorySourceType.DEAL_BACK_POOL: "成交转回池",
+}
 
 
 @admin.register(Customer)
 class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
-    list_display = ("summary", "phone_masked", "owner", "follow_staff_display", "quote_amount", "last_follow_at")
+    list_display = ("summary", "phone_masked", "owner", "follow_staff_display", "quote_amount", "last_follow_at", "status_bar")
     empty_value_display = "—"
-    list_filter = (OwnerFilter, StatusFilter, SourceFilter, QualificationFilter)
+    list_filter = (OwnerFilter, StatusFilter, SourceFilter, QualificationFilter, "deal_status")
     search_fields = ("company", "contact_name", "phone")
 
     # 需求资质多选:JSONField 存列表,表单用多选复选框
@@ -245,8 +259,10 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
             "fields": (
                 ("company", "contact_name"),
                 ("phone", "qualification_interest"),
+                ("wechat", "qq"),
                 ("source", "quote_amount"),
-                "consulted_at", "note",
+                ("intention", "consulted_at"),
+                "note",
             ),
         }),
     )
@@ -255,6 +271,8 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
         "mark_deal", "move_to_pool", "mark_lost",
         "claim_from_pool", "assign_pool",
         "release_to_square", "revoke_assignment", "soft_delete",
+        "deal_to_done", "deal_to_on_hold", "deal_back_to_my",
+        "deal_back_to_pool", "deal_copy_to_my", "deal_copy_to_pool",
     ]
 
     class Media:
@@ -277,8 +295,10 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
                 "fields": (
                     ("company", "contact_name"),
                     ("phone", "qualification_interest"),
+                    ("wechat", "qq"),
                     ("source", "quote_amount"),
-                    "consulted_at", "note",
+                    ("intention", "consulted_at"),
+                    "note",
                 ),
             }),
         )
@@ -293,12 +313,81 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
     def get_actions(self, request):
         actions = super().get_actions(request)
         allowed = _ROLE_ACTIONS.get(getattr(request.user, "role", None), set())
-        # 按列表上下文过滤:公海池列表(URL status=pool)只保留公海专属动作(领取/调配公海),
-        # 普通列表只保留归属类动作——避免"领取公海客户"出现在个人/组员客户列表
-        is_pool_list = request.GET.get("status__exact") == str(CustomerStatus.POOL)
-        # 用 &(新集合)而非 &=(原地交集)——《ROLE_ACTIONS 是模块级可变集合,&= 会把它改坏(首次调用后白名单只剩上下文子集)
-        allowed = allowed & (_POOL_ACTIONS if is_pool_list else _OWNED_ACTIONS)
+        # 列表上下文:GET 参数为主;POST 动作处理时 Django 不还原 GET,
+        # 需从动作表单隐藏字段 _changelist_filters 还原列表上下文,否则成交动作会被上下文过滤挡掉
+        ctx = request.GET.get("status__exact")
+        if not ctx and request.method == "POST":
+            for pair in request.POST.get("_changelist_filters", "").split("&"):
+                if pair.startswith("status__exact="):
+                    ctx = pair.split("=", 1)[1]
+                    break
+        # 用 &(新集合)而非 &=(原地交集)——_ROLE_ACTIONS 是模块级可变集合,&= 会把它改坏
+        if ctx == str(CustomerStatus.POOL):
+            allowed = allowed & _POOL_ACTIONS
+        elif ctx == str(CustomerStatus.DEAL):
+            allowed = allowed & _DEAL_ACTIONS
+        else:
+            allowed = allowed & _OWNED_ACTIONS
         return {name: fn for name, fn in actions.items() if name in allowed}
+
+    def _can_modify_pool(self, request, obj):
+        """公海客户 修改/删除 权限:仅 建档人/释放人/其组主管/总经办(老板验收);非公海客户按角色(get_queryset 已限制可见)."""
+        if obj.status != CustomerStatus.POOL:
+            return True
+        role = getattr(request.user, "role", None)
+        if role == Role.ADMIN:
+            return True
+        if request.user.pk in (obj.created_by_id, obj.square_released_by_id):
+            return True
+        if role == Role.SALES_LEAD:
+            team = getattr(request.user, "team", None)
+            if team:
+                return User.objects.filter(
+                    pk__in=[obj.created_by_id, obj.square_released_by_id], team=team
+                ).exists()
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        base = super().has_change_permission(request, obj)
+        if not base:
+            return False
+        if obj is None:
+            return True
+        return self._can_modify_pool(request, obj)
+
+    def has_delete_permission(self, request, obj=None):
+        base = super().has_delete_permission(request, obj)
+        if not base:
+            return False
+        if obj is None:
+            return True
+        return self._can_modify_pool(request, obj)
+
+    def _scope_delete_queryset(self, request, queryset):
+        """软删作用域:普通客户按归属(get_queryset 已限制可见);公海客户仅 建档人/释放人/其组主管/总经办 可删."""
+        role = getattr(request.user, "role", None)
+        if role == Role.ADMIN:
+            return queryset
+        user = request.user
+        pool_self = Q(status=CustomerStatus.POOL, created_by=user) | Q(
+            status=CustomerStatus.POOL, square_released_by=user
+        )
+        if role == Role.SALES:
+            return queryset.filter(Q(owner=user) | pool_self)
+        if role == Role.SALES_LEAD:
+            team = getattr(user, "team", None)
+            team_q = Q(owner__team=team) | Q(owner=user) if team else Q(owner=user)
+            if team:
+                pool_team = Q(status=CustomerStatus.POOL) & (
+                    Q(created_by__team=team)
+                    | Q(square_released_by__team=team)
+                    | Q(created_by=user)
+                    | Q(square_released_by=user)
+                )
+            else:
+                pool_team = pool_self
+            return queryset.filter(team_q | pool_team)
+        return queryset.none()
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
@@ -311,18 +400,24 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
             and request.resolver_match.url_name.endswith(("change", "delete", "view"))
         )
         if role == Role.SALES:
-            # 区分视图:客户公海池入口(URL status=pool)看全部公海客户;普通列表仅自己名下客户
-            if request.GET.get("status__exact") == str(CustomerStatus.POOL):
+            # 区分视图:公海池入口(URL status=pool)/成交客户入口(URL status=deal)/普通列表(仅自己名下)
+            ctx = request.GET.get("status__exact")
+            if ctx == str(CustomerStatus.POOL):
                 return qs.filter(status=CustomerStatus.POOL)
+            if ctx == str(CustomerStatus.DEAL):
+                return qs.filter(status=CustomerStatus.DEAL, owner=user)
             if is_object_view:
                 return qs.filter(Q(owner=user) | Q(status=CustomerStatus.POOL))
             return qs.filter(owner=user)
         if role == Role.SALES_LEAD:
-            # 区分视图:客户公海池入口(URL status=pool)看全部公海客户(细则五所有人员可见);普通列表看组员+自己
-            if request.GET.get("status__exact") == str(CustomerStatus.POOL):
+            # 区分视图:公海池入口(URL status=pool)看全部公海客户(细则五所有人员可见);普通列表看组员+自己
+            ctx = request.GET.get("status__exact")
+            if ctx == str(CustomerStatus.POOL):
                 return qs.filter(status=CustomerStatus.POOL)
             team = getattr(user, "team", None)
             team_q = Q(owner__team=team) | Q(owner=user) if team else Q(owner=user)
+            if ctx == str(CustomerStatus.DEAL):
+                return qs.filter(status=CustomerStatus.DEAL).filter(team_q)
             if is_object_view:
                 return qs.filter(team_q | Q(status=CustomerStatus.POOL))
             return qs.filter(team_q)
@@ -335,6 +430,20 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
         cl = super().get_changelist_instance(request)
         _request_local.request = request
         return cl
+
+    @admin.display(description="状态栏(最近操作)")
+    def status_bar(self, obj):
+        """客户状态栏:最近一条 新建/转入/转回 操作(账号+操作+时间),其余操作不展示."""
+        h = obj.owner_history.filter(source_type__in=_STATUS_BAR_TYPES).order_by("-seq").first()
+        if not h:
+            return "—"
+        who = h.operator or h.to_user
+        who_name = "系统"
+        if who:
+            who_name = getattr(who, "real_name", None) or who.username
+        op = _STATUS_BAR_TYPES.get(h.source_type, str(h.source_type))
+        when = h.assigned_at.strftime("%m-%d %H:%M") if h.assigned_at else ""
+        return format_html('<span style="font-size:12px;color:#475569">{}</span>', f"{who_name} {op} {when}")
 
     # ---------- 保存与软删 ----------
 
@@ -583,18 +692,33 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
 
     @admin.action(description="成交（自动创建项目）")
     def mark_deal(self, request, queryset):
-        """成交时：客户状态改 DEAL + 自动创建 Project 并做字段快照（幂等,不会重复建项目）."""
+        """成交：客户状态改 DEAL + 成交子状态=进行中 + 自动创建 Project（幂等,不会重复建项目）.
+        老板验收:公司客户池可「转入成交」——无归属的公海客户成交时归属给操作人,便于后续「转回我的客户」。"""
         from apps.projects.models import Project
         role = getattr(request.user, "role", None)
         if role not in (Role.SALES, Role.SALES_LEAD, Role.ADMIN):
             self.message_user(request, "仅销售序列/总经办可操作成交", messages.ERROR)
             return
-        candidates = list(queryset.filter(status__in=[CustomerStatus.LEAD, CustomerStatus.FOLLOWING]))
+        candidates = list(queryset.filter(
+            status__in=[CustomerStatus.LEAD, CustomerStatus.FOLLOWING, CustomerStatus.POOL]
+        ))
         cnt = 0
         for customer in candidates:
+            claimed_from_pool = customer.status == CustomerStatus.POOL
             customer.status = CustomerStatus.DEAL
+            customer.deal_status = DealStatus.ACTIVE
             customer.updated_at = timezone.now()
-            customer.save(update_fields=["status", "updated_at"])
+            update_fields = ["status", "deal_status", "updated_at"]
+            if claimed_from_pool and customer.owner_id is None:
+                customer.owner = request.user  # 公海直接成交:归属操作人
+                customer.pool_type = None
+                CustomerOwnerHistory.objects.create(
+                    customer=customer, from_user=None, to_user=request.user,
+                    source_type=OwnerHistorySourceType.SALES_CLAIM, operator=request.user,
+                    seq=_next_seq(customer.owner_history), source_note="公海直接成交",
+                )
+                update_fields += ["owner", "pool_type"]
+            customer.save(update_fields=update_fields)
             Project.objects.get_or_create(
                 customer=customer,
                 defaults=dict(
@@ -609,6 +733,139 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
             )
             cnt += 1
         self.message_user(request, f"{cnt} 个客户已成交，已自动创建对应项目，等待嘉茵分配咨询师。", messages.SUCCESS)
+
+    # ---------- 成交客户信息管理(进行中/已完结/搁置)——老板验收新增 ----------
+
+    def _scope_deal_queryset(self, request, queryset):
+        """成交客户动作作用域:销售只看自己名下,主管看本组+自己,总经办全部."""
+        role = getattr(request.user, "role", None)
+        if role == Role.SALES:
+            return queryset.filter(owner=request.user)
+        if role == Role.SALES_LEAD:
+            team = getattr(request.user, "team", None)
+            if team:
+                return queryset.filter(Q(owner__team=team) | Q(owner=request.user))
+            return queryset.filter(owner=request.user)
+        return queryset
+
+    @admin.action(description="转入已完结")
+    def deal_to_done(self, request, queryset):
+        role = getattr(request.user, "role", None)
+        if role not in (Role.SALES, Role.SALES_LEAD, Role.ADMIN):
+            self.message_user(request, "无权限执行该操作", messages.ERROR)
+            return
+        updated = self._scope_deal_queryset(request, queryset).filter(
+            status=CustomerStatus.DEAL
+        ).update(deal_status=DealStatus.DONE, updated_at=timezone.now())
+        self.message_user(request, f"{updated} 个成交客户已转入已完结", messages.SUCCESS)
+
+    @admin.action(description="转入搁置")
+    def deal_to_on_hold(self, request, queryset):
+        role = getattr(request.user, "role", None)
+        if role not in (Role.SALES, Role.SALES_LEAD, Role.ADMIN):
+            self.message_user(request, "无权限执行该操作", messages.ERROR)
+            return
+        updated = self._scope_deal_queryset(request, queryset).filter(
+            status=CustomerStatus.DEAL
+        ).update(deal_status=DealStatus.ON_HOLD, updated_at=timezone.now())
+        self.message_user(request, f"{updated} 个成交客户已转入搁置", messages.SUCCESS)
+
+    @admin.action(description="转回我的客户")
+    def deal_back_to_my(self, request, queryset):
+        """成交退回:DEAL → FOLLOWING(保留归属销售),成交子状态清空,记归属历史(状态栏「转回」)."""
+        role = getattr(request.user, "role", None)
+        if role not in (Role.SALES, Role.SALES_LEAD, Role.ADMIN):
+            self.message_user(request, "无权限执行该操作", messages.ERROR)
+            return
+        updated = 0
+        for c in self._scope_deal_queryset(request, queryset).filter(status=CustomerStatus.DEAL):
+            c.status = CustomerStatus.FOLLOWING
+            c.deal_status = None
+            c.updated_at = timezone.now()
+            c.save(update_fields=["status", "deal_status", "updated_at"])
+            CustomerOwnerHistory.objects.create(
+                customer=c, from_user=None, to_user=c.owner, operator=request.user,
+                source_type=OwnerHistorySourceType.DEAL_BACK_MY,
+                seq=_next_seq(c.owner_history), source_note="成交转回我的客户",
+            )
+            updated += 1
+        self.message_user(request, f"{updated} 个成交客户已转回我的客户", messages.SUCCESS)
+
+    @admin.action(description="转回公司客户池")
+    def deal_back_to_pool(self, request, queryset):
+        """成交退回公海:DEAL → POOL,清归属,记归属历史."""
+        role = getattr(request.user, "role", None)
+        if role not in (Role.SALES, Role.SALES_LEAD, Role.ADMIN):
+            self.message_user(request, "无权限执行该操作", messages.ERROR)
+            return
+        updated = 0
+        for c in self._scope_deal_queryset(request, queryset).filter(status=CustomerStatus.DEAL):
+            prev_owner = c.owner
+            c.status = CustomerStatus.POOL
+            c.deal_status = None
+            c.owner = None
+            c.pool_type = PoolType.SQUARE
+            c.pool_entered_at = timezone.now()
+            c.updated_at = timezone.now()
+            c.save(update_fields=["status", "deal_status", "owner", "pool_type", "pool_entered_at", "updated_at"])
+            CustomerOwnerHistory.objects.create(
+                customer=c, from_user=prev_owner, to_user=None, operator=request.user,
+                source_type=OwnerHistorySourceType.DEAL_BACK_POOL,
+                seq=_next_seq(c.owner_history), source_note="成交转回公司客户池",
+            )
+            updated += 1
+        self.message_user(request, f"{updated} 个成交客户已转回公司客户池", messages.SUCCESS)
+
+    @admin.action(description="复制到我的客户")
+    def deal_copy_to_my(self, request, queryset):
+        """已完结客户复制成新客户(跟进中),归属操作人,记新建历史."""
+        role = getattr(request.user, "role", None)
+        if role not in (Role.SALES, Role.SALES_LEAD, Role.ADMIN):
+            self.message_user(request, "无权限执行该操作", messages.ERROR)
+            return
+        updated = 0
+        for c in self._scope_deal_queryset(request, queryset).filter(
+            status=CustomerStatus.DEAL, deal_status=DealStatus.DONE
+        ):
+            nc = Customer.objects.create(
+                company=c.company, contact_name=c.contact_name, phone=c.phone,
+                qualification_interest=c.qualification_interest, source=c.source,
+                quote_amount=c.quote_amount, note=c.note, consulted_at=c.consulted_at,
+                status=CustomerStatus.FOLLOWING, owner=request.user, created_by=request.user,
+            )
+            CustomerOwnerHistory.objects.create(
+                customer=nc, from_user=None, to_user=request.user,
+                source_type=OwnerHistorySourceType.DIRECT_INPUT, operator=request.user,
+                seq=1, source_note="从已完结成交客户复制",
+            )
+            updated += 1
+        self.message_user(request, f"{updated} 个已完结客户已复制到我的客户", messages.SUCCESS)
+
+    @admin.action(description="复制到公司客户池")
+    def deal_copy_to_pool(self, request, queryset):
+        """已完结客户复制成公海新客户."""
+        role = getattr(request.user, "role", None)
+        if role not in (Role.SALES, Role.SALES_LEAD, Role.ADMIN):
+            self.message_user(request, "无权限执行该操作", messages.ERROR)
+            return
+        updated = 0
+        for c in self._scope_deal_queryset(request, queryset).filter(
+            status=CustomerStatus.DEAL, deal_status=DealStatus.DONE
+        ):
+            nc = Customer.objects.create(
+                company=c.company, contact_name=c.contact_name, phone=c.phone,
+                qualification_interest=c.qualification_interest, source=c.source,
+                quote_amount=c.quote_amount, note=c.note, consulted_at=c.consulted_at,
+                status=CustomerStatus.POOL, owner=None, pool_type=PoolType.SQUARE,
+                created_by=request.user,
+            )
+            CustomerOwnerHistory.objects.create(
+                customer=nc, from_user=None, to_user=None,
+                source_type=OwnerHistorySourceType.SQUARE, operator=request.user,
+                seq=1, source_note="从已完结成交客户复制",
+            )
+            updated += 1
+        self.message_user(request, f"{updated} 个已完结客户已复制到公司客户池", messages.SUCCESS)
 
     @admin.action(description="释放客户到公海")
     def move_to_pool(self, request, queryset):
@@ -640,7 +897,8 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
 
     @admin.action(description="删除（进入回收站）")
     def soft_delete(self, request, queryset):
-        updated = queryset.update(
+        # 权限:公海客户仅 建档人/释放人/其组主管/总经办 可删(老板验收),普通客户按归属
+        updated = self._scope_delete_queryset(request, queryset).update(
             deleted_at=timezone.now(), updated_at=timezone.now(),
             deleted_by=request.user if request.user.is_authenticated else None,
         )

@@ -2,17 +2,6 @@
 {% load i18n %}
 
 {% block content %}
-<div style="margin:10px 0 16px;padding:12px 16px;border:1px solid #FDE8E8;background:#FFF5F5;border-radius:8px;color:#C0392B;font-size:13px;line-height:1.8">
-  <b>回收站说明</b>：这里显示的是<b>已被删除的客户</b>（软删除，可从客户列表移除）。
-  <br>· 选中记录后可执行 <b>「恢复到客户列表」</b>（误删找回）或 <b>「彻底删除」</b>（不可恢复）。
-  <br>· 此处与「客户池广场」不同——<b>回收站是删除的客户</b>，<b>客户池广场是未成交待跟进的公海客户</b>。
-</div>
-{% if cl.result_count == 0 %}
-<div style="margin:16px 0;padding:32px 16px;border:1px dashed #E5E7EB;background:#F8FAFC;border-radius:8px;text-align:center;color:#94A3B8;font-size:14px">
-  <div style="font-size:28px;margin-bottom:8px;opacity:.5">🗑</div>
-  <b>回收站暂无数据</b><br>
-  当前没有已删除的客户。删除客户后（软删除）会自动出现在这里，可恢复或彻底删除。
-</div>
-{% endif %}
+{% include "admin/customers/_cat_tabs.html" with active_tab="recycle" %}
 {{ block.super }}
 {% endblock %}

@@ -14,6 +14,13 @@ class CustomerStatus(models.TextChoices):
     LOST = "lost", "已流失"
 
 
+class DealStatus(models.TextChoices):
+    """成交客户子状态——成交客户信息管理(进行中/已完结/搁置),仅 status=deal 时有效."""
+    ACTIVE = "active", "进行中"
+    DONE = "done", "已完结"
+    ON_HOLD = "on_hold", "搁置"
+
+
 class PoolType(models.TextChoices):
     """公海进入方式——v2 claim 新增：区分自动掉入 vs 客户池广场手动释放.
 
@@ -44,6 +51,12 @@ class Customer(models.Model):
     company = models.CharField("公司名称", max_length=128, db_index=True)
     contact_name = models.CharField("客户联系人", max_length=32)
     phone = models.CharField("联系电话", max_length=32, db_index=True)
+    wechat = models.CharField("微信号", max_length=64, blank=True)
+    qq = models.CharField("QQ号", max_length=32, blank=True)
+    intention = models.PositiveSmallIntegerField(
+        "客户意向(1-5星)", null=True, blank=True,
+        choices=[(1, "★"), (2, "★★"), (3, "★★★"), (4, "★★★★"), (5, "★★★★★")],
+    )
     qualification_interest = models.JSONField(
         "需求资质(可多选)",
         default=list,
@@ -59,6 +72,10 @@ class Customer(models.Model):
 
     status = models.CharField(
         "状态", max_length=16, choices=CustomerStatus.choices, default=CustomerStatus.LEAD
+    )
+    deal_status = models.CharField(
+        "成交状态", max_length=16, choices=DealStatus.choices, null=True, blank=True,
+        help_text="仅 status=deal 时有效:进行中(active)/已完结(done)/搁置(on_hold)",
     )
     pool_type = models.CharField(
         "公海类型", max_length=16, choices=PoolType.choices, null=True, blank=True,
@@ -226,6 +243,8 @@ class OwnerHistorySourceType(models.TextChoices):
     BOSS_ASSIGN = "boss_assign", "总经办分配"
     SALES_CLAIM = "sales_claim", "销售自主领取（旧公海通道）"
     AUTO_POOL = "auto_pool", "30天未跟进自动掉入公海"
+    DEAL_BACK_MY = "deal_back_my", "成交转回我的客户"
+    DEAL_BACK_POOL = "deal_back_pool", "成交转回公司客户池"
 
 
 class CustomerOwnerHistory(models.Model):

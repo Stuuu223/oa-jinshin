@@ -664,6 +664,20 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
             "color:#2E7D32;font-size:11px'>{}</span>",
             qual, obj.get_status_display(),
         )
+        # 成交客户子状态徽标(老板验收:列表可见 进行中/搁置/已完结)——红绿灯配色
+        if obj.deal_status:
+            deal_style = {
+                DealStatus.ACTIVE: ("进行中", "#DCFCE7", "#15803D"),
+                DealStatus.ON_HOLD: ("搁置", "#FEF3C7", "#B45309"),
+                DealStatus.DONE: ("已完结", "#FEE2E2", "#B91C1C"),
+            }.get(obj.deal_status)
+            if deal_style:
+                label, bg, fg = deal_style
+                badges += format_html(
+                    " <span style='padding:1px 8px;border-radius:6px;background:{};"
+                    "color:{};font-size:11px'>{}</span>",
+                    bg, fg, label,
+                )
         if obj.duplicate_flagged_at:
             badges += format_html(
                 " <span style='padding:1px 8px;border-radius:6px;background:#FDE8E8;"

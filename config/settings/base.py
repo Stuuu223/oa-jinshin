@@ -112,6 +112,13 @@ SIMPLEUI_CONFIG = {
             "models": [
                 {"name": "客户档案", "url": "/admin/customers/customer/", "icon": "fa fa-file-text-o", "permission": "accounts.view_sales_workbench"},
                 {"name": "客户公海池", "url": "/admin/customers/customer/?status__exact=pool", "icon": "fa fa-globe", "permission": "accounts.view_sales_workbench"},
+                {"name": "成交客户", "url": "/admin/customers/customer/?status__exact=deal", "icon": "fa fa-check-circle-o", "permission": "accounts.view_sales_workbench",
+                 "models": [
+                     {"name": "全部", "url": "/admin/customers/customer/?status__exact=deal", "icon": "fa fa-check-circle-o"},
+                     {"name": "进行中", "url": "/admin/customers/customer/?status__exact=deal&deal_status=active", "icon": "fa fa-circle-o"},
+                     {"name": "已完结", "url": "/admin/customers/customer/?status__exact=deal&deal_status=done", "icon": "fa fa-check-circle"},
+                     {"name": "搁置", "url": "/admin/customers/customer/?status__exact=deal&deal_status=on_hold", "icon": "fa fa-pause-circle-o"},
+                 ]},
                 {"name": "回收站", "url": "/admin/customers/recycledcustomer/", "icon": "fa fa-trash-o", "permission": "accounts.view_sales_workbench"},
                 {"name": "操作日志", "url": "/admin/customers/operationlog/", "icon": "fa fa-history", "permission": "accounts.view_user"},
                 {"name": "用户行为", "url": "/admin/customers/visitlog/", "icon": "fa fa-eye", "permission": "accounts.view_user"},

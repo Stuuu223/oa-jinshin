@@ -2,13 +2,6 @@
 {% load i18n %}
 
 {% block content %}
-{% if request.GET.status__exact == 'pool' %}
-  {% include "admin/customers/_cat_tabs.html" with active_tab="pool" %}
-{% elif request.GET.status__exact == 'deal' %}
-  {% include "admin/customers/_cat_tabs.html" with active_tab="deal" %}
-{% else %}
-  {% include "admin/customers/_cat_tabs.html" with active_tab="my" %}
-{% endif %}
 {% if request.user.role == 'sales' or request.user.role == 'sales_lead' %}{% comment %}销售/销售主管{% endcomment %}
 <a href="/admin/sales-workbench/" style="display:inline-block;margin:0 0 10px;padding:6px 14px;background:#fff;color:#2563EB;border:1px solid #CBD5E1;border-radius:8px;text-decoration:none;font-size:13px">← 返回销售工作台</a>
 {% elif request.user.role == 'consultant' or request.user.role == 'consultant_lead' %}{% comment %}咨询/咨询主管{% endcomment %}

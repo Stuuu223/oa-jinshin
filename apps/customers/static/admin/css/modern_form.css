@@ -393,6 +393,13 @@ div.form-row .datetimeshortcuts {
     padding-bottom: 80px !important; /* 底部提交按钮高度 */
 }
 
+/* ── 15. sidebar 激活菜单项绿色对号(老板验收:大类tab绿勾显眼;simpleui 菜单由 Vue 渲染,is-active 类生效) ── */
+.el-menu-item.is-active::after {
+    content: " ✓";
+    color: #22C55E !important;
+    font-weight: 800;
+}
+
 
 /* ── 领取建站按钮(统一复用,不堆内联):蓝底白字,伪类提特异性对抗 a:link{color:#409eff!important} ── */
 .claim,

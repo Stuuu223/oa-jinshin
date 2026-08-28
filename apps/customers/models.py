@@ -63,7 +63,7 @@ class Customer(models.Model):
         blank=True,
         help_text="客户可同时咨询多个资质,如 ICP + EDI",
     )
-    source = models.CharField("来源", max_length=16, choices=Source.choices, default=Source.OTHER)
+    source = models.CharField("来源", max_length=32, default=Source.OTHER)
     quote_amount = models.DecimalField(
         "报价金额", max_digits=12, decimal_places=2, null=True, blank=True,
     )
@@ -179,7 +179,8 @@ class Customer(models.Model):
         """
         if self.source == Source.SQUARE and self.square_released_by:
             return f"客户池广场-{self.square_released_by.real_name}"
-        return self.get_source_display()
+        # 自由填写的来源(不在枚举内)原样展示;已知枚举值仍映射中文标签
+        return dict(Source.choices).get(self.source, self.source)
 
     @property
     def follow_staff_display(self):

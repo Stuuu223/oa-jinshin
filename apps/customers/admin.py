@@ -197,7 +197,7 @@ _STATUS_BAR_TYPES = {
 
 @admin.register(Customer)
 class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
-    list_display = ("summary", "phone_masked", "owner", "follow_staff_display", "quote_amount", "last_follow_at", "status_bar")
+    list_display = ("summary", "source_signature", "phone_masked", "owner", "follow_staff_display", "quote_amount", "last_follow_at", "status_bar")
     empty_value_display = "—"
     list_filter = (OwnerFilter, StatusFilter, SourceFilter, QualificationFilter, "deal_status")
     search_fields = ("company", "contact_name", "phone")
@@ -222,20 +222,32 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
             extra_context.setdefault("title", "增加 公海池客户")
         return super().add_view(request, form_url, extra_context)
 
-    def formfield_for_dbfield(self, db_field, **kwargs):
+    def formfield_for_dbfield(self, db_field, request=None, **kwargs):
+        # 需求资质(可多选):JSONField 的 formfield 会传 encoder 参数给 MultipleChoiceField 导致 TypeError,
+        # 因此不走 super() 路径,直接构造多选复选框字段
         if db_field.name == "qualification_interest":
-            # JSONField 的 formfield 会传 encoder 参数给 MultipleChoiceField 导致 TypeError,
-            # 因此不走 super() 路径,直接构造多选复选框字段
-            from django import forms
-            field = forms.MultipleChoiceField(
+            return forms.MultipleChoiceField(
                 choices=self.QUALIFICATION_CHOICES,
                 widget=forms.CheckboxSelectMultiple,
                 required=False,
                 label=db_field.verbose_name,
                 help_text=db_field.help_text,
             )
-            return field
-        return super().formfield_for_dbfield(db_field, **kwargs)
+        # 客户意向(1-5星):模型 choices 会让表单渲染为 Select 下拉(★选项),按验收改为 input 数字 1-5
+        if db_field.name == "intention":
+            kwargs["widget"] = forms.NumberInput(attrs={"min": 1, "max": 5, "style": "width:80px"})
+        # 来源:choices 默认渲染 Select 且校验限死选项,按验收改为自由填写的 text input
+        # (直接构造 CharField 绕过模型 choices 机制,否则仍是 ChoiceField 会拒绝自由文本)
+        if db_field.name == "source":
+            return forms.CharField(
+                max_length=32,
+                required=not db_field.blank,
+                label=db_field.verbose_name,
+                help_text=db_field.help_text,
+                initial=db_field.get_default() if db_field.has_default() else None,
+                widget=forms.TextInput(attrs={"maxlength": 32, "style": "width:220px"}),
+            )
+        return super().formfield_for_dbfield(db_field, request=request, **kwargs)
     readonly_fields = (
         "source_signature", "created_at", "updated_at", "pool_entered_at", "created_by", "square_released_by",
         "duplicate_flagged_at",
@@ -303,12 +315,6 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
                 ),
             }),
         )
-
-    def formfield_for_dbfield(self, db_field, request, **kwargs):
-        # 客户意向(1-5星):模型 choices 会让表单渲染为 Select 下拉(★选项),按验收改为 input 数字 1-5
-        if db_field.name == "intention":
-            kwargs["widget"] = forms.NumberInput(attrs={"min": 1, "max": 5, "style": "width:80px"})
-        return super().formfield_for_dbfield(db_field, request, **kwargs)
 
     def get_readonly_fields(self, request, obj=None):
         base = list(super().get_readonly_fields(request, obj))
@@ -440,7 +446,8 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
 
     @admin.display(description="状态栏(客户意向/最近操作)")
     def status_bar(self, obj):
-        """客户状态栏:客户意向(x星) + 最近一条 新建/转入/转回 操作(账号+操作+时间)."""
+        """客户状态栏:客户意向(x星) + 最近一条 新建/转入/转回 操作(账号+操作+时间).
+        无归属历史的老数据(建档时未写 OwnerHistory)回退用 created_by/created_at 显示「新建」,保证每行都有内容."""
         cells = []
         if obj.intention:
             cells.append(format_html('<span style="color:#B45309;font-weight:700">{}</span>', f"{obj.intention}星"))
@@ -452,6 +459,14 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
                 who_name = getattr(who, "real_name", None) or who.username
             op = _STATUS_BAR_TYPES.get(h.source_type, str(h.source_type))
             when = h.assigned_at.strftime("%m-%d %H:%M") if h.assigned_at else ""
+        elif obj.created_by_id and obj.created_at:
+            # 回退:老数据无归属历史 → 用建档信息显示「新建」
+            who_name = getattr(obj.created_by, "real_name", None) or (obj.created_by.username if obj.created_by else "系统")
+            op = "新建"
+            when = obj.created_at.strftime("%m-%d %H:%M")
+        else:
+            who_name, op, when = "", "", ""
+        if when:
             cells.append(format_html('<span style="font-size:12px;color:#475569">{}</span>', f"{who_name} {op} {when}"))
         if not cells:
             return "—"
@@ -705,6 +720,7 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
     @admin.display(description="来源（含广场署名）")
     def source_signature(self, obj: Customer) -> str:
         return obj.source_label
+    source_signature.short_description = "来源"  # type: ignore[attr-defined]
 
     def phone_masked(self, obj: Customer) -> str:
         phone = obj.phone

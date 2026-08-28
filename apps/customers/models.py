@@ -63,7 +63,7 @@ class Customer(models.Model):
         blank=True,
         help_text="客户可同时咨询多个资质,如 ICP + EDI",
     )
-    source = models.CharField("来源", max_length=32, default=Source.OTHER)
+    source = models.CharField("来源", max_length=32, default="其他")
     quote_amount = models.DecimalField(
         "报价金额", max_digits=12, decimal_places=2, null=True, blank=True,
     )

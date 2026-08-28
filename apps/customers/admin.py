@@ -63,7 +63,9 @@ class SourceFilter(admin.SimpleListFilter):
     title = "来源"
     parameter_name = "source"
     def lookups(self, request, model_admin):
-        return [(None, "全部")] + [(s.value, s.label) for s in Source]
+        # 来源已改为自由文本:存量枚举值已迁移为中文标签(referral→转介绍 等);
+        # square 保留枚举值(客户池广场署名逻辑依赖),其余按中文标签作筛选值
+        return [(None, "全部")] + [(s.value if s is Source.SQUARE else s.label, s.label) for s in Source]
     def queryset(self, request, queryset):
         if self.value():
             return queryset.filter(source=self.value())
@@ -197,7 +199,7 @@ _STATUS_BAR_TYPES = {
 
 @admin.register(Customer)
 class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
-    list_display = ("summary", "source_signature", "phone_masked", "owner", "follow_staff_display", "quote_amount", "last_follow_at", "status_bar")
+    list_display = ("summary", "source_signature", "phone_masked", "contact_name", "wechat", "qq", "intention_display", "owner", "follow_staff_display", "quote_amount", "last_follow_at", "status_bar")
     empty_value_display = "—"
     list_filter = (OwnerFilter, StatusFilter, SourceFilter, QualificationFilter, "deal_status")
     search_fields = ("company", "contact_name", "phone")
@@ -443,6 +445,13 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
         cl = super().get_changelist_instance(request)
         _request_local.request = request
         return cl
+
+    @admin.display(description="意愿度", ordering="intention")
+    def intention_display(self, obj):
+        """客户意向(1-5星):★ 星级展示,列表一眼可见."""
+        if not obj.intention:
+            return "—"
+        return format_html('<span style="color:#EAB308;letter-spacing:1px">{}</span>', "★" * obj.intention)
 
     @admin.display(description="状态栏(客户意向/最近操作)")
     def status_bar(self, obj):

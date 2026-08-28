@@ -172,6 +172,11 @@ _ROLE_ACTIONS = {
                  "soft_delete", "assign_pool", "revoke_assignment"},
 }
 
+# 按列表上下文区分的动作:公海池列表只保留公海专属动作(领取/调配公海),
+# 普通列表只保留归属类动作——与 get_queryset 的视图区分(URL status=pool)一致
+_POOL_ACTIONS = {"claim_from_pool", "assign_pool"}
+_OWNED_ACTIONS = {"mark_deal", "move_to_pool", "mark_lost", "release_to_square", "revoke_assignment", "soft_delete"}
+
 
 @admin.register(Customer)
 class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
@@ -286,28 +291,42 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
     def get_actions(self, request):
         actions = super().get_actions(request)
         allowed = _ROLE_ACTIONS.get(getattr(request.user, "role", None), set())
+        # 按列表上下文过滤:公海池列表(URL status=pool)只保留公海专属动作(领取/调配公海),
+        # 普通列表只保留归属类动作——避免"领取公海客户"出现在个人/组员客户列表
+        is_pool_list = request.GET.get("status__exact") == str(CustomerStatus.POOL)
+        # 用 &(新集合)而非 &=(原地交集)——《ROLE_ACTIONS 是模块级可变集合,&= 会把它改坏(首次调用后白名单只剩上下文子集)
+        allowed = allowed & (_POOL_ACTIONS if is_pool_list else _OWNED_ACTIONS)
         return {name: fn for name, fn in actions.items() if name in allowed}
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
         user = request.user
         role = getattr(user, "role", None)
+        # 对象级视图(查看/修改/删除单条)与列表共用 get_queryset;公海池点开单条的 change 链接不带 status=pool 参数,
+        # 若无兼容处理,公海客户(无 owner)会被普通分支过滤掉 → 404「客户不存在」,故单条视图对销售序列放开公海客户
+        is_object_view = bool(
+            request.resolver_match
+            and request.resolver_match.url_name.endswith(("change", "delete", "view"))
+        )
         if role == Role.SALES:
             # 区分视图:客户公海池入口(URL status=pool)看全部公海客户;普通列表仅自己名下客户
             if request.GET.get("status__exact") == str(CustomerStatus.POOL):
                 return qs.filter(status=CustomerStatus.POOL)
+            if is_object_view:
+                return qs.filter(Q(owner=user) | Q(status=CustomerStatus.POOL))
             return qs.filter(owner=user)
         if role == Role.SALES_LEAD:
             # 区分视图:客户公海池入口(URL status=pool)看全部公海客户(细则五所有人员可见);普通列表看组员+自己
             if request.GET.get("status__exact") == str(CustomerStatus.POOL):
                 return qs.filter(status=CustomerStatus.POOL)
             team = getattr(user, "team", None)
-            if team:
-                return qs.filter(Q(owner__team=team) | Q(owner=user))
-            return qs.filter(owner=user)
+            team_q = Q(owner__team=team) | Q(owner=user) if team else Q(owner=user)
+            if is_object_view:
+                return qs.filter(team_q | Q(status=CustomerStatus.POOL))
+            return qs.filter(team_q)
         if role == Role.ADMIN:
             return qs
-        # 咨询/技术/财务不看第一页客户（v2 细则第一页仅销售序列与总经办）
+        # 咨询/技术/财务不看第一页客户(v2 细则第一页仅销售序列与总经办)
         return qs.none()
 
     def get_changelist_instance(self, request):

@@ -21,7 +21,30 @@
         <link rel="stylesheet" href="{% static 'admin/simpleui-x/waves/waves.min.css' %}?_=2.1">
     {% endblock %}
     {% block head %}
-
+    <script>
+    /* 金石企服 · 顶栏「文档」按钮(老板验收:跳转系统文档,新窗口打开)。
+       simpleui 顶栏是 Vue 渲染的(el-header.navbar > .float-wrap > .right),
+       轮询等渲染完成再插入。本模板即外壳页(/admin/),顶栏只在此存在。 */
+    (function () {
+        var DOC_URL = 'http://106.53.0.44/docs/index.html';
+        function addDocBtn() {
+            var right = document.querySelector('.navbar .float-wrap .right');
+            if (!right || right.querySelector('.doc-btn')) return;
+            var a = document.createElement('a');
+            a.className = 'doc-btn';
+            a.href = DOC_URL;
+            a.target = '_blank';
+            a.textContent = '文档';
+            a.title = '打开系统文档';
+            a.style.cssText = 'display:inline-flex;align-items:center;height:32px;padding:0 14px;margin:0 8px 0 0;'
+                + 'border:1px solid rgba(255,255,255,.4);border-radius:6px;color:#fff;font-size:13px;'
+                + 'text-decoration:none;background:rgba(255,255,255,.14);vertical-align:middle;';
+            right.insertBefore(a, right.firstChild);
+        }
+        addDocBtn();
+        setInterval(addDocBtn, 1200);
+    })();
+    </script>
     {% endblock %}
 </head>
 <body>

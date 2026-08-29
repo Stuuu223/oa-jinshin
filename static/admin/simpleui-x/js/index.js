@@ -481,6 +481,17 @@
                 // 单内容区模式:点菜单直接切换主 iframe
                 if (data.url) {
                     this.curUrl = data.url;
+                    // 修复「卡在工作台 去不了其他tab」:iframe 内部导航(工作台快捷入口/分页/浏览器后退)后,
+                    // 外壳 curUrl(iframe src)与 iframe 实际内容失同步;再点同 URL 菜单,src 不变 → Vue 不重设 → iframe 不重载
+                    // → 菜单点击看似无反应。目标与 iframe 实际地址不一致时强制 location.replace 重载到目标。
+                    var _fr = document.querySelector('#main iframe');
+                    if (_fr && _fr.contentWindow && _fr.contentWindow.location) {
+                        var _cur = _fr.contentWindow.location.pathname + _fr.contentWindow.location.search;
+                        var _target = String(data.url).split('#')[0];
+                        if (_cur && _cur.indexOf('/') === 0 && _target && _cur != _target) {
+                            _fr.contentWindow.location.replace(_target);
+                        }
+                    }
                 }
                 if (index) {
                     this.menuActive = String(index);

@@ -169,7 +169,7 @@ class CustomerAttachmentInline(admin.TabularInline):
 
 
 # 成交客户管理动作(status=deal 列表):转入已完结/搁置 + 转回我的客户/公司客户池 + 复制
-_DEAL_ACTIONS = {"deal_to_done", "deal_to_on_hold", "deal_back_to_my", "deal_back_to_pool", "deal_copy_to_my", "deal_copy_to_pool"}
+_DEAL_ACTIONS = {"deal_to_done", "deal_to_on_hold", "deal_to_active", "deal_back_to_my", "deal_back_to_pool", "deal_copy_to_my", "deal_copy_to_pool"}
 
 # 各角色可用动作白名单——get_actions 按此过滤,默认 delete_selected(硬删)一并不再暴露
 _ROLE_ACTIONS = {
@@ -190,11 +190,11 @@ _OWNED_ACTIONS = {"mark_deal", "move_to_pool", "mark_lost", "release_to_square",
 # 客户状态栏(列表每行)展示的操作:仅 新建/转入/转回(老板验收:显示哪个账号操作了什么+时间)
 _STATUS_BAR_TYPES = {
     OwnerHistorySourceType.DIRECT_INPUT: "新建",
-    OwnerHistorySourceType.SALES_CLAIM: "领取转入",
+    OwnerHistorySourceType.SALES_CLAIM: "领取到我的客户",
     OwnerHistorySourceType.MANAGER_ASSIGN: "主管分配转入",
     OwnerHistorySourceType.BOSS_ASSIGN: "总经办分配转入",
-    OwnerHistorySourceType.DEAL_BACK_MY: "成交转回",
-    OwnerHistorySourceType.DEAL_BACK_POOL: "成交转回池",
+    OwnerHistorySourceType.DEAL_BACK_MY: "转回我的客户",
+    OwnerHistorySourceType.DEAL_BACK_POOL: "转回公司客户池",
 }
 
 
@@ -287,7 +287,7 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
         "mark_deal", "move_to_pool", "mark_lost",
         "claim_from_pool", "assign_pool",
         "release_to_square", "revoke_assignment", "soft_delete",
-        "deal_to_done", "deal_to_on_hold", "deal_back_to_my",
+        "deal_to_done", "deal_to_on_hold", "deal_to_active", "deal_back_to_my",
         "deal_back_to_pool", "deal_copy_to_my", "deal_copy_to_pool",
     ]
 
@@ -751,7 +751,7 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
 
     # ---------- 状态与流转 Actions ----------
 
-    @admin.action(description="成交（自动创建项目）")
+    @admin.action(description="转入成交")
     def mark_deal(self, request, queryset):
         """成交：客户状态改 DEAL + 成交子状态=进行中 + 自动创建 Project（幂等,不会重复建项目）.
         老板验收:公司客户池可「转入成交」——无归属的公海客户成交时归属给操作人,便于后续「转回我的客户」。"""
@@ -847,6 +847,18 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
             status=CustomerStatus.DEAL
         ).update(deal_status=DealStatus.ON_HOLD, updated_at=timezone.now())
         self.message_user(request, f"{updated} 个成交客户已转入搁置", messages.SUCCESS)
+
+    @admin.action(description="转回进行中的客户")
+    def deal_to_active(self, request, queryset):
+        """搁置 → 进行中:老板规范「搁置的客户:转回进行中的客户」(2026-08-30 命名对齐新增)."""
+        role = getattr(request.user, "role", None)
+        if role not in (Role.SALES, Role.SALES_LEAD, Role.ADMIN):
+            self.message_user(request, "无权限执行该操作", messages.ERROR)
+            return
+        updated = self._scope_deal_queryset(request, queryset).filter(
+            status=CustomerStatus.DEAL, deal_status=DealStatus.ON_HOLD
+        ).update(deal_status=DealStatus.ACTIVE, updated_at=timezone.now())
+        self.message_user(request, f"{updated} 个搁置客户已转回进行中", messages.SUCCESS)
 
     @admin.action(description="转回我的客户")
     def deal_back_to_my(self, request, queryset):
@@ -945,7 +957,7 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
             updated += 1
         self.message_user(request, f"{updated} 个已完结客户已复制到公司客户池", messages.SUCCESS)
 
-    @admin.action(description="释放客户到公海")
+    @admin.action(description="释放到公司客户池")
     def move_to_pool(self, request, queryset):
         role = getattr(request.user, "role", None)
         if role not in (Role.SALES, Role.SALES_LEAD, Role.ADMIN):
@@ -1026,7 +1038,7 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
             request, f"{updated} 个客户已移入回收站（可查看/恢复）", messages.SUCCESS,
         )
 
-    @admin.action(description="领取公海客户")
+    @admin.action(description="领取到我的客户")
     def claim_from_pool(self, request, queryset):
         if getattr(request.user, "role", None) not in (Role.SALES, Role.SALES_LEAD):
             self.message_user(request, "仅销售/销售主管可领取公海客户", messages.ERROR)
@@ -1126,7 +1138,7 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
         )
         return TemplateResponse(request, "admin/customers/assign_pool.html", context)
 
-    @admin.action(description="释放到客户池广场")
+    @admin.action(description="释放到公司客户池（广场）")
     def release_to_square(self, request, queryset):
         role = getattr(request.user, "role", None)
         if role not in (Role.SALES, Role.SALES_LEAD, Role.ADMIN):
@@ -1312,7 +1324,7 @@ class RecycledCustomerAdmin(RolePermissionsMixin, admin.ModelAdmin):
     def history_link(self, obj: RecycledCustomer):
         return format_html('<a href="/admin/customers/customer/{}/history/">查看全部修改记录</a>', obj.pk)
 
-    @admin.action(description="恢复到客户列表")
+    @admin.action(description="恢复到我的客户")
     def restore(self, request, queryset):
         updated = queryset.update(deleted_at=None, updated_at=timezone.now())
         # 留痕:恢复操作记录日志

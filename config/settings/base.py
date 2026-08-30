@@ -110,8 +110,8 @@ SIMPLEUI_CONFIG = {
             "icon": "fa fa-address-book",
             "permission": "accounts.view_sales_workbench",
             "models": [
-                {"name": "客户档案", "url": "/admin/customers/customer/", "icon": "fa fa-file-text-o", "permission": "accounts.view_sales_workbench"},
-                {"name": "客户公海池", "url": "/admin/customers/customer/?status__exact=pool", "icon": "fa fa-globe", "permission": "accounts.view_sales_workbench"},
+                {"name": "我的客户", "url": "/admin/customers/customer/", "icon": "fa fa-file-text-o", "permission": "accounts.view_sales_workbench"},
+                {"name": "公司客户池", "url": "/admin/customers/customer/?status__exact=pool", "icon": "fa fa-globe", "permission": "accounts.view_sales_workbench"},
                 {"name": "成交客户", "url": "/admin/customers/customer/?status__exact=deal", "icon": "fa fa-check-circle-o", "permission": "accounts.view_sales_workbench",
                  "models": [
                      {"name": "全部", "url": "/admin/customers/customer/?status__exact=deal", "icon": "fa fa-check-circle-o"},

@@ -173,10 +173,10 @@ _DEAL_ACTIONS = {"deal_to_done", "deal_to_on_hold", "deal_to_active", "deal_back
 
 # 各角色可用动作白名单——get_actions 按此过滤,默认 delete_selected(硬删)一并不再暴露
 _ROLE_ACTIONS = {
-    Role.SALES: {"mark_deal", "move_to_pool", "mark_lost", "claim_from_pool", "release_to_square", "soft_delete"} | _DEAL_ACTIONS,
-    Role.SALES_LEAD: {"mark_deal", "move_to_pool", "mark_lost", "claim_from_pool", "release_to_square",
+    Role.SALES: {"mark_deal", "mark_lost", "claim_from_pool", "release_to_square", "soft_delete"} | _DEAL_ACTIONS,
+    Role.SALES_LEAD: {"mark_deal", "mark_lost", "claim_from_pool", "release_to_square",
                       "soft_delete", "assign_pool", "revoke_assignment"} | _DEAL_ACTIONS,
-    Role.ADMIN: {"mark_deal", "move_to_pool", "mark_lost", "release_to_square",
+    Role.ADMIN: {"mark_deal", "mark_lost", "release_to_square",
                  "soft_delete", "assign_pool", "revoke_assignment"} | _DEAL_ACTIONS,
 }
 
@@ -185,7 +185,7 @@ _ROLE_ACTIONS = {
 # 成交客户列表(status=deal) = 转入已完结/搁置 + 转回我的客户/公司客户池 + 复制
 # 普通列表 = 归属类动作(不含领取/调配公海)——与 get_queryset 的视图区分一致
 _POOL_ACTIONS = {"claim_from_pool", "assign_pool", "mark_deal", "mark_lost", "soft_delete"}
-_OWNED_ACTIONS = {"mark_deal", "move_to_pool", "mark_lost", "release_to_square", "revoke_assignment", "soft_delete"}
+_OWNED_ACTIONS = {"mark_deal", "mark_lost", "release_to_square", "revoke_assignment", "soft_delete"}
 
 # 客户状态栏(列表每行)展示的操作:仅 新建/转入/转回(老板验收:显示哪个账号操作了什么+时间)
 _STATUS_BAR_TYPES = {
@@ -284,7 +284,7 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
     )
 
     actions = [
-        "mark_deal", "move_to_pool", "mark_lost",
+        "mark_deal", "mark_lost",
         "claim_from_pool", "assign_pool",
         "release_to_square", "revoke_assignment", "soft_delete",
         "deal_to_done", "deal_to_on_hold", "deal_to_active", "deal_back_to_my",
@@ -957,37 +957,6 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
             updated += 1
         self.message_user(request, f"{updated} 个已完结客户已复制到公司客户池", messages.SUCCESS)
 
-    @admin.action(description="释放到公司客户池")
-    def move_to_pool(self, request, queryset):
-        role = getattr(request.user, "role", None)
-        if role not in (Role.SALES, Role.SALES_LEAD, Role.ADMIN):
-            self.message_user(request, "无权限执行该操作", messages.ERROR)
-            return
-        if role == Role.SALES:
-            queryset = queryset.filter(owner=request.user)
-        # 线索(LEAD)/跟进中(FOLLOWING)均可释放进公海——原只认FOLLOWING导致LEAD客户'0个生效'
-        updated = queryset.filter(status__in=[CustomerStatus.LEAD, CustomerStatus.FOLLOWING]).update(
-            status=CustomerStatus.POOL, pool_type=PoolType.AUTO, owner=None,
-            pool_entered_at=timezone.now(), updated_at=timezone.now(),
-        )
-        # 公海流转:释放进公海 → 知会销售主管/总经办
-        try:
-            leads = User.objects.filter(role=Role.SALES_LEAD, is_active=True)
-            admins = User.objects.filter(role=Role.ADMIN, is_active=True)
-            pool_recipients = list({u.pk: u for u in list(leads) + list(admins)}.values())
-            notify(
-                category=NotificationCategory.POOL_FLOW,
-                importance=Importance.LOW,
-                recipients=pool_recipients,
-                title="客户进入公海",
-                content=f"{request.user.real_name} 将 {updated} 个客户释放到公海（自动入池）。",
-                link="/admin/customers/customer/?status__exact=pool",
-                actor=request.user,
-            )
-        except Exception:
-            pass
-        self.message_user(request, f"{updated} 个客户已释放到公海", messages.SUCCESS)
-
     @admin.action(description="标记流失")
     def mark_lost(self, request, queryset):
         role = getattr(request.user, "role", None)
@@ -1138,7 +1107,7 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
         )
         return TemplateResponse(request, "admin/customers/assign_pool.html", context)
 
-    @admin.action(description="释放到公司客户池（广场）")
+    @admin.action(description="释放到公司客户池")
     def release_to_square(self, request, queryset):
         role = getattr(request.user, "role", None)
         if role not in (Role.SALES, Role.SALES_LEAD, Role.ADMIN):
@@ -1179,19 +1148,19 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
                     category=NotificationCategory.POOL_FLOW,
                     importance=Importance.LOW,
                     recipients=pool_recipients,
-                    title="客户释放到公海",
-                    content=f"{request.user.real_name} 将 {cnt} 个客户释放到客户池广场（理由:{reason}）。",
+                    title="客户释放到公司客户池",
+                    content=f"{request.user.real_name} 将 {cnt} 个客户释放到公司客户池（理由:{reason}）。",
                     link="/admin/customers/customer/?status__exact=pool",
                     actor=request.user,
                 )
             except Exception:
                 pass
-            self.message_user(request, f"已释放 {cnt} 个客户到客户池广场（理由: {reason}）", messages.SUCCESS)
+            self.message_user(request, f"已释放 {cnt} 个客户到公司客户池（理由: {reason}）", messages.SUCCESS)
             return None
         candidates = queryset.filter(status__in=[CustomerStatus.LEAD, CustomerStatus.FOLLOWING])
         context = dict(
             self.admin_site.each_context(request),
-            title="释放到客户池广场",
+            title="释放到公司客户池",
             action_checkbox_name=admin.helpers.ACTION_CHECKBOX_NAME,
             queryset=candidates,
         )

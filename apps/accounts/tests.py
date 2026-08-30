@@ -170,7 +170,7 @@ class FlowNotifyTests(TestCase):
         self.assertEqual(n.importance, "high")
         self.assertTrue(Project.objects.filter(customer=c).exists())
 
-    def test_move_to_pool_notifies_leads_and_admins(self):
+    def test_release_to_pool_notifies_leads_and_admins(self):
         from apps.accounts.models import Notification, NotificationCategory, Role
         from apps.customers.models import Customer, CustomerStatus
         c = Customer.objects.create(
@@ -179,7 +179,7 @@ class FlowNotifyTests(TestCase):
         )
         cli = Client()
         cli.force_login(self.admin)
-        cli.post("/admin/customers/customer/", {"action": "move_to_pool", "_selected_action": [str(c.pk)]}, follow=True)
+        cli.post("/admin/customers/customer/", {"action": "release_to_square", "_selected_action": [str(c.pk)], "apply": "1", "reason": "测试释放"}, follow=True)
         roles = set(
             Notification.objects.filter(category=NotificationCategory.POOL_FLOW)
             .values_list("recipient__role", flat=True)

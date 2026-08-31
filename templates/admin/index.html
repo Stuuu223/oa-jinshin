@@ -371,8 +371,12 @@
     /* waves-ripple 疯狂累积(mousemove 高频产生+清理不执行)→ DOM 爆炸→JS 卡死→所有按钮失效(火狐特有)
        隐藏 ripple 减少 DOM 压力;装饰性动画,无功能损失 */
     .waves-ripple { display: none !important; pointer-events: none !important; }
-    /* 菜单层级优化(老板选定 2026-08-31:蓝色实心条):一级=蓝底白字粗体条,二级=白底条目+悬停/选中蓝调——主次一目了然 */
-    .el-menu > .el-submenu > .el-submenu__title { font-size: 13px; font-weight: 700; color: #FFFFFF; background: #2563EB; border-radius: 6px; margin: 8px 6px 2px; height: 36px; line-height: 36px; padding-left: 12px; }
+    /* 菜单层级优化(老板选定 2026-08-31:蓝色实心条):一级=蓝底白字粗体条,二级=白底条目+悬停/选中蓝调——主次一目了然
+       修复:simpleui 自带 .is-opened/.el-submenu__title:hover 带 !important 把蓝条盖成灰(全部默认展开→恒为 is-opened),
+       本规则同加 !important + 更高优先级选择器(is-opened/hover 两态全覆盖) */
+    .el-menu > .el-submenu > .el-submenu__title,
+    .el-menu > .el-submenu.is-opened > .el-submenu__title,
+    .el-menu > .el-submenu > .el-submenu__title:hover { background-color: #2563EB !important; color: #FFFFFF !important; font-size: 13px; font-weight: 700; border-radius: 6px; margin: 8px 6px 2px; height: 36px; line-height: 36px; padding-left: 12px; }
     .el-menu .el-menu-item { font-size: 13px; font-weight: 400; color: #334155; margin: 1px 8px; border-radius: 6px; height: 34px; line-height: 34px; }
     .el-menu .el-menu-item:hover { background: #EFF6FF; color: #1E293B; }
     .el-menu .el-menu-item.is-active { background: #DBEAFE; color: #2563EB; font-weight: 600; }

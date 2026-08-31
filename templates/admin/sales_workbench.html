@@ -19,6 +19,11 @@
   .row .c { color: #334155; }
   .row .t { color: #64748B; font-size: 13px; }
   .row .n { font-weight: 600; color: #2563EB; }
+  /* 客户状态分布:标签+数字紧凑连读(老板反馈:space-between 把文字和数字拉开,破坏一目了然)+ 占比条增强可观测性 */
+  .row.stat { justify-content: flex-start; align-items: center; gap: 10px; }
+  .row.stat .c, .row.stat .n { white-space: nowrap; }
+  .row.stat .track { flex: 1; min-width: 40px; height: 6px; background: #F1F5F9; border-radius: 3px; overflow: hidden; }
+  .row.stat .fill { height: 100%; background: #2563EB; border-radius: 3px; transition: width .3s ease; }
   .empty { color: #94A3B8; font-size: 13px; padding: 12px 0; }
   .quick { display: flex; gap: 10px; flex-wrap: wrap; }
   .quick a:not(.ghost),
@@ -129,7 +134,7 @@
   <div class="panel">
     <h3>客户状态分布</h3>
     {% for key, items in status_groups.items %}
-      <div class="row"><span class="c">{{ key }}</span><span class="n">{{ items|length }}</span></div>
+      <div class="row stat"><span class="c">{{ key }}</span><span class="n">{{ items|length }}</span><div class="track"><div class="fill" style="width:{% widthratio items|length total 100 %}%"></div></div></div>
     {% empty %}
       <div class="empty">暂无客户,点击上方"新建客户建档"开始</div>
     {% endfor %}

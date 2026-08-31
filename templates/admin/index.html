@@ -371,10 +371,10 @@
     /* waves-ripple 疯狂累积(mousemove 高频产生+清理不执行)→ DOM 爆炸→JS 卡死→所有按钮失效(火狐特有)
        隐藏 ripple 减少 DOM 压力;装饰性动画,无功能损失 */
     .waves-ripple { display: none !important; pointer-events: none !important; }
-    /* 菜单层级优化(老板反馈 2026-08-31):一级类目加粗略大=目录标题,二级条目常规(Element Plus 嵌套自带层级缩进)——主次分明 */
-    .el-menu > .el-submenu > .el-submenu__title { font-weight: 600; font-size: 14px; color: #1E293B; }
+    /* 菜单层级优化(老板反馈 2026-08-31):一级类目=底色块+加粗+圆角(分区标题感),二级条目常规+层级缩进——主次分明 */
+    .el-menu > .el-submenu > .el-submenu__title { font-weight: 600; font-size: 14px; color: #1E293B; background: #F1F5F9; border-radius: 6px; margin: 3px 8px; height: 40px; line-height: 40px; }
     .el-menu .el-menu-item { font-weight: 400; font-size: 13px; }
-    .el-menu > .el-submenu + .el-submenu { margin-top: 2px; }
+    .el-menu > .el-submenu + .el-submenu { margin-top: 4px; }
     </style>
     <script type="text/javascript">
     // (临时调试信息已移除——按钮失效定位完成:click触发但Vue/Element UI handler未响应(个别浏览器profile的Vue事件绑定层),见27号排查记录)

@@ -371,11 +371,11 @@
     /* waves-ripple 疯狂累积(mousemove 高频产生+清理不执行)→ DOM 爆炸→JS 卡死→所有按钮失效(火狐特有)
        隐藏 ripple 减少 DOM 压力;装饰性动画,无功能损失 */
     .waves-ripple { display: none !important; pointer-events: none !important; }
-    /* 菜单层级优化(GitHub NavList 式,老板反馈 2026-08-31):一级=小号灰分区标题(静态分区感),二级=行式导航项(悬停底色+选中高亮)——主次分明 */
-    .el-menu > .el-submenu > .el-submenu__title { font-size: 12px; font-weight: 600; color: #656D76; background: transparent; border-radius: 6px; margin: 14px 12px 4px; height: 24px; line-height: 24px; }
-    .el-menu .el-menu-item { font-size: 13px; font-weight: 400; color: #24292F; margin: 1px 8px; border-radius: 6px; height: 32px; line-height: 32px; }
-    .el-menu .el-menu-item:hover { background: #F6F8FA; color: #24292F; }
-    .el-menu .el-menu-item.is-active { background: #E8EEF9; color: #0969DA; font-weight: 600; }
+    /* 菜单层级优化(老板选定 2026-08-31:蓝色实心条):一级=蓝底白字粗体条,二级=白底条目+悬停/选中蓝调——主次一目了然 */
+    .el-menu > .el-submenu > .el-submenu__title { font-size: 13px; font-weight: 700; color: #FFFFFF; background: #2563EB; border-radius: 6px; margin: 8px 6px 2px; height: 36px; line-height: 36px; padding-left: 12px; }
+    .el-menu .el-menu-item { font-size: 13px; font-weight: 400; color: #334155; margin: 1px 8px; border-radius: 6px; height: 34px; line-height: 34px; }
+    .el-menu .el-menu-item:hover { background: #EFF6FF; color: #1E293B; }
+    .el-menu .el-menu-item.is-active { background: #DBEAFE; color: #2563EB; font-weight: 600; }
     </style>
     <script type="text/javascript">
     // (临时调试信息已移除——按钮失效定位完成:click触发但Vue/Element UI handler未响应(个别浏览器profile的Vue事件绑定层),见27号排查记录)

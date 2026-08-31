@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""老板总览面板视图——M5 驾驶舱首页."""
+"""总经办数据总览视图——M5 驾驶舱首页."""
 from decimal import Decimal
 
 from django.contrib import messages
@@ -35,7 +35,7 @@ def dashboard(request):
         }.get(role)
         if workbench:
             return redirect(reverse(workbench))
-        # 无工作台角色(技术等):回技术建站工作台——不能回 /admin/(首页=dashboard 会再次 302,死循环)
+        # 无工作台角色(技术等):回技术数据总览——不能回 /admin/(首页=dashboard 会再次 302,死循环)
         return redirect(reverse("tech_workbench"))
 
     # ── 客户漏斗 ──
@@ -108,7 +108,7 @@ def dashboard(request):
 
     context = dict(
         self_service=request,
-        title="老板总览面板",
+        title="总经办数据总览",
         total_customers=total_customers,
         funnel=funnel,
         convert_rate=convert_rate,
@@ -136,11 +136,11 @@ def notification_unread(request):
 
 
 def sales_workbench(request):
-    """销售工作台——销售视角聚合:我的客户/待跟进/撞单/快捷操作."""
+    """销售数据总览——销售视角聚合:我的客户/待跟进/撞单/快捷操作."""
     if not request.user.is_authenticated or not request.user.is_staff:
         return redirect("/admin/login/?next=/admin/sales-workbench/")
 
-    # 角色边界:仅销售/销售主管/总经办可看销售工作台,其他角色直访 302 回自己工作台
+    # 角色边界:仅销售/销售主管/总经办可看销售数据总览,其他角色直访 302 回自己工作台
     role = getattr(request.user, "role", None)
     if role not in (Role.SALES, Role.SALES_LEAD, Role.ADMIN):
         if role in (Role.CONSULTANT, Role.CONSULTANT_LEAD):
@@ -218,7 +218,7 @@ def sales_workbench(request):
             })
 
     context = dict(
-        title="销售部门总览" if role == Role.ADMIN else "销售工作台",
+        title="销售数据总览",
         me=me,
         role=role,
         status_groups=status_groups,
@@ -233,11 +233,11 @@ def sales_workbench(request):
 
 
 def consult_workbench(request):
-    """咨询工作台——咨询视角聚合:待分配/我的项目/收款支出/建站进度."""
+    """咨询数据总览——咨询视角聚合:待分配/我的项目/收款支出/建站进度."""
     if not request.user.is_authenticated or not request.user.is_staff:
         return redirect("/admin/login/?next=/admin/consult-workbench/")
 
-    # 角色边界:仅咨询/咨询主管/总经办可看咨询工作台,其他角色直访 302 回自己工作台
+    # 角色边界:仅咨询/咨询主管/总经办可看咨询数据总览,其他角色直访 302 回自己工作台
     role = getattr(request.user, "role", None)
     if role not in (Role.CONSULTANT, Role.CONSULTANT_LEAD, Role.ADMIN):
         if role in (Role.SALES, Role.SALES_LEAD):
@@ -272,7 +272,7 @@ def consult_workbench(request):
     my_projects = my_projects.order_by("-deal_at")[:20]
 
     context = dict(
-        title="咨询部门总览" if role == Role.ADMIN else "咨询工作台",
+        title="咨询数据总览",
         me=me,
         pending_assign=pending_assign,
         my_projects=my_projects,
@@ -282,7 +282,7 @@ def consult_workbench(request):
 
 
 def tech_workbench(request):
-    """技术建站工作台——任务池(待领取)/我承接的/进度统计."""
+    """技术数据总览——任务池(待领取)/我承接的/进度统计."""
     if not request.user.is_authenticated or not request.user.is_staff:
         return redirect("/admin/login/?next=/admin/tech-workbench/")
     role = getattr(request.user, "role", None)
@@ -304,11 +304,11 @@ def tech_workbench(request):
         "已完成": Project.objects.filter(_Q(site_progress=SiteProgress.COMPLETED_PENDING) | _Q(site_progress=SiteProgress.DEPLOYED)).count(),
         "我承接": mine.count(),
     }
-    # 总经办(老板)不干活:技术工作台=部门总览——展示承接分布,不显示个人领取/我承接
+    # 总经办(老板)不干活:技术数据总览=部门总览——展示承接分布,不显示个人领取/我承接
     is_admin = role == Role.ADMIN
     all_claimed = Project.objects.filter(tech_assigned__isnull=False).order_by("-deal_at") if is_admin else Project.objects.none()
     context = dict(
-        title="技术部门总览" if is_admin else "技术建站工作台",
+        title="技术数据总览",
         me=me,
         role=role,
         pool=pool,

@@ -438,7 +438,7 @@ class ProjectAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
                 except Exception:
                     pass
             # 建站完工 → 同步咨询/销售/管理层(闭环亮点:完工状态同步全员)
-            if obj.site_progress == SiteProgress.DONE:
+            if obj.site_progress in (SiteProgress.COMPLETED_PENDING, SiteProgress.DEPLOYED):
                 try:
                     done_users = []
                     if obj.consultant_id:
@@ -474,7 +474,7 @@ class ProjectAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
                     importance=Importance.HIGH,
                     recipients=techs,
                     title="新建站任务待领取",
-                    content=f"「{obj.company_snapshot}」建站任务已进入任务池（类目:{obj.get_site_category_display()}），请到建站工作台领取。",
+                    content=f"「{obj.company_snapshot}」建站任务已进入任务池（类目:{obj.get_site_category_display()}），请到技术数据总览领取。",
                     link="/admin/tech-workbench/",
                     actor=request.user,
                     entity_type="project",
@@ -492,7 +492,7 @@ class ProjectAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
                     importance=Importance.MEDIUM,
                     recipients=obj.tech_assigned,
                     title="站点交接信息已更新",
-                    content=f"「{obj.company_snapshot}」站点信息(域名/备案/联系方式/备注)已更新,请到建站工作台查看。",
+                    content=f"「{obj.company_snapshot}」站点信息(域名/备案/联系方式/备注)已更新,请到技术数据总览查看。",
                     link="/admin/tech-workbench/",
                     actor=request.user,
                     entity_type="project",

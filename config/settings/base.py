@@ -82,7 +82,7 @@ SIMPLEUI_HOME_TITLE = "金石管理系统"
 SIMPLEUI_HOME_INFO = False
 SIMPLEUI_LOGO = ""
 SIMPLEUI_DEFAULT_THEME = "light.css"
-# 首页跳转到老板总览面板(simpleui 官方配置)
+# 首页跳转到总经办数据总览(simpleui 官方配置)
 SIMPLEUI_HOME_PAGE = "/admin/dashboard/"
 SIMPLEUI_INDEX = "/admin/dashboard/"  # 首页/logo点击跳转目标(缺失时goIndex('')跳转空白)
 SIMPLEUI_HOME_ICON = "fa fa-dashboard"
@@ -99,10 +99,10 @@ SIMPLEUI_CONFIG = {
             "name": "工作台",
             "icon": "fa fa-tachometer",
             "models": [
-                {"name": "老板总览面板", "url": "/admin/dashboard/", "icon": "fa fa-line-chart", "permission": "accounts.view_boss_dashboard"},
-                {"name": "销售工作台", "url": "/admin/sales-workbench/", "icon": "fa fa-user-o", "permission": "accounts.view_sales_workbench"},
-                {"name": "咨询工作台", "url": "/admin/consult-workbench/", "icon": "fa fa-file-text-o", "permission": "accounts.view_consult_workbench"},
-                {"name": "建站工作台", "url": "/admin/tech-workbench/", "icon": "fa fa-code", "permission": "accounts.view_tech_workbench"},
+                {"name": "总经办数据总览", "url": "/admin/dashboard/", "icon": "fa fa-line-chart", "permission": "accounts.view_boss_dashboard"},
+                {"name": "销售数据总览", "url": "/admin/sales-workbench/", "icon": "fa fa-user-o", "permission": "accounts.view_sales_workbench"},
+                {"name": "咨询数据总览", "url": "/admin/consult-workbench/", "icon": "fa fa-file-text-o", "permission": "accounts.view_consult_workbench"},
+                {"name": "技术数据总览", "url": "/admin/tech-workbench/", "icon": "fa fa-code", "permission": "accounts.view_tech_workbench"},
             ],
         },
         {

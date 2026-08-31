@@ -96,10 +96,10 @@ class User(AbstractUser):
         verbose_name = "用户"
         verbose_name_plural = verbose_name
         permissions = [
-            ("view_boss_dashboard", "可看老板总览面板"),
-            ("view_sales_workbench", "可看销售工作台"),
-            ("view_consult_workbench", "可看咨询工作台"),
-            ("view_tech_workbench", "可看技术建站工作台"),
+            ("view_boss_dashboard", "可看总经办数据总览"),
+            ("view_sales_workbench", "可看销售数据总览"),
+            ("view_consult_workbench", "可看咨询数据总览"),
+            ("view_tech_workbench", "可看技术数据总览"),
         ]
 
     def __str__(self) -> str:

@@ -174,11 +174,11 @@ class AssignConsultantTests(ProjectBase):
 
     def test_tech_save_model_only_updates_progress(self):
         """技术提交表单:只落 site_progress,其余字段不被覆盖."""
-        p = self.make_project(site_category="官网", site_info="php建站", deal_business="ICP")
+        p = self.make_project(site_category="官网", site_info="php建站", deal_business="ICP", tech_assigned=self.tech)
         req = make_request(self.tech)
-        p.site_progress = SiteProgress.DONE
+        p.site_progress = SiteProgress.DEPLOYED
         p.deal_business = "被篡改"
         self.project_admin.save_model(req, p, form=None, change=True)
         p.refresh_from_db()
-        self.assertEqual(p.site_progress, SiteProgress.DONE)
+        self.assertEqual(p.site_progress, SiteProgress.DEPLOYED)
         self.assertEqual(p.deal_business, "ICP")

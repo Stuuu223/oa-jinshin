@@ -174,11 +174,11 @@ class RecycleBinTests(BaseData):
         )
         self.assertFalse(Customer.objects.filter(pk=c.pk).exists())
         self.assertTrue(RecycledCustomer.objects.filter(pk=c.pk, deleted_at__isnull=False).exists())
-        # 回收站 admin 只对总经办可见
+        # 回收站 admin 按角色分权(75e4590):总经办全见,销售仅见自己删除的(has_view_permission=模型级可见)
         req = make_request(self.admin, method="get")
         self.assertTrue(self.recycled_admin.has_view_permission(req))
         req_sales = make_request(self.sales1, method="get")
-        self.assertFalse(self.recycled_admin.has_view_permission(req_sales))
+        self.assertTrue(self.recycled_admin.has_view_permission(req_sales))
         # 恢复
         self.recycled_admin.restore(
             make_request(self.admin), RecycledCustomer.objects.filter(pk=c.pk)

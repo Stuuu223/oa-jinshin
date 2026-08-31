@@ -278,18 +278,7 @@
         if (_role === 'sales' || _role === 'consultant' || _role === 'tech') {
             menus = menus.filter(function (m) { return m.name !== '成交管理'; });
         }
-        // 老板(总经办):部门入口保留但显示为'部门总览'(老板要详细了解各部门,非干活工作台)
-        if (_role === 'admin') {
-            menus.forEach(function (m) {
-                if (m.name === '工作台' && m.models) {
-                    m.models.forEach(function (mm) {
-                        if (mm.name === '销售工作台') mm.name = '销售部门总览';
-                        if (mm.name === '咨询工作台') mm.name = '咨询部门总览';
-                        if (mm.name === '建站工作台') mm.name = '技术部门总览';
-                    });
-                }
-            });
-        }
+        // 工作台菜单已统一为「部门+数据总览」(总经办/销售/咨询/技术),全员一致,无需按角色改写
         // 会话自愈:登录后把 session key 存 localStorage(浏览器清 cookie 不清 localStorage),请求带 X-JSTK 头
         try { localStorage.setItem('jstk', '{{ request.session.session_key }}'); } catch (e) {}
         if (window.axios) {

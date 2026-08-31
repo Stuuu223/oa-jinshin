@@ -27,12 +27,18 @@ Vue.component('sub-menu', {
 Vue.component('multiple-menu', {
     props: ['menus', 'menuActive', 'fold'],
     computed: {
-        // 老板要求(2026-08-30):菜单点击互不收缩(unique-opened=false)+ 默认展开「客户管理」
+        // 老板要求(2026-08-31):菜单点击互不收缩(unique-opened=false)+ 所有层级子菜单默认全部展开(不管一级二级)
         defaultOpeneds: function () {
             var out = [];
-            (this.menus || []).forEach(function (item) {
-                if (item.name === '客户管理' && item.eid) { out.push(item.eid); }
-            });
+            var walk = function (list) {
+                (list || []).forEach(function (item) {
+                    if (item.models && item.models.length && item.eid) {
+                        out.push(item.eid);
+                        walk(item.models);
+                    }
+                });
+            };
+            walk(this.menus);
             return out;
         }
     },

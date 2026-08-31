@@ -51,7 +51,7 @@
   </div>
 
   <div class="quick" style="margin-bottom:20px">
-    <a href="/admin/customers/customer/add/">新建客户建档</a>
+    <a href="/admin/customers/customer/add/">增加客户</a>
     <a class="ghost" href="/admin/customers/customer/">我的客户</a>
     <a class="ghost" href="/admin/customers/customer/?status__exact=pool">公司客户池</a>
   </div>
@@ -136,7 +136,7 @@
     {% for key, items in status_groups.items %}
       <div class="row stat"><span class="c">{{ key }}</span><span class="n">{{ items|length }}</span><div class="track"><div class="fill" style="width:{% widthratio items|length total 100 %}%"></div></div></div>
     {% empty %}
-      <div class="empty">暂无客户,点击上方"新建客户建档"开始</div>
+      <div class="empty">暂无客户,点击上方"增加客户"开始</div>
     {% endfor %}
   </div>
 </div>

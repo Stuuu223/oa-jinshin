@@ -120,8 +120,6 @@ SIMPLEUI_CONFIG = {
                      {"name": "搁置", "url": "/admin/customers/customer/?status__exact=deal&deal_status=on_hold", "icon": "fa fa-pause-circle-o"},
                  ]},
                 {"name": "回收站", "url": "/admin/customers/recycledcustomer/", "icon": "fa fa-trash-o", "permission": "accounts.view_sales_workbench"},
-                {"name": "操作日志", "url": "/admin/customers/operationlog/", "icon": "fa fa-history", "permission": "accounts.view_user"},
-                {"name": "用户行为", "url": "/admin/customers/visitlog/", "icon": "fa fa-eye", "permission": "accounts.view_user"},
             ],
         },
         {
@@ -146,6 +144,8 @@ SIMPLEUI_CONFIG = {
                 {"name": "用户", "url": "/admin/accounts/user/", "icon": "fa fa-user", "permission": "accounts.view_user"},
                 {"name": "部门", "url": "/admin/accounts/department/", "icon": "fa fa-building-o", "permission": "accounts.view_department"},
                 {"name": "团队", "url": "/admin/accounts/team/", "icon": "fa fa-group", "permission": "accounts.view_team"},
+                {"name": "操作日志", "url": "/admin/customers/operationlog/", "icon": "fa fa-history", "permission": "accounts.view_user"},
+                {"name": "用户行为", "url": "/admin/customers/visitlog/", "icon": "fa fa-eye", "permission": "accounts.view_user"},
             ],
         },
     ],

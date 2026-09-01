@@ -279,6 +279,22 @@
             menus = menus.filter(function (m) { return m.name !== '成交管理'; });
         }
         // 工作台菜单已统一为「部门+数据总览」(总经办/销售/咨询/技术),全员一致,无需按角色改写
+        // 移除 simpleui 前端 var home 兜底菜单项(金石管理系统):与顶部 logo 重复 + 与 工作台>总经办数据总览 同 URL 抢高亮(老板反馈 09-01)
+        (function () {
+            function removeHomeItem() {
+                var items = document.querySelectorAll('.el-menu-item');
+                for (var i = 0; i < items.length; i++) {
+                    var sp = items[i].querySelector('span');
+                    if (sp && sp.textContent.indexOf('金石管理系统') >= 0 && items[i].querySelector('.fa-dashboard')) {
+                        items[i].parentNode.removeChild(items[i]);
+                        return true;
+                    }
+                }
+                return false;
+            }
+            var t = setInterval(function () { if (removeHomeItem()) clearInterval(t); }, 200);
+            setTimeout(function () { clearInterval(t); }, 10000);
+        })();
         // 会话自愈:登录后把 session key 存 localStorage(浏览器清 cookie 不清 localStorage),请求带 X-JSTK 头
         try { localStorage.setItem('jstk', '{{ request.session.session_key }}'); } catch (e) {}
         if (window.axios) {

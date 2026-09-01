@@ -295,6 +295,20 @@
             var t = setInterval(function () { if (removeHomeItem()) clearInterval(t); }, 200);
             setTimeout(function () { clearInterval(t); }, 10000);
         })();
+        // 蓝条兜底(老板反馈 09-01:一级仍灰白):simpleui 样式表 .menu .is-opened/.el-submenu__title:hover 带 !important,
+        // 渲染后给一级类目标题强制内联 !important 蓝底白字——内联 important 压过一切样式表规则,物理上不可能再灰
+        (function () {
+            function paintMenuBars() {
+                var subs = document.querySelectorAll('.el-menu > .el-submenu > .el-submenu__title');
+                for (var i = 0; i < subs.length; i++) {
+                    subs[i].style.setProperty('background-color', '#2563EB', 'important');
+                    subs[i].style.setProperty('color', '#FFFFFF', 'important');
+                }
+                return subs.length > 0;
+            }
+            var t = setInterval(function () { if (paintMenuBars()) clearInterval(t); }, 200);
+            setTimeout(function () { clearInterval(t); }, 10000);
+        })();
         // 会话自愈:登录后把 session key 存 localStorage(浏览器清 cookie 不清 localStorage),请求带 X-JSTK 头
         try { localStorage.setItem('jstk', '{{ request.session.session_key }}'); } catch (e) {}
         if (window.axios) {

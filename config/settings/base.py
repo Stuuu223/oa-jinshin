@@ -112,6 +112,7 @@ SIMPLEUI_CONFIG = {
             "models": [
                 {"name": "我的客户", "url": "/admin/customers/customer/", "icon": "fa fa-file-text-o", "permission": "accounts.view_sales_workbench"},
                 {"name": "公司客户池", "url": "/admin/customers/customer/?status__exact=pool", "icon": "fa fa-globe", "permission": "accounts.view_sales_workbench"},
+                {"name": "回收站", "url": "/admin/customers/recycledcustomer/", "icon": "fa fa-trash-o", "permission": "accounts.view_sales_workbench"},
                 {"name": "成交客户", "url": "/admin/customers/customer/?status__exact=deal", "icon": "fa fa-check-circle-o", "permission": "accounts.view_sales_workbench",
                  "models": [
                      {"name": "全部", "url": "/admin/customers/customer/?status__exact=deal", "icon": "fa fa-check-circle-o"},
@@ -119,7 +120,6 @@ SIMPLEUI_CONFIG = {
                      {"name": "已完结", "url": "/admin/customers/customer/?status__exact=deal&deal_status=done", "icon": "fa fa-check-circle"},
                      {"name": "搁置", "url": "/admin/customers/customer/?status__exact=deal&deal_status=on_hold", "icon": "fa fa-pause-circle-o"},
                  ]},
-                {"name": "回收站", "url": "/admin/customers/recycledcustomer/", "icon": "fa fa-trash-o", "permission": "accounts.view_sales_workbench"},
             ],
         },
         {

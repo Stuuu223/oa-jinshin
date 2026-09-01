@@ -100,8 +100,8 @@ SIMPLEUI_CONFIG = {
             "icon": "fa fa-tachometer",
             "models": [
                 {"name": "总经办数据总览", "url": "/admin/dashboard/", "icon": "fa fa-line-chart", "permission": "accounts.view_boss_dashboard"},
-                {"name": "销售数据总览", "url": "/admin/sales-workbench/", "icon": "fa fa-user-o", "permission": "accounts.view_sales_workbench"},
-                {"name": "咨询数据总览", "url": "/admin/consult-workbench/", "icon": "fa fa-file-text-o", "permission": "accounts.view_consult_workbench"},
+                {"name": "销售数据总览", "url": "/admin/sales-workbench/", "icon": "fa fa-user", "permission": "accounts.view_sales_workbench"},
+                {"name": "咨询数据总览", "url": "/admin/consult-workbench/", "icon": "fa fa-file-lines", "permission": "accounts.view_consult_workbench"},
                 {"name": "技术数据总览", "url": "/admin/tech-workbench/", "icon": "fa fa-code", "permission": "accounts.view_tech_workbench"},
             ],
         },
@@ -110,15 +110,15 @@ SIMPLEUI_CONFIG = {
             "icon": "fa fa-address-book",
             "permission": "accounts.view_sales_workbench",
             "models": [
-                {"name": "我的客户", "url": "/admin/customers/customer/", "icon": "fa fa-file-text-o", "permission": "accounts.view_sales_workbench"},
+                {"name": "我的客户", "url": "/admin/customers/customer/", "icon": "fa fa-file-lines", "permission": "accounts.view_sales_workbench"},
                 {"name": "公司客户池", "url": "/admin/customers/customer/?status__exact=pool", "icon": "fa fa-globe", "permission": "accounts.view_sales_workbench"},
-                {"name": "回收站", "url": "/admin/customers/recycledcustomer/", "icon": "fa fa-trash-o", "permission": "accounts.view_sales_workbench"},
-                {"name": "成交客户", "url": "/admin/customers/customer/?status__exact=deal", "icon": "fa fa-check-circle-o", "permission": "accounts.view_sales_workbench",
+                {"name": "回收站", "url": "/admin/customers/recycledcustomer/", "icon": "fa fa-trash", "permission": "accounts.view_sales_workbench"},
+                {"name": "成交客户", "url": "/admin/customers/customer/?status__exact=deal", "icon": "fa fa-circle-check", "permission": "accounts.view_sales_workbench",
                  "models": [
-                     {"name": "全部", "url": "/admin/customers/customer/?status__exact=deal", "icon": "fa fa-check-circle-o"},
-                     {"name": "进行中", "url": "/admin/customers/customer/?status__exact=deal&deal_status=active", "icon": "fa fa-circle-o"},
+                     {"name": "全部", "url": "/admin/customers/customer/?status__exact=deal", "icon": "fa fa-circle-check"},
+                     {"name": "进行中", "url": "/admin/customers/customer/?status__exact=deal&deal_status=active", "icon": "fa fa-circle"},
                      {"name": "已完结", "url": "/admin/customers/customer/?status__exact=deal&deal_status=done", "icon": "fa fa-check-circle"},
-                     {"name": "搁置", "url": "/admin/customers/customer/?status__exact=deal&deal_status=on_hold", "icon": "fa fa-pause-circle-o"},
+                     {"name": "搁置", "url": "/admin/customers/customer/?status__exact=deal&deal_status=on_hold", "icon": "fa fa-circle-pause"},
                  ]},
             ],
         },
@@ -126,14 +126,14 @@ SIMPLEUI_CONFIG = {
             "name": "成交管理",
             "icon": "fa fa-briefcase",
             "models": [
-                {"name": "成交项目", "url": "/admin/projects/project/", "icon": "fa fa-file-o"},
+                {"name": "成交项目", "url": "/admin/projects/project/", "icon": "fa fa-file"},
             ],
         },
         {
             "name": "通知",
-            "icon": "fa fa-bell-o",
+            "icon": "fa fa-bell",
             "models": [
-                {"name": "站内通知", "url": "/admin/accounts/notification/", "icon": "fa fa-envelope-o"},
+                {"name": "站内通知", "url": "/admin/accounts/notification/", "icon": "fa fa-envelope"},
             ],
         },
         {
@@ -142,8 +142,8 @@ SIMPLEUI_CONFIG = {
             "permission": "accounts.view_user",
             "models": [
                 {"name": "用户", "url": "/admin/accounts/user/", "icon": "fa fa-user", "permission": "accounts.view_user"},
-                {"name": "部门", "url": "/admin/accounts/department/", "icon": "fa fa-building-o", "permission": "accounts.view_department"},
-                {"name": "团队", "url": "/admin/accounts/team/", "icon": "fa fa-group", "permission": "accounts.view_team"},
+                {"name": "部门", "url": "/admin/accounts/department/", "icon": "fa fa-building", "permission": "accounts.view_department"},
+                {"name": "团队", "url": "/admin/accounts/team/", "icon": "fa fa-users", "permission": "accounts.view_team"},
                 {"name": "操作日志", "url": "/admin/customers/operationlog/", "icon": "fa fa-history", "permission": "accounts.view_user"},
                 {"name": "用户行为", "url": "/admin/customers/visitlog/", "icon": "fa fa-eye", "permission": "accounts.view_user"},
             ],

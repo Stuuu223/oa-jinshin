@@ -296,13 +296,20 @@
             setTimeout(function () { clearInterval(t); }, 10000);
         })();
         // 蓝条兜底(老板反馈 09-01:一级仍灰白):simpleui 样式表 .menu .is-opened/.el-submenu__title:hover 带 !important,
-        // 渲染后给一级类目标题强制内联 !important 蓝底白字——内联 important 压过一切样式表规则,物理上不可能再灰
+        // 渲染后给菜单标题强制内联 !important 样式——根级一级类目=蓝底白字;嵌套子菜单标题(如 成交客户)=透明底+深字(中和灰底)
         (function () {
             function paintMenuBars() {
-                var subs = document.querySelectorAll('.el-menu > .el-submenu > .el-submenu__title');
+                var rootEl = document.querySelector('.el-menu');
+                var subs = document.querySelectorAll('.el-submenu__title');
                 for (var i = 0; i < subs.length; i++) {
-                    subs[i].style.setProperty('background-color', '#2563EB', 'important');
-                    subs[i].style.setProperty('color', '#FFFFFF', 'important');
+                    var isRoot = subs[i].parentElement && subs[i].parentElement.parentElement === rootEl;
+                    if (isRoot) {
+                        subs[i].style.setProperty('background-color', '#2563EB', 'important');
+                        subs[i].style.setProperty('color', '#FFFFFF', 'important');
+                    } else {
+                        subs[i].style.setProperty('background-color', 'transparent', 'important');
+                        subs[i].style.setProperty('color', '#334155', 'important');
+                    }
                 }
                 return subs.length > 0;
             }
@@ -417,6 +424,9 @@
     .el-menu > .el-submenu > .el-submenu__title,
     .el-menu > .el-submenu.is-opened > .el-submenu__title,
     .el-menu > .el-submenu > .el-submenu__title:hover { background-color: #2563EB !important; color: #FFFFFF !important; font-size: 13px; font-weight: 700; border-radius: 6px; margin: 8px 6px 2px; height: 36px; line-height: 36px; padding-left: 12px; }
+    .el-menu .el-menu .el-submenu__title,
+    .el-menu .el-menu .el-submenu.is-opened > .el-submenu__title,
+    .el-menu .el-menu .el-submenu__title:hover { background-color: transparent !important; color: #334155 !important; font-size: 13px; font-weight: 600; border-radius: 6px; margin: 1px 8px; height: 32px; line-height: 32px; }
     .el-menu .el-menu-item { font-size: 13px; font-weight: 400; color: #334155; margin: 1px 8px; border-radius: 6px; height: 34px; line-height: 34px; }
     .el-menu .el-menu-item:hover { background: #EFF6FF; color: #1E293B; }
     .el-menu .el-menu-item.is-active { background: #DBEAFE; color: #2563EB; font-weight: 600; }

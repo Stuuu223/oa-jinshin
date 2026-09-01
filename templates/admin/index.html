@@ -309,6 +309,16 @@
             var t = setInterval(function () { if (paintMenuBars()) clearInterval(t); }, 200);
             setTimeout(function () { clearInterval(t); }, 10000);
         })();
+        // 外壳版本自愈(老板反馈 09-01:灰条多次未变):simpleui 单页外壳只在登录时加载一次,旧标签/旧外壳不会自动换新版。
+        // 记录部署版本,发现版本变化自动重载一次外壳(每次部署把 V 换成新版本号)
+        (function () {
+            var V = '2026-09-01-m1';
+            try {
+                var old = localStorage.getItem('jinshi_shell_v');
+                if (old && old !== V) { localStorage.setItem('jinshi_shell_v', V); location.reload(); }
+                else { localStorage.setItem('jinshi_shell_v', V); }
+            } catch (e) {}
+        })();
         // 会话自愈:登录后把 session key 存 localStorage(浏览器清 cookie 不清 localStorage),请求带 X-JSTK 头
         try { localStorage.setItem('jstk', '{{ request.session.session_key }}'); } catch (e) {}
         if (window.axios) {

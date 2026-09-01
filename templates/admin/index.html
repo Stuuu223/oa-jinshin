@@ -418,22 +418,29 @@
     /* waves-ripple 疯狂累积(mousemove 高频产生+清理不执行)→ DOM 爆炸→JS 卡死→所有按钮失效(火狐特有)
        隐藏 ripple 减少 DOM 压力;装饰性动画,无功能损失 */
     .waves-ripple { display: none !important; pointer-events: none !important; }
-    /* 菜单层级优化(老板选定 2026-08-31:蓝色实心条):一级=蓝底白字粗体条,二级=白底条目+悬停/选中蓝调——主次一目了然
-       修复:simpleui 自带 .is-opened/.el-submenu__title:hover 带 !important 把蓝条盖成灰(全部默认展开→恒为 is-opened),
-       本规则同加 !important + 更高优先级选择器(is-opened/hover 两态全覆盖) */
-    .el-menu > .el-submenu > .el-submenu__title,
-    .el-menu > .el-submenu.is-opened > .el-submenu__title,
-    .el-menu > .el-submenu > .el-submenu__title:hover { background-color: #2563EB !important; color: #FFFFFF !important; font-size: 13px; font-weight: 700; border-radius: 6px; margin: 8px 6px 2px; height: 36px; line-height: 36px; padding-left: 12px; }
-    .el-menu .el-menu .el-submenu__title,
-    .el-menu .el-menu .el-submenu.is-opened > .el-submenu__title,
-    .el-menu .el-menu .el-submenu__title:hover { background-color: transparent !important; color: #334155 !important; font-size: 13px; font-weight: 600; border-radius: 6px; margin: 1px 8px; height: 32px; line-height: 32px; }
-    .el-menu .el-menu-item { font-size: 13px; font-weight: 400; color: #334155; margin: 1px 8px; border-radius: 6px; height: 34px; line-height: 34px; }
-    .el-menu .el-menu-item:hover { background: #EFF6FF; color: #1E293B; }
-    .el-menu .el-menu-item.is-active { background: #DBEAFE; color: #2563EB; font-weight: 600; }
-    /* 图标配色(老板反馈 09-01:icon 无颜色区分):一级蓝条上=白色图标,二级条目=品牌蓝,嵌套子菜单标题=深色图标 */
-    .el-menu > .el-submenu > .el-submenu__title .menu-icon { color: #FFFFFF; }
-    .el-menu .el-menu-item .menu-icon { color: #2563EB; }
-    .el-menu .el-menu .el-submenu__title .menu-icon { color: #334155; }
+    /* ===== 菜单视觉 SSOT(老板 GRID 复盘净化,2026-09-01) =====
+       原则:与 simpleui 同源选择器 + !important + 本块后加载→系统性覆盖其全部主题变体(深色 #304156/浅色 #ebf1f5/展开态 hsla),
+       不再堆更高优先级选择器;红绿灯状态色由配置 icon 字段的状态类驱动(见 base.py 成交客户子项/回收站) */
+    /* 根级一级类目:蓝底白字粗体条(覆盖 .menu .el-submenu__title 三态:基础/展开/悬停) */
+    .menu .el-submenu__title,
+    .menu .is-opened .el-submenu__title,
+    .menu .el-submenu__title:hover { background-color: #2563EB !important; color: #FFFFFF !important; font-size: 13px; font-weight: 700; border-radius: 6px; margin: 8px 6px 2px; height: 36px; line-height: 36px; padding-left: 12px; }
+    /* 嵌套子菜单标题(成交客户):透明底深字(覆盖嵌套 is-opened 灰底) */
+    .menu .el-menu .el-submenu__title,
+    .menu .el-menu .is-opened .el-submenu__title,
+    .menu .el-menu .el-submenu__title:hover { background-color: transparent !important; color: #334155 !important; font-size: 13px; font-weight: 600; border-radius: 6px; margin: 1px 8px; height: 32px; line-height: 32px; }
+    /* 二级条目:白底深字(覆盖 .menu .el-menu-item 的 #1f2d3d) */
+    .menu .el-menu-item { color: #334155 !important; background-color: transparent !important; font-size: 13px; font-weight: 400; margin: 1px 8px; border-radius: 6px; height: 34px; line-height: 34px; }
+    .menu .el-menu-item:hover { background-color: #EFF6FF !important; color: #1E293B !important; }
+    .menu .el-menu .is-active { color: #2563EB !important; background-color: #DBEAFE !important; font-weight: 600; }
+    /* 图标基色:一级蓝条上白、二级条目品牌蓝、嵌套深(覆盖 simpleui 图标灰) */
+    .menu .el-submenu__title .menu-icon { color: #FFFFFF !important; }
+    .menu .el-menu .el-submenu__title .menu-icon { color: #334155 !important; }
+    .menu .el-menu-item .menu-icon { color: #2563EB !important; }
+    /* 红绿灯状态色(配置 icon 字段带状态类驱动):绿=已完结/黄=进行中/灰=搁置回收站 */
+    .menu .menu-icon.status-green { color: #16A34A !important; }
+    .menu .menu-icon.status-yellow { color: #F59E0B !important; }
+    .menu .menu-icon.status-gray { color: #9CA3AF !important; }
     </style>
     <script type="text/javascript">
     // (临时调试信息已移除——按钮失效定位完成:click触发但Vue/Element UI handler未响应(个别浏览器profile的Vue事件绑定层),见27号排查记录)

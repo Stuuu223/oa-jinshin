@@ -430,10 +430,11 @@
     .menu .el-submenu__title .menu-icon { color: #FFFFFF !important; }
     .menu .el-menu .el-submenu__title .menu-icon { color: #FFFFFF !important; }
     .menu .el-menu-item .menu-icon { color: #6B7280 !important; }
-    /* 红绿灯状态色(配置 icon 字段带状态类驱动):只有重要状态图标上色——绿=已完结/黄=进行中/灰=搁置回收站 */
-    .menu .menu-icon.status-green { color: #16A34A !important; }
-    .menu .menu-icon.status-yellow { color: #F59E0B !important; }
-    .menu .menu-icon.status-gray { color: #9CA3AF !important; }
+    /* 红绿灯状态色(配置 icon 字段带状态类驱动):只有重要状态图标上色——绿=已完结/黄=进行中/灰=搁置回收站
+       特异性提升(.el-menu-item 前缀):保证压过默认图标灰 .menu .el-menu-item .menu-icon(0,3,0) */
+    .menu .el-menu-item .menu-icon.status-green { color: #16A34A !important; }
+    .menu .el-menu-item .menu-icon.status-yellow { color: #F59E0B !important; }
+    .menu .el-menu-item .menu-icon.status-gray { color: #64748B !important; }
     </style>
     <script type="text/javascript">
     // (临时调试信息已移除——按钮失效定位完成:click触发但Vue/Element UI handler未响应(个别浏览器profile的Vue事件绑定层),见27号排查记录)

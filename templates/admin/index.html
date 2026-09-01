@@ -430,6 +430,10 @@
     .el-menu .el-menu-item { font-size: 13px; font-weight: 400; color: #334155; margin: 1px 8px; border-radius: 6px; height: 34px; line-height: 34px; }
     .el-menu .el-menu-item:hover { background: #EFF6FF; color: #1E293B; }
     .el-menu .el-menu-item.is-active { background: #DBEAFE; color: #2563EB; font-weight: 600; }
+    /* 图标配色(老板反馈 09-01:icon 无颜色区分):一级蓝条上=白色图标,二级条目=品牌蓝,嵌套子菜单标题=深色图标 */
+    .el-menu > .el-submenu > .el-submenu__title .menu-icon { color: #FFFFFF; }
+    .el-menu .el-menu-item .menu-icon { color: #2563EB; }
+    .el-menu .el-menu .el-submenu__title .menu-icon { color: #334155; }
     </style>
     <script type="text/javascript">
     // (临时调试信息已移除——按钮失效定位完成:click触发但Vue/Element UI handler未响应(个别浏览器profile的Vue事件绑定层),见27号排查记录)

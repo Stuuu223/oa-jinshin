@@ -120,13 +120,10 @@ SIMPLEUI_CONFIG = {
             "icon": "fa fa-briefcase",
             "permission": "accounts.view_sales_workbench",
             "models": [
-                {"name": "成交客户", "url": "/admin/customers/customer/?status__exact=deal", "icon": "fa fa-circle-check", "permission": "accounts.view_sales_workbench",
-                 "models": [
-                     {"name": "全部", "url": "/admin/customers/customer/?status__exact=deal", "icon": "fa fa-circle-check"},
-                     {"name": "进行中", "url": "/admin/customers/customer/?status__exact=deal&deal_status=active", "icon": "fa fa-circle status-yellow"},
-                     {"name": "已完结", "url": "/admin/customers/customer/?status__exact=deal&deal_status=done", "icon": "fa fa-check-circle status-green"},
-                     {"name": "搁置", "url": "/admin/customers/customer/?status__exact=deal&deal_status=on_hold", "icon": "fa fa-circle-pause status-gray"},
-                 ]},
+                {"name": "全部", "url": "/admin/customers/customer/?status__exact=deal", "icon": "fa fa-circle-check", "permission": "accounts.view_sales_workbench"},
+                {"name": "进行中", "url": "/admin/customers/customer/?status__exact=deal&deal_status=active", "icon": "fa fa-circle status-yellow"},
+                {"name": "已完结", "url": "/admin/customers/customer/?status__exact=deal&deal_status=done", "icon": "fa fa-check-circle status-green"},
+                {"name": "搁置", "url": "/admin/customers/customer/?status__exact=deal&deal_status=on_hold", "icon": "fa fa-circle-pause status-gray"},
             ],
         },
         {

@@ -24,7 +24,10 @@ from apps.accounts.services import notify
 from simple_history.admin import SimpleHistoryAdmin
 
 from .models import (
+    Cost,
+    CostStatus,
     Customer,
+    Receipt,
     CustomerAttachment,
     CustomerOwnerHistory,
     CustomerStatus,
@@ -198,6 +201,26 @@ _STATUS_BAR_TYPES = {
 }
 
 
+class ReceiptInline(admin.TabularInline):
+    """收款记录——成交客户内联(细则:收款由咨询师填写,留痕不复核)."""
+    model = Receipt
+    extra = 0
+    fields = ("amount", "note", "received_at", "recorded_by", "created_at")
+    readonly_fields = ("created_at",)
+    can_delete = False
+    verbose_name_plural = "收款记录"
+
+
+class CostInline(admin.TabularInline):
+    """支出/成本记录——成交客户内联(细则:支出咨询师申请,总经办审核通过才计入成本)."""
+    model = Cost
+    extra = 0
+    fields = ("amount", "category", "note", "status", "recorded_by", "created_at")
+    readonly_fields = ("status", "created_at")
+    can_delete = False
+    verbose_name_plural = "支出记录"
+
+
 @admin.register(Customer)
 class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
     list_display = ("summary", "source_signature", "phone_masked", "contact_name", "wechat", "qq", "intention_display", "owner", "follow_staff_display", "quote_amount", "last_follow_at", "status_bar")
@@ -255,7 +278,7 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
         "source_signature", "created_at", "updated_at", "pool_entered_at", "created_by", "square_released_by",
         "duplicate_flagged_at",
     )
-    inlines = [FollowUpInline, OwnerHistoryInline, CustomerAttachmentInline]
+    inlines = [FollowUpInline, OwnerHistoryInline, CustomerAttachmentInline, ReceiptInline, CostInline]
 
     fieldsets = (
         ("基本信息", {
@@ -1199,6 +1222,51 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
         if skipped:
             msg += f"；{skipped} 个已成交或无历史记录，已跳过"
         self.message_user(request, msg, messages.SUCCESS if cnt else messages.WARNING)
+
+
+@admin.register(Receipt)
+class ReceiptAdmin(RolePermissionsMixin, admin.ModelAdmin):
+    """收款记录——财务/总经办可查,咨询师填写(细则:收款留痕不复核)."""
+    list_display = ("customer", "amount", "received_at", "recorded_by", "created_at")
+    list_filter = ("received_at",)
+    search_fields = ("customer__company", "note")
+    readonly_fields = ("customer", "recorded_by", "created_at")
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request).select_related("customer", "recorded_by")
+        if getattr(request.user, "role", None) == Role.TECH:
+            return qs.none()  # 技术部不可见财务
+        return qs
+
+
+@admin.register(Cost)
+class CostAdmin(RolePermissionsMixin, admin.ModelAdmin):
+    """支出/成本记录——咨询师申请,总经办审核通过才计入成本(细则)."""
+    list_display = ("customer", "amount", "category", "status", "recorded_by", "created_at")
+    list_filter = ("status", "category")
+    search_fields = ("customer__company", "note")
+    readonly_fields = ("customer", "recorded_by", "created_at")
+    actions = ["approve_costs", "reject_costs"]
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request).select_related("customer", "recorded_by", "reviewed_by")
+        if getattr(request.user, "role", None) == Role.TECH:
+            return qs.none()  # 技术部不可见财务
+        return qs
+
+    @admin.action(description="审核通过所选支出(计入成本)")
+    def approve_costs(self, request, queryset):
+        n = queryset.filter(status=CostStatus.PENDING).update(
+            status=CostStatus.APPROVED, reviewed_by=request.user, reviewed_at=timezone.now()
+        )
+        self.message_user(request, f"已通过 {n} 条支出")
+
+    @admin.action(description="驳回所选支出")
+    def reject_costs(self, request, queryset):
+        n = queryset.filter(status=CostStatus.PENDING).update(
+            status=CostStatus.REJECTED, reviewed_by=request.user, reviewed_at=timezone.now()
+        )
+        self.message_user(request, f"已驳回 {n} 条支出")
 
 
 @admin.register(VisitLog)

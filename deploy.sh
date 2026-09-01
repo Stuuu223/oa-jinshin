@@ -1,5 +1,8 @@
 #!/bin/bash
-# 金石系统标准部署脚本:拉取最新代码 + 重建容器
+# 金石系统标准部署脚本(唯一服务器部署入口)——三态对齐 SOP(净化 09-01):
+#   1. 本地:改代码 → manage.py check + 渲染断言 → git commit + push(GitHub)
+#   2. 服务器:bash deploy.sh → git pull(失败自动重试3次,网络持续不通用 git bundle 兜底)→ docker compose 重建
+#   3. 验证:docker ps 状态 + 容器内断言(新配置/paintMenuBars)→ 老板 Ctrl+F5 验收
 # 用法:bash deploy.sh(在服务器 /opt/jinshi 下执行)
 set -e
 cd /opt/jinshi

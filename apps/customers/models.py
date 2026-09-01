@@ -40,6 +40,22 @@ class Source(models.TextChoices):
     OTHER = "other", "其他"
 
 
+class CostCategory(models.TextChoices):
+    """成本类型——咨询部线上申请成本,总经办审核(细则:域名/服务器/技术费/杂费)."""
+    DOMAIN = "domain", "域名"
+    SERVER = "server", "服务器"
+    TECH = "tech", "技术费"
+    MISC = "misc", "杂费"
+    OTHER = "other", "其他"
+
+
+class CostStatus(models.TextChoices):
+    """成本申请审核状态——总经办审核通过才计入成本."""
+    PENDING = "pending", "待审核"
+    APPROVED = "approved", "已通过"
+    REJECTED = "rejected", "已驳回"
+
+
 class SoftDeleteManager(models.Manager):
     """默认排除已软删除的记录."""
     def get_queryset(self):
@@ -198,6 +214,72 @@ class Customer(models.Model):
         return " / ".join(parts) if parts else "—"
     # property 对象不能直接设 short_description,须在底层函数上设置
     follow_staff_display.fget.short_description = "跟进人员"
+
+    # ===== 财务派生(细则:收款/支出咨询师填,利润自动计算——SSOT 派生不落库) =====
+    @property
+    def total_received(self):
+        """累计收款(所有收款记录之和)."""
+        return self.receipts.aggregate(s=models.Sum("amount"))["s"] or 0
+
+    @property
+    def total_cost(self):
+        """累计支出(仅统计总经办审核通过的支出——驳回的不计入成本)."""
+        return self.costs.filter(status=CostStatus.APPROVED).aggregate(s=models.Sum("amount"))["s"] or 0
+
+    @property
+    def profit(self):
+        """利润 = 累计收款 − 累计支出(自动计算,永不脏)."""
+        return self.total_received - self.total_cost
+
+
+class Receipt(models.Model):
+    """收款记录——挂成交客户(细则:收款由咨询师填写),留痕不复核,创建即知会总经办."""
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name="receipts", verbose_name="成交客户")
+    amount = models.DecimalField("收款金额", max_digits=12, decimal_places=2)
+    note = models.CharField("备注", max_length=128, blank=True, help_text="如'定金'/'尾款'/'全款'")
+    recorded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True,
+        related_name="recorded_receipts", verbose_name="填写人(咨询师)",
+    )
+    received_at = models.DateField("收款时间", null=True, blank=True, help_text="实际到账日期")
+    created_at = models.DateTimeField("录入时间", auto_now_add=True)
+    history = HistoricalRecords()
+
+    class Meta:
+        verbose_name = "收款记录"
+        verbose_name_plural = verbose_name
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.customer.company} 收款 {self.amount}"
+
+
+class Cost(models.Model):
+    """支出/成本记录——挂成交客户(细则:支出由咨询师填写),成本申请需总经办审核通过才计入."""
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name="costs", verbose_name="成交客户")
+    amount = models.DecimalField("支出金额", max_digits=12, decimal_places=2)
+    category = models.CharField("成本类型", max_length=16, choices=CostCategory.choices, default=CostCategory.OTHER)
+    note = models.CharField("备注", max_length=128, blank=True, help_text="如'域名费'/'服务器费'/'技术费'")
+    status = models.CharField("审核状态", max_length=16, choices=CostStatus.choices, default=CostStatus.PENDING)
+    recorded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True,
+        related_name="recorded_costs", verbose_name="申请/填写人(咨询师)",
+    )
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="reviewed_costs", verbose_name="审核人(总经办)",
+    )
+    reviewed_at = models.DateTimeField("审核时间", null=True, blank=True)
+    created_at = models.DateTimeField("申请时间", auto_now_add=True)
+    history = HistoricalRecords()
+
+    class Meta:
+        verbose_name = "支出记录"
+        verbose_name_plural = verbose_name
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.customer.company} 支出 {self.amount}"
 
 
 class RecycledCustomer(Customer):

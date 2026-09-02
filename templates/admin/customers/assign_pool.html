@@ -27,7 +27,7 @@
               <td>{{ obj.company }}</td>
               <td><span class="tag tag-qual">{{ obj.qualification_interest|default:"未填" }}</span></td>
               <td>{{ obj.quote_amount|default:"—" }}</td>
-              <td><span class="tag tag-pool">{{ obj.get_pool_type_display|default:"公海" }}</span></td>
+              <td><span class="tag tag-pool">{{ obj.get_pool_type_display|default:"公司客户池" }}</span></td>
             </tr>
             {% endfor %}
           </tbody>

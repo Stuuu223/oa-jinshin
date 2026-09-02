@@ -11,7 +11,7 @@ class CustomerStatus(models.TextChoices):
     """客户状态——对应 01 文档 §4.1 状态机."""
     LEAD = "lead", "线索"
     FOLLOWING = "following", "跟进中"
-    POOL = "pool", "公海"
+    POOL = "pool", "公司客户池"
     DEAL = "deal", "已成交"
     LOST = "lost", "已流失"
 
@@ -29,7 +29,7 @@ class PoolType(models.TextChoices):
     两者并行不冲突：AUTO 是后台 cron 30 天未跟进自动掉入；
     SQUARE 是销售/主管/总经办主动释放到客户池广场。
     """
-    AUTO = "auto", "自动掉入公海"
+    AUTO = "auto", "自动掉入公司客户池"
     SQUARE = "square", "客户池广场（手动释放）"
 
 

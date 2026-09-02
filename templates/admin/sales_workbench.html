@@ -108,8 +108,9 @@
   {% endfor %}
   </div>
 
-  <div class="panel">
-  <h3>撞单标识客户</h3>
+  <div class="panel" id="dupSect">
+  <h3 style="cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px" onclick="var b=document.getElementById('dupBody'),a=document.getElementById('dupArrow'),open=b.style.display!=='none';b.style.display=open?'none':'block';a.textContent=open?'▶':'▼'">撞单标识客户<span id="dupArrow" style="font-size:10px">▶</span></h3>
+  <div id="dupBody" style="display:none">
     {% if duplicates %}
       {% for c in duplicates %}
       <div class="row" style="flex-direction:column;align-items:flex-start;gap:4px;padding:8px 0">
@@ -129,6 +130,7 @@
     {% else %}
       <div class="empty">无撞单标识客户</div>
     {% endif %}
+  </div>
   </div>
 
   <div class="panel">

@@ -49,13 +49,13 @@
 
 <div class="dash-wrap">
   {% if dup_alerts %}
-  <div class="dup-panel" id="dupPanel">
+  <div class="dup-panel collapsed" id="dupPanel">
     <div class="dup-head">
       <b>撞单提醒</b>
       <div class="dup-right">
         <span class="dup-count">{{ dup_alerts }} 条待处理</span>
-        <button type="button" class="dup-toggle" id="dupToggle" aria-expanded="true">
-          <span class="arrow">▼</span><span class="txt">收起</span>
+        <button type="button" class="dup-toggle" id="dupToggle" aria-expanded="false">
+          <span class="arrow">▶</span><span class="txt">展开</span>
         </button>
       </div>
     </div>

@@ -2,6 +2,11 @@
 {% load i18n %}
 
 {% block content %}
+<style>
+  /* 系统说明框(类名化——老板 09-02:不给类名样式难维护;左侧色条提示更清晰) */
+  .sys-hint { margin: 12px 0 18px; padding: 14px 18px; border: 1px solid #BFDBFE; border-left: 4px solid #2563EB; background: #F5F9FF; border-radius: 8px; color: #475569; font-size: 14px; line-height: 1.9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', 'PingFang SC', sans-serif; }
+  .sys-hint b { color: #1E40AF; }
+</style>
 {% if request.user.role == 'sales' or request.user.role == 'sales_lead' %}{% comment %}销售/销售主管{% endcomment %}
 <a href="/admin/sales-workbench/" style="display:inline-block;margin:0 0 10px;padding:6px 14px;background:#fff;color:#2563EB;border:1px solid #CBD5E1;border-radius:8px;text-decoration:none;font-size:13px">← 返回销售数据总览</a>
 {% elif request.user.role == 'consultant' or request.user.role == 'consultant_lead' %}{% comment %}咨询/咨询主管{% endcomment %}
@@ -19,14 +24,14 @@
 <span style="font-size:13px;color:#94A3B8;margin-left:8px">总经办数据总览 &gt; 客户管理 &gt; {% if request.GET.status__exact == "deal" %}成交管理 &gt; 成交客户{% elif request.GET.status__exact == "pool" %}公司客户池{% else %}客户列表{% endif %}</span>
 {% endif %}
 {% if request.GET.status__exact == "pool" %}
-<div style="margin:10px 0 16px;padding:12px 16px;border:1px solid #BFDBFE;background:#EFF6FF;border-radius:8px;color:#1E40AF;font-size:14px;line-height:1.9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Microsoft YaHei','PingFang SC',sans-serif">
+<div class="sys-hint">
   <b>公司客户池</b>：这里显示的是<b>未成交释放的公海客户</b>（销售跟进未成单后释放，或手动释放到广场）。
   <br>· 公海客户<b>全员可见、可领取</b>——选中记录后使用「领取到我的客户」操作，归属到自己名下跟进。
   <br>· 与「客户列表」不同：<b>客户列表是全部/自己的客户</b>，<b>公司客户池只是公海客户</b>。
 </div>
 {% endif %}
 {% if request.GET.status__exact == "deal" %}
-<div style="margin:10px 0 16px;padding:12px 16px;border:1px solid #BFDBFE;background:#EFF6FF;border-radius:8px;color:#1E40AF;font-size:14px;line-height:1.9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Microsoft YaHei','PingFang SC',sans-serif">
+<div class="sys-hint">
   <b>成交客户</b>：销售已成交的<b>客户档案</b>（成交管理统一入口）。
   <br>· <b>进行中</b>=办证流程推进中；<b>已完结</b>=全流程办结；<b>搁置</b>=暂停。
   <br>· 收款/支出由<b>咨询师</b>维护，<b>利润自动计算</b>；成本支出需<b>总经办审核</b>通过才计入。

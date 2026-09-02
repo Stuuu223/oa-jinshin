@@ -293,8 +293,12 @@
                     }
                 }
             }
-            var t = setInterval(decorateMyCustomers, 300);
-            setTimeout(function () { clearInterval(t); }, 10000);
+            decorateMyCustomers();
+            // Vue 重渲染(点击 is-active/路由切换)会清掉 innerHTML 装饰 → MutationObserver 长期守护(幂等:已装饰则不动,老板 09-03:点击后提示乱跑/消失)
+            var mo = new MutationObserver(function () { decorateMyCustomers(); });
+            var host = document.querySelector('.menu') || document.querySelector('.el-aside') || document.body;
+            mo.observe(host, { childList: true, subtree: true });
+            setTimeout(function () { mo.disconnect(); }, 600000);
         })();
         // 工作台菜单已统一为「部门+数据总览」(总经办/销售/咨询/技术),全员一致,无需按角色改写
         // 移除 simpleui 前端 var home 兜底菜单项(金石管理系统):与顶部 logo 重复 + 与 工作台>总经办数据总览 同 URL 抢高亮(老板反馈 09-01)
@@ -443,7 +447,10 @@
     /* 二级条目:白底深字(覆盖 .menu .el-menu-item 的 #1f2d3d) */
     .menu .el-menu-item { color: #334155 !important; background-color: transparent !important; font-size: 13px; font-weight: 400; margin: 1px 8px; border-radius: 6px; height: 34px; line-height: 34px; }
     .menu .el-menu-item:hover { background-color: #F1F5F9 !important; color: #1E293B !important; }
-    .menu .el-menu .is-active { color: #1E293B !important; background-color: #F1F5F9 !important; font-weight: 600; }
+    /* 激活(点击)条目:字体/图标/提示统一 #63AFFE(老板 09-03:is-active 高亮色)——mm-hint 激活时同色不跳色 */
+    .menu .el-menu-item.is-active { color: #63AFFE !important; background-color: #F1F5F9 !important; font-weight: 600; }
+    .menu .el-menu-item.is-active .menu-icon { color: #63AFFE !important; }
+    .menu .el-menu-item.is-active .mm-hint { color: #63AFFE !important; }
     /* 图标基色:一级蓝条上白、二级条目中性灰(不花,老板反馈 09-01 满屏蓝太花)、嵌套深(覆盖 simpleui 图标灰) */
     .menu .el-submenu__title .menu-icon { color: #FFFFFF !important; }
     .menu .el-menu .el-submenu__title .menu-icon { color: #FFFFFF !important; }

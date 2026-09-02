@@ -272,10 +272,10 @@
         {% endif %}
         // 空分组过滤:models 为空的 submenu 不显示(如技术视角'工作台'空壳)
         menus = menus.filter(function (m) { return !m.models || m.models.length > 0; });
-        // 普通职员(销售/咨询/技术)不'管理'成交——工作台是各自主入口,移除'成交管理'分组
-        // (管理层:销售主管/咨询主管/总经办保留——分配/调配/全盘是管理职责)
+        // 销售要看自己的成交客户进度(老板拍板 09-02)——'成交管理'仅咨询/技术职员移除(工作台各自主入口)
+        // (销售/销售主管/咨询主管/总经办保留——销售看自己成交,管理层分配/调配/全盘是管理职责)
         var _role = '{{ request.user.role|default:"" }}';
-        if (_role === 'sales' || _role === 'consultant' || _role === 'tech') {
+        if (_role === 'consultant' || _role === 'tech') {
             menus = menus.filter(function (m) { return m.name !== '成交管理'; });
         }
         // 工作台菜单已统一为「部门+数据总览」(总经办/销售/咨询/技术),全员一致,无需按角色改写

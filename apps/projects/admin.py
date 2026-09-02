@@ -243,8 +243,11 @@ class ProjectAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
             keep = set(ALL_FIELDS) - SALES_HIDDEN
         elif role == Role.CONSULTANT:
             keep = set(ALL_FIELDS) - CONSULTANT_HIDDEN
+        elif role in (Role.ADMIN, Role.SALES_LEAD):
+            return self.fieldsets  # 总经办/销售组长:全字段含财务汇总(利润开放——行域由 get_queryset 限定:销售自己/组长自己+组员)
         else:
-            return self.fieldsets
+            # 咨询主管:办证跟进字段可看,财务汇总(收款/支出/利润)不开放(老板 09-02:利润只向总经办/销售/组长开放)
+            return [(n, o) for n, o in self.fieldsets if "财务汇总" not in n]
         # 过滤每个分组的字段,保留非空分组
         result = []
         for name, opts in fs:
@@ -253,8 +256,8 @@ class ProjectAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
             for f in fields:
                 if isinstance(f, (tuple, list)):
                     flat.append(tuple(x for x in f if x in keep))
-                elif f in keep or (f in MONEY_FIELDS and role != Role.TECH):
-                    # 财务汇总三字段按角色保留(销售/咨询/咨询主管/总经办可看),技术部除外(细则:技术看不到财务)
+                elif f in keep or (f in MONEY_FIELDS and role == Role.SALES):
+                    # 财务汇总三字段仅销售保留(组长走上方全字段分支);技术/咨询/主管不见(老板 09-02)
                     flat.append(f)
             flat = [f for f in flat if f not in ((),)]
             if flat:

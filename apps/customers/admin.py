@@ -317,7 +317,7 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
     class Media:
         css = {"all": ("admin/css/change_form_inline_fix.css",)}
 
-    VIEW_ROLES = FIRST_PAGE_ROLES | {Role.CONSULTANT, Role.CONSULTANT_LEAD}  # 咨询序列可看成交客户(第二页),第一页客户仍按细则仅销售序列
+    VIEW_ROLES = FIRST_PAGE_ROLES  # 客户表(含成交客户)仅销售序列+总经办——咨询部撤回(老板 09-02:咨询主管只负责分配,暂不给成交管理)
     ADD_ROLES = FIRST_PAGE_ROLES
     CHANGE_ROLES = FIRST_PAGE_ROLES
     DELETE_ROLES = FIRST_PAGE_ROLES
@@ -462,17 +462,7 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
             return qs.filter(team_q)
         if role == Role.ADMIN:
             return qs
-        # 咨询主管/咨询师:只看成交客户(细则第二页——办证跟进),不碰第一页客户(v2 细则第一页仅销售序列与总经办)
-        if role in (Role.CONSULTANT, Role.CONSULTANT_LEAD):
-            ctx = request.GET.get("status__exact")
-            base_deal = qs.filter(status=CustomerStatus.DEAL)
-            if role == Role.CONSULTANT:
-                # 咨询师:看自己跟进的成交客户(经项目 consultant 关联,related_name="projects")
-                base_deal = base_deal.filter(projects__consultant=user).distinct()
-            if ctx == str(CustomerStatus.DEAL) or is_object_view:
-                return base_deal
-            return qs.none()
-        # 技术/财务不看客户页(细则)
+        # 咨询/技术/财务不看客户表(老板 09-02:咨询部暂撤回成交管理——咨询主管只负责分配,办证在项目层面)
         return qs.none()
 
     def get_changelist_instance(self, request):

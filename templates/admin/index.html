@@ -278,16 +278,23 @@
             menus = menus.filter(function (m) { return m.name !== '成交管理'; });
         }
         // 我的客户:按角色加括弧提示(老板 09-02 拍板)——总经办看全部/组长看个人+组员(带真实组名)/销售看名下
+        // 我的客户:角色提示不并入菜单名(并入会撑宽 width:auto 侧栏,老板 09-03 反馈)——渲染后拆两行:首行"我的客户"、次行小字提示
         var _myHint = '{% if request.user.role == "admin" %}(您为总经办,可查看全部客户){% elif request.user.role == "sales_lead" %}(您为{{ request.user.team.name|default:"销售组" }}组长,可查看个人及所属组员客户){% elif request.user.role == "sales" %}(您为销售,可查看名下客户){% endif %}';
-        if (_myHint) {
-            menus.forEach(function (g) {
-                if (g.models) {
-                    g.models.forEach(function (it) {
-                        if (it.name === '我的客户') { it.name = it.name + _myHint; }
-                    });
+        (function () {
+            if (!_myHint) { return; }
+            function decorateMyCustomers() {
+                var items = document.querySelectorAll('.el-menu-item');
+                for (var i = 0; i < items.length; i++) {
+                    var sp = items[i].querySelector('span');
+                    if (sp && sp.textContent.trim() === '我的客户' && !items[i].querySelector('.mm-hint')) {
+                        sp.style.display = 'inline-block';
+                        sp.innerHTML = '<span class="mm-name">我的客户</span><span class="mm-hint">' + _myHint + '</span>';
+                    }
                 }
-            });
-        }
+            }
+            var t = setInterval(decorateMyCustomers, 300);
+            setTimeout(function () { clearInterval(t); }, 10000);
+        })();
         // 工作台菜单已统一为「部门+数据总览」(总经办/销售/咨询/技术),全员一致,无需按角色改写
         // 移除 simpleui 前端 var home 兜底菜单项(金石管理系统):与顶部 logo 重复 + 与 工作台>总经办数据总览 同 URL 抢高亮(老板反馈 09-01)
         (function () {
@@ -446,6 +453,8 @@
     .menu .el-menu-item .menu-icon.status-yellow { color: #F59E0B !important; }
     .menu .el-menu-item .menu-icon.status-red { color: #DC2626 !important; }
     .menu .el-menu-item .menu-icon.status-gray { color: #64748B !important; }
+    /* 我的客户:角色提示第二行小字(老板 09-03:提示并入菜单名会撑宽 width:auto 侧栏)——拆两行渲染 */
+    .menu .el-menu-item .mm-hint { display: block; font-size: 11px; font-weight: 400; color: #A6ADBB; line-height: 1.35; white-space: nowrap; }
     </style>
     <script type="text/javascript">
     // (临时调试信息已移除——按钮失效定位完成:click触发但Vue/Element UI handler未响应(个别浏览器profile的Vue事件绑定层),见27号排查记录)

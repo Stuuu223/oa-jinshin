@@ -50,26 +50,27 @@ def dashboard(request):
     converted = funnel["已成交"]
     convert_rate = round(converted / total_customers * 100, 1) if total_customers else 0
 
-    # ── 项目与财务 ──
-    projects = Project.objects.all()
-    total_projects = projects.count()
+    # ── 成交客户与财务(一表化:原项目表并入成交客户,财务=客户侧收款/支出) ──
+    from apps.customers.models import Cost as _Cost, CostStatus as _CostStatus, Receipt as _Receipt
+    deals = Customer.objects.filter(status=CustomerStatus.DEAL)
+    total_projects = deals.count()
     site_progress = {
-        "待开始": projects.filter(site_progress="not_started").count(),
-        "进行中": projects.filter(site_progress="in_progress").count(),
-        "已完成": projects.filter(site_progress="done").count(),
+        "待开始": deals.filter(site_progress="not_started").count(),
+        "进行中": deals.filter(site_progress="in_progress").count(),
+        "已完成": deals.filter(site_progress__in=["completed_pending", "deployed"]).count(),
     }
-    income = projects.annotate(s=Sum("payments__amount")).aggregate(t=Sum("s"))["t"] or Decimal("0")
-    expense = projects.annotate(s=Sum("expenses__amount")).aggregate(t=Sum("s"))["t"] or Decimal("0")
+    income = _Receipt.objects.filter(customer__status=CustomerStatus.DEAL).aggregate(s=Sum("amount"))["s"] or Decimal("0")
+    expense = _Cost.objects.filter(customer__status=CustomerStatus.DEAL, status=_CostStatus.APPROVED).aggregate(s=Sum("amount"))["s"] or Decimal("0")
     profit = income - expense
 
     # ── 部门待办 ──
     today = timezone.localdate()
-    due_soon = projects.filter(created_at__date__gte=today).count()
+    due_soon = deals.filter(created_at__date__gte=today).count()
     unread_count = Notification.objects.filter(recipient=request.user, read_at__isnull=True).count()
     dept_todos = {
         "销售:待跟进客户": Customer.objects.filter(status=CustomerStatus.LEAD).count(),
-        "咨询:待分配项目": projects.filter(consultant__isnull=True).count(),
-        "技术:待开始建站": projects.filter(site_progress="not_started").count(),
+        "咨询:待分配成交客户": deals.filter(consultant__isnull=True).count(),
+        "技术:待开始建站": deals.filter(site_progress="not_started").count(),
         "总经办:未读通知": unread_count,
     }
 
@@ -202,8 +203,8 @@ def sales_workbench(request):
             "owner": owner_text,  # 归属方(先建档,资源归它)
             "dup_pairs": pairs,
         })
-    # 我成交的项目(销售/主管:查看自己成交项目进度,细则[20];普通职员侧边栏已无'成交管理',此入口在工作台)
-    my_deals = Project.objects.filter(sales=me).order_by("-deal_at")[:20]
+    # 我成交的客户(一表化:成交客户卡即成交单;销售/主管在此看办证/建站/回款进度)
+    my_deals = Customer.objects.filter(status=CustomerStatus.DEAL, sales=me).order_by("-deal_at")[:20]
 
     # 组员管理(主管视角):组员名单 + 每人客户数/成交数
     team_stats = []
@@ -244,28 +245,27 @@ def consult_workbench(request):
             return redirect(reverse("sales_workbench"))
         return redirect("/admin/")
 
-    from apps.projects.models import Project
-
     me = request.user
     role = getattr(me, "role", None)
+    deals = Customer.objects.filter(status=CustomerStatus.DEAL)
 
-    # 待分配项目(嘉茵/总经办可见全部待分配,普通咨询不看)
+    # 待分配成交客户(嘉茵/总经办可见全部待分配,普通咨询不看)
     if role in ("consultant_lead", "admin"):
-        pending_assign = Project.objects.filter(consultant__isnull=True).order_by("-deal_at")[:10]
+        pending_assign = deals.filter(consultant__isnull=True).order_by("-deal_at")[:10]
     else:
-        pending_assign = Project.objects.none()
+        pending_assign = Customer.objects.none()
 
-    # 我的项目(普通咨询看自己负责的;嘉茵看全部)
+    # 我的成交客户(普通咨询看自己跟进的;嘉茵看全部)——一表化:成交客户卡即办证单
     if role == "consultant":
-        my_projects = Project.objects.filter(consultant=me)
+        my_projects = deals.filter(consultant=me)
     else:
-        my_projects = Project.objects.all()
+        my_projects = deals.all()
 
     # 建站进度分布(必须在切片前统计,切片后 QuerySet 不可再 filter)
     progress = {
         "待开始": my_projects.filter(site_progress="not_started").count(),
         "进行中": my_projects.filter(site_progress="in_progress").count(),
-        "已完成": my_projects.filter(site_progress="done").count(),
+        "已完成": my_projects.filter(site_progress__in=["completed_pending", "deployed"]).count(),
     }
 
     # 切片用于列表展示
@@ -282,31 +282,36 @@ def consult_workbench(request):
 
 
 def tech_workbench(request):
-    """技术数据总览——任务池(待领取)/我承接的/进度统计."""
+    """技术数据总览——任务池(待领取)/我承接的/进度统计(一表化:数据源=成交客户)."""
     if not request.user.is_authenticated or not request.user.is_staff:
         return redirect("/admin/login/?next=/admin/tech-workbench/")
     role = getattr(request.user, "role", None)
     if role not in (Role.TECH, Role.ADMIN):
         return redirect(reverse("dashboard"))
 
-    from apps.projects.models import Project, SiteProgress
+    from apps.customers.models import Customer, CustomerStatus
+    from apps.projects.models import SiteProgress
 
     me = request.user
-    # 任务池:未承接的建站任务(待开始/进行中)
-    pool = Project.objects.filter(tech_assigned__isnull=True).order_by("deal_at")
+    deal_base = Customer.objects.filter(status=CustomerStatus.DEAL)
+    # 任务池:已勾建站类目/信息(需要建站)且未承接的成交客户
+    pool = (deal_base.filter(tech_assigned__isnull=True)
+            .exclude(site_category="")
+            .exclude(site_category__isnull=True)
+            .order_by("deal_at"))
     # 我承接的
-    mine = Project.objects.filter(tech_assigned=me).order_by("-deal_at")
+    mine = deal_base.filter(tech_assigned=me).order_by("-deal_at")
     # 进度统计
     from django.db.models import Q as _Q
     progress = {
-        "待开始": Project.objects.filter(site_progress=SiteProgress.NOT_STARTED).count(),
-        "进行中": Project.objects.filter(site_progress=SiteProgress.IN_PROGRESS).count(),
-        "已完成": Project.objects.filter(_Q(site_progress=SiteProgress.COMPLETED_PENDING) | _Q(site_progress=SiteProgress.DEPLOYED)).count(),
+        "待开始": deal_base.filter(site_progress=SiteProgress.NOT_STARTED).count(),
+        "进行中": deal_base.filter(site_progress=SiteProgress.IN_PROGRESS).count(),
+        "已完成": deal_base.filter(_Q(site_progress=SiteProgress.COMPLETED_PENDING) | _Q(site_progress=SiteProgress.DEPLOYED)).count(),
         "我承接": mine.count(),
     }
     # 总经办(老板)不干活:技术数据总览=部门总览——展示承接分布,不显示个人领取/我承接
     is_admin = role == Role.ADMIN
-    all_claimed = Project.objects.filter(tech_assigned__isnull=False).order_by("-deal_at") if is_admin else Project.objects.none()
+    all_claimed = deal_base.filter(tech_assigned__isnull=False).order_by("-deal_at") if is_admin else Customer.objects.none()
     context = dict(
         title="技术数据总览",
         me=me,

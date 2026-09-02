@@ -4,6 +4,8 @@ from django.db import models
 from django.utils import timezone
 from simple_history.models import HistoricalRecords
 
+from apps.projects.models import SiteCategory, SiteProgress  # 一表化并入(原项目表枚举;项目退役时迁入本模块)
+
 
 class CustomerStatus(models.TextChoices):
     """客户状态——对应 01 文档 §4.1 状态机."""
@@ -92,6 +94,34 @@ class Customer(models.Model):
     deal_status = models.CharField(
         "成交状态", max_length=16, choices=DealStatus.choices, null=True, blank=True,
         help_text="仅 status=deal 时有效:进行中(active)/已完结(done)/搁置(on_hold)",
+    )
+
+    # ===== 成交工作单字段(一表化:原项目表并入——细则第二页"成交客户信息管理";仅 status=deal 生效) =====
+    deal_business = models.CharField("成交业务", max_length=128, blank=True)
+    contract_entity = models.CharField("签约主体", max_length=128, blank=True,
+                                       help_text="成交时确定的合同签约主体(一般=公司名)")
+    is_invoiced = models.BooleanField("是否开票", default=False)
+    is_tax_included = models.BooleanField("是否含税", default=False)
+    deal_at = models.DateTimeField("成交时间", null=True, blank=True)
+    sales = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="deal_sales_customers", verbose_name="成交销售",
+    )
+    consultant = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="deal_consultant_customers", verbose_name="咨询师",
+    )
+    site_category = models.CharField("建站类目", max_length=24, choices=SiteCategory.choices, blank=True)
+    site_info = models.TextField("网站搭建信息", blank=True)
+    site_full_name = models.CharField("网站全称", max_length=128, blank=True)
+    site_domain_icp = models.TextField("域名与备案", blank=True)
+    site_contact_address = models.CharField("网站联系地址", max_length=255, blank=True)
+    site_contact_phone = models.CharField("网站联系电话", max_length=32, blank=True)
+    site_contact_email = models.EmailField("网站联系邮箱", blank=True)
+    site_progress = models.CharField("建站进度", max_length=24, choices=SiteProgress.choices, blank=True)
+    tech_assigned = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="tech_assigned_deal_customers", verbose_name="承接技术",
     )
     pool_type = models.CharField(
         "公海类型", max_length=16, choices=PoolType.choices, null=True, blank=True,

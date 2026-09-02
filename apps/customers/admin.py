@@ -317,9 +317,9 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
     class Media:
         css = {"all": ("admin/css/change_form_inline_fix.css",)}
 
-    VIEW_ROLES = FIRST_PAGE_ROLES  # 客户表(含成交客户)仅销售序列+总经办——咨询部撤回(老板 09-02:咨询主管只负责分配,暂不给成交管理)
+    VIEW_ROLES = FIRST_PAGE_ROLES | {Role.CONSULTANT, Role.TECH}  # 咨询师看自己跟进的成交客户;技术走建站领取(readonly 限定字段)
     ADD_ROLES = FIRST_PAGE_ROLES
-    CHANGE_ROLES = FIRST_PAGE_ROLES
+    CHANGE_ROLES = FIRST_PAGE_ROLES | {Role.CONSULTANT, Role.TECH}  # 咨询师填建站信息/技术改进度(readonly 限定)
     DELETE_ROLES = FIRST_PAGE_ROLES
 
     # ---------- 表单结构 ----------
@@ -327,9 +327,10 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
     def get_fieldsets(self, request, obj=None):
         if obj is None:
             return self.add_fieldsets
+        role = getattr(request.user, "role", None)
         # 编辑态:所有角色只显示基本信息——状态/归属/公海等系统字段由列表列与归属历史展示,
         # 流转必须走分配/释放/领取等 action,不在表单裸露
-        return (
+        fs = [
             ("基本信息", {
                 "fields": (
                     ("company", "contact_name"),
@@ -340,13 +341,85 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
                     "note",
                 ),
             }),
-        )
+        ]
+        # 一表化(老板 09-02 拍板):成交客户(status=deal)卡片显示成交工作单+建站信息(细则第二页)
+        if obj.status == CustomerStatus.DEAL:
+            fs += [
+                ("成交与签约", {
+                    "fields": (
+                        ("deal_business", "contract_entity"),
+                        ("is_invoiced", "is_tax_included"),
+                        ("sales", "consultant"),
+                        "deal_at",
+                    ),
+                }),
+                ("建站信息", {
+                    "fields": (
+                        ("site_category", "site_progress"),
+                        ("tech_assigned", "site_full_name"),
+                        ("site_domain_icp", "site_contact_phone"),
+                        ("site_contact_address", "site_contact_email"),
+                        "site_info",
+                    ),
+                }),
+            ]
+        # 咨询师:只给办证/建站所需(老板 09-02:来源/电话/QQ/微信等联系方式不展示,资质/公司名/建站信息才展示)
+        if role == Role.CONSULTANT:
+            keep = {"company", "qualification_interest", "deal_business", "deal_status",
+                    "site_category", "site_info", "site_full_name", "site_domain_icp",
+                    "site_contact_address", "site_contact_phone", "site_contact_email",
+                    "site_progress", "tech_assigned"}
+            filtered = []
+            for name, opts in fs:
+                fields = opts.get("fields", ())
+                flat = []
+                for f in fields:
+                    if isinstance(f, (tuple, list)):
+                        keep_t = tuple(x for x in f if x in keep)
+                        if keep_t:
+                            flat.append(keep_t)
+                    elif f in keep:
+                        flat.append(f)
+                if flat:
+                    filtered.append((name, {"fields": tuple(flat)}))
+            return tuple(filtered)
+        # 技术部:仅建站相关字段(细则:公司名称/成交时间/咨询师/建站类目/信息/进度)
+        if role == Role.TECH:
+            keep = {"company", "deal_at", "consultant", "site_category", "site_info", "site_progress"}
+            filtered = []
+            for name, opts in fs:
+                fields = opts.get("fields", ())
+                flat = []
+                for f in fields:
+                    if isinstance(f, (tuple, list)):
+                        keep_t = tuple(x for x in f if x in keep)
+                        if keep_t:
+                            flat.append(keep_t)
+                    elif f in keep:
+                        flat.append(f)
+                if flat:
+                    filtered.append((name, {"fields": tuple(flat)}))
+            return tuple(filtered)
+        return tuple(fs)
 
     def get_readonly_fields(self, request, obj=None):
         base = list(super().get_readonly_fields(request, obj))
+        role = getattr(request.user, "role", None)
         if obj is not None:
             # 编辑态:归属与状态字段一律只读,防止绕过署名/历史旁路
             base += ["owner", "status", "pool_type", "last_follow_at", "lost_reason"]
+            if role == Role.CONSULTANT:
+                # 咨询师:只可填建站信息(老板:建站信息由分配到咨询填写);其余全只读
+                editable = {"site_category", "site_info", "site_full_name", "site_domain_icp",
+                            "site_contact_address", "site_contact_phone", "site_contact_email"}
+                ro = [f.name for f in Customer._meta.fields
+                      if f.name not in editable and f.name not in ("id",)]
+                return base + ro
+            if role == Role.TECH:
+                # 技术部:只可改 site_progress(领取后更新进度);其余全只读
+                ro = [f.name for f in Customer._meta.fields
+                      if f.name != "site_progress" and f.name not in ("id",)]
+                return base + ro
         return base
 
     def get_actions(self, request):
@@ -462,7 +535,20 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
             return qs.filter(team_q)
         if role == Role.ADMIN:
             return qs
-        # 咨询/技术/财务不看客户表(老板 09-02:咨询部暂撤回成交管理——咨询主管只负责分配,办证在项目层面)
+        # 咨询师:只看自己跟进的成交客户(一表化后 consultant 字段直挂客户;联系方式对其隐藏见 fieldsets)
+        if role == Role.CONSULTANT:
+            base_deal = qs.filter(status=CustomerStatus.DEAL, consultant=user)
+            if is_object_view:
+                return base_deal
+            if request.GET.get("status__exact") == str(CustomerStatus.DEAL):
+                return base_deal
+            return qs.none()
+        # 技术部:建站任务池(需建站未承接)+我承接的;字段按细则仅建站相关(fieldsets 限定)
+        if role == Role.TECH:
+            claimable = qs.filter(status=CustomerStatus.DEAL, tech_assigned__isnull=True)
+            mine_q = qs.filter(status=CustomerStatus.DEAL, tech_assigned=user)
+            return (claimable | mine_q).distinct()
+        # 财务不看客户表(财务搁置由总经办代行)
         return qs.none()
 
     def get_changelist_instance(self, request):
@@ -651,6 +737,49 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
             context.update(extra_context)
         return TemplateResponse(request, "admin/delete_confirmation.html", context)
 
+    # ---------- 建站领取(一表化:成交客户卡承接)——技术/总经办 ----------
+
+    def claim_site_view(self, request, object_id):
+        """技术领取建站(细则:暂由技术同事自行协商搭建→领取制):记录承接人+通知咨询+留痕."""
+        from django.shortcuts import redirect
+        from django.contrib import messages as msgs
+        role = getattr(request.user, "role", None)
+        if role not in (Role.TECH, Role.ADMIN):
+            self.message_user(request, "仅技术/总经办可领取建站任务", msgs.ERROR)
+            return redirect("/admin/tech-workbench/")
+        customer = Customer.objects.filter(
+            pk=object_id, status=CustomerStatus.DEAL, tech_assigned__isnull=True
+        ).first()
+        if not customer:
+            self.message_user(request, "任务不存在或已被领取", msgs.ERROR)
+            return redirect("/admin/tech-workbench/")
+        # 承接=开始搭建:自动更新进度为进行中(用户:承接后不该还是待开始)
+        Customer.objects.filter(pk=customer.pk).update(
+            tech_assigned=request.user, site_progress="in_progress"
+        )
+        try:
+            if customer.consultant_id:
+                notify(
+                    category=NotificationCategory.SITE_TAKEN,
+                    importance=Importance.MEDIUM,
+                    recipients=customer.consultant,
+                    title="建站任务已承接",
+                    content=f"「{customer.company}」建站任务由 {request.user.real_name} 领取,后续建站事宜请联系该技术。",
+                    link=f"/admin/customers/customer/{customer.pk}/change/",
+                    actor=request.user,
+                    entity_type="customer",
+                    entity_id=customer.pk,
+                )
+            OperationLog.objects.create(
+                user=request.user, action="承接建站",
+                target=f"客户 {customer.company}",
+                detail=f"技术 {request.user.real_name} 领取建站任务",
+            )
+        except Exception:
+            pass
+        self.message_user(request, f"已领取建站任务:{customer.company},已通知咨询", msgs.SUCCESS)
+        return redirect("/admin/tech-workbench/")
+
     # ---------- 撞单预检（录入前弹窗的数据接口） ----------
 
     def get_urls(self):
@@ -660,6 +789,11 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
                 "check-duplicates/",
                 self.admin_site.admin_view(self.check_duplicates_view),
                 name="customers_customer_check_duplicates",
+            ),
+            path(
+                "<path:object_id>/claim/",
+                self.admin_site.admin_view(self.claim_site_view),
+                name="customers_customer_claim_site",
             ),
         ]
         return custom + urls

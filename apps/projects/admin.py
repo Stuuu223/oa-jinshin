@@ -139,7 +139,8 @@ ROLE_FIELD_SSOT = {
 }
 
 
-@admin.register(Project)
+# 一表化(老板 09-02 拍板:补字段不建表)——项目表并入成交客户,ProjectAdmin 退役不再注册;
+# 原模型/迁移/枚举(SiteCategory/SiteProgress)保留供 customers 侧引用,历史表照常留痕.
 class ProjectAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
     search_fields = ("company_snapshot", "contact_name_snapshot", "phone_snapshot")
     list_filter = ("site_progress", "is_invoiced")

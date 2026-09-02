@@ -287,6 +287,7 @@
                 for (var i = 0; i < items.length; i++) {
                     var sp = items[i].querySelector('span');
                     if (sp && sp.textContent.trim() === '我的客户' && !items[i].querySelector('.mm-hint')) {
+                        items[i].classList.add('mm-item');
                         sp.style.display = 'inline-block';
                         sp.innerHTML = '<span class="mm-name">我的客户</span><span class="mm-hint">' + _myHint + '</span>';
                     }
@@ -453,8 +454,9 @@
     .menu .el-menu-item .menu-icon.status-yellow { color: #F59E0B !important; }
     .menu .el-menu-item .menu-icon.status-red { color: #DC2626 !important; }
     .menu .el-menu-item .menu-icon.status-gray { color: #64748B !important; }
-    /* 我的客户:角色提示第二行小字(老板 09-03:提示并入菜单名会撑宽 width:auto 侧栏)——拆两行渲染 */
-    .menu .el-menu-item .mm-hint { display: block; font-size: 11px; font-weight: 400; color: #A6ADBB; line-height: 1.35; white-space: nowrap; }
+    /* 我的客户两行菜单:li 自适应高度容纳第二行提示(老板 09-03:固定 height:34px/line-height:34px 让第二行乱跑)→ mm-item 放开高度 */
+    .menu .el-menu-item.mm-item { height: auto !important; min-height: 34px !important; line-height: 1.25 !important; padding-top: 6px !important; padding-bottom: 6px !important; }
+    .menu .el-menu-item .mm-hint { display: block; font-size: 11px !important; font-weight: 400; color: rgba(64, 158, 255, 0.8) !important; line-height: 1.35; white-space: nowrap; }
     </style>
     <script type="text/javascript">
     // (临时调试信息已移除——按钮失效定位完成:click触发但Vue/Element UI handler未响应(个别浏览器profile的Vue事件绑定层),见27号排查记录)

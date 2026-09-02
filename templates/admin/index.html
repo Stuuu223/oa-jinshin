@@ -277,6 +277,17 @@
         if (_role === 'consultant' || _role === 'consultant_lead' || _role === 'tech') {
             menus = menus.filter(function (m) { return m.name !== '成交管理'; });
         }
+        // 我的客户:按角色加括弧提示(老板 09-02 拍板)——总经办看全部/组长看个人+组员(带真实组名)/销售看名下
+        var _myHint = '{% if request.user.role == "admin" %}(您为总经办,可查看全部客户){% elif request.user.role == "sales_lead" %}(您为{{ request.user.team.name|default:"销售组" }}组长,可查看个人及所属组员客户){% elif request.user.role == "sales" %}(您为销售,可查看名下客户){% endif %}';
+        if (_myHint) {
+            menus.forEach(function (g) {
+                if (g.models) {
+                    g.models.forEach(function (it) {
+                        if (it.name === '我的客户') { it.name = it.name + _myHint; }
+                    });
+                }
+            });
+        }
         // 工作台菜单已统一为「部门+数据总览」(总经办/销售/咨询/技术),全员一致,无需按角色改写
         // 移除 simpleui 前端 var home 兜底菜单项(金石管理系统):与顶部 logo 重复 + 与 工作台>总经办数据总览 同 URL 抢高亮(老板反馈 09-01)
         (function () {

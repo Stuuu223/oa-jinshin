@@ -253,7 +253,8 @@ class ProjectAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
             for f in fields:
                 if isinstance(f, (tuple, list)):
                     flat.append(tuple(x for x in f if x in keep))
-                elif f in keep or f in MONEY_FIELDS:
+                elif f in keep or (f in MONEY_FIELDS and role != Role.TECH):
+                    # 财务汇总三字段按角色保留(销售/咨询/咨询主管/总经办可看),技术部除外(细则:技术看不到财务)
                     flat.append(f)
             flat = [f for f in flat if f not in ((),)]
             if flat:

@@ -119,6 +119,25 @@ MONEY_FIELDS = ["total_income_display", "total_expense_display", "profit_display
 LIST_COLUMNS_DEFAULT = ("company_snapshot", "deal_business", "sales", "consultant", "site_progress", "profit_display")
 LIST_COLUMNS_TECH = ("company_snapshot", "deal_at", "consultant", "site_category", "site_progress", "claim_link")
 
+# ═══ SSOT:角色×字段可见性/可编辑性 单一事实源(细则第二页·权限功能 + 老板 09-02 拍板) ═══
+# 咨询可填:建站衔接信息(细则:咨询填写站点联系方式衔接办证/建站)——归属/签约/进度/承接不可动
+CONSULTANT_EDITABLE = {
+    "site_info", "site_full_name", "site_domain_icp",
+    "site_contact_address", "site_contact_phone", "site_contact_email",
+}
+# 咨询主管(嘉茵):可分配咨询师(consultant)+站点衔接;销售归属/签约/进度/技术承接仍只读
+CONSULTANT_LEAD_EDITABLE = CONSULTANT_EDITABLE | {"consultant"}
+
+# 每角色:visible=可见字段(财务汇总三字段另按 money),editable=可编辑字段(⊆visible),money=财务汇总/利润列可见
+ROLE_FIELD_SSOT = {
+    Role.ADMIN: {"visible": set(ALL_FIELDS), "editable": set(ALL_FIELDS), "money": True},
+    Role.SALES: {"visible": set(ALL_FIELDS) - SALES_HIDDEN, "editable": set(), "money": True},
+    Role.SALES_LEAD: {"visible": set(ALL_FIELDS), "editable": set(), "money": True},
+    Role.TECH: {"visible": set(TECH_VISIBLE), "editable": {"site_progress"}, "money": False},
+    Role.CONSULTANT: {"visible": set(ALL_FIELDS) - CONSULTANT_HIDDEN, "editable": CONSULTANT_EDITABLE, "money": False},
+    Role.CONSULTANT_LEAD: {"visible": set(ALL_FIELDS), "editable": CONSULTANT_LEAD_EDITABLE, "money": False},
+}
+
 
 @admin.register(Project)
 class ProjectAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
@@ -214,7 +233,11 @@ class ProjectAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
     def get_list_display(self, request):
         if getattr(request.user, "role", None) == Role.TECH:
             return LIST_COLUMNS_TECH
-        return LIST_COLUMNS_DEFAULT
+        rules = ROLE_FIELD_SSOT.get(getattr(request.user, "role", None)) or {}
+        cols = list(LIST_COLUMNS_DEFAULT)
+        if not rules.get("money") and "profit_display" in cols:
+            cols.remove("profit_display")  # 利润列仅总经办/销售/组长可见(SSOT money 标志驱动)
+        return cols
 
     def get_search_fields(self, request):
         if getattr(request.user, "role", None) == Role.TECH:
@@ -233,31 +256,25 @@ class ProjectAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
     # ---------- 按角色过滤可见字段 ----------
 
     def get_fieldsets(self, request, obj=None):
-        """fieldsets 按角色动态过滤——Django 有 fieldsets 时 get_fields 被忽略,
-        此前技术/销售/咨询字段隐藏未生效(技术详情泄漏联系人/电话/来源等)。"""
+        """fieldsets 按角色动态过滤——统一由 ROLE_FIELD_SSOT 派生(SSOT,勿再手写角色分支)."""
         role = getattr(request.user, "role", None)
-        fs = [list(g) for g in self.fieldsets]  # 深拷贝,避免污染类级 fieldsets
-        if role == Role.TECH:
-            keep = TECH_VISIBLE
-        elif role == Role.SALES:
-            keep = set(ALL_FIELDS) - SALES_HIDDEN
-        elif role == Role.CONSULTANT:
-            keep = set(ALL_FIELDS) - CONSULTANT_HIDDEN
-        elif role in (Role.ADMIN, Role.SALES_LEAD):
-            return self.fieldsets  # 总经办/销售组长:全字段含财务汇总(利润开放——行域由 get_queryset 限定:销售自己/组长自己+组员)
+        rules = ROLE_FIELD_SSOT.get(role)
+        if not rules:
+            # 未知角色安全兜底:仅财务汇总外的可见字段为空 → 全隐藏
+            keep = set()
         else:
-            # 咨询主管:办证跟进字段可看,财务汇总(收款/支出/利润)不开放(老板 09-02:利润只向总经办/销售/组长开放)
-            return [(n, o) for n, o in self.fieldsets if "财务汇总" not in n]
-        # 过滤每个分组的字段,保留非空分组
+            keep = rules["visible"] | (set(MONEY_FIELDS) if rules["money"] else set())
+        fs = [list(g) for g in self.fieldsets]  # 深拷贝,避免污染类级 fieldsets
         result = []
         for name, opts in fs:
             fields = opts.get("fields", ())
             flat = []
             for f in fields:
                 if isinstance(f, (tuple, list)):
-                    flat.append(tuple(x for x in f if x in keep))
-                elif f in keep or (f in MONEY_FIELDS and role == Role.SALES):
-                    # 财务汇总三字段仅销售保留(组长走上方全字段分支);技术/咨询/主管不见(老板 09-02)
+                    keep_t = tuple(x for x in f if x in keep)
+                    if keep_t:
+                        flat.append(keep_t)
+                elif f in keep:
                     flat.append(f)
             flat = [f for f in flat if f not in ((),)]
             if flat:
@@ -265,33 +282,25 @@ class ProjectAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
         return result
 
     def get_fields(self, request, obj=None):
-        role = getattr(request.user, "role", None)
-        if role == Role.TECH:
-            return [f for f in ALL_FIELDS if f in TECH_VISIBLE]
-        fields = list(ALL_FIELDS)
-        if role == Role.SALES:
-            fields = [f for f in fields if f not in SALES_HIDDEN]
-        elif role == Role.CONSULTANT:
-            fields = [f for f in fields if f not in CONSULTANT_HIDDEN]
-        else:
-            pass  # 咨询主管（嘉茵）/总经办：全字段
-        # 收支/利润汇总列——此前只声明在 readonly_fields 里、未进 get_fields,
-        # 详情页实际从不展示,收款/支出/利润在表单页不可见
-        return fields + MONEY_FIELDS
+        """统一由 ROLE_FIELD_SSOT 派生(有 fieldsets 时 Django 忽略本方法,保留以防无字段集视图裸奔)."""
+        rules = ROLE_FIELD_SSOT.get(getattr(request.user, "role", None)) or {}
+        visible = rules.get("visible", set())
+        fields = [f for f in ALL_FIELDS if f in visible]
+        if rules.get("money"):
+            fields += list(MONEY_FIELDS)
+        return fields
 
     def get_readonly_fields(self, request, obj=None):
+        """readonly = base(快照/签约主体/建站类目/财务汇总) + (可见字段 − 可编辑字段)——SSOT 派生.
+
+        覆盖:销售/组长全只读,技术仅可改进度,咨询不碰归属/签约/进度/技术承接,
+        咨询主管不改销售归属/签约/进度/技术承接(老板 09-02:咨询部越权改 sales 字段)."""
         base = list(super().get_readonly_fields(request, obj))
-        role = getattr(request.user, "role", None)
-        if role == Role.SALES:
-            # 销售只读，不能改成交项目字段
-            return base + [f for f in ALL_FIELDS if f not in SALES_HIDDEN]
-        if role == Role.TECH:
-            # 技术只能改 site_progress，其余只读
-            return base + [f for f in TECH_VISIBLE if f != "site_progress"]
-        if role == Role.CONSULTANT:
-            # 普通咨询:可填建站类目/信息/站点联系方式;归属/签约/进度非其职责只读
-            return base + ["sales", "consultant", "is_invoiced", "is_tax_included", "site_progress"]
-        return base
+        rules = ROLE_FIELD_SSOT.get(getattr(request.user, "role", None))
+        if not rules:
+            return base + [f for f in ALL_FIELDS]  # 未知角色安全兜底:全只读
+        readonly = [f for f in rules["visible"] if f not in rules["editable"]]
+        return base + readonly
 
     @admin.display(description="领取")
     def claim_link(self, obj: Project):

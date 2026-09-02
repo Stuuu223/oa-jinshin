@@ -5,12 +5,16 @@ Vue.component('sub-menu', {
             window.app.openTab(data);
         }
     },
+    computed: {
+        // 我的客户角色提示(总经办/组长/销售)——服务端注入 window._mmHint,Vue 原生渲染,重渲染(is-active/路由切换)不清掉(老板 09-03:JS 装饰版点击后提示消失)
+        mmHint: function () { return window._mmHint || ''; }
+    },
     template: `
         <div>
             <template v-for="(item,i) in menus" :key="item.eid">
-                <el-menu-item  :index="item.eid" v-if="!item.models" @click="openTab(item,item.eid)">
+                <el-menu-item  :index="item.eid" v-if="!item.models" @click="openTab(item,item.eid)" :class="{'mm-item': item.name === '我的客户'}">
                     <i :class="'menu-icon '+item.icon"></i>
-                    <span v-show="!fold">{{item.name}}</span>
+                    <span v-show="!fold">{{item.name}}<span v-if="item.name === '我的客户'" class="mm-hint">{{mmHint}}</span></span>
                 </el-menu-item>
                 <el-submenu :index="item.eid" v-else>
                     <template slot="title">

@@ -277,29 +277,9 @@
         if (_role === 'consultant' || _role === 'consultant_lead' || _role === 'tech') {
             menus = menus.filter(function (m) { return m.name !== '成交管理'; });
         }
-        // 我的客户:按角色加括弧提示(老板 09-02 拍板)——总经办看全部/组长看个人+组员(带真实组名)/销售看名下
-        // 我的客户:角色提示不并入菜单名(并入会撑宽 width:auto 侧栏,老板 09-03 反馈)——渲染后拆两行:首行"我的客户"、次行小字提示
-        var _myHint = '{% if request.user.role == "admin" %}(您为总经办,可查看全部客户){% elif request.user.role == "sales_lead" %}(您为{{ request.user.team.name|default:"销售组" }}组长,可查看个人及所属组员客户){% elif request.user.role == "sales" %}(您为销售,可查看名下客户){% endif %}';
-        (function () {
-            if (!_myHint) { return; }
-            function decorateMyCustomers() {
-                var items = document.querySelectorAll('.el-menu-item');
-                for (var i = 0; i < items.length; i++) {
-                    var sp = items[i].querySelector('span');
-                    if (sp && sp.textContent.trim() === '我的客户' && !items[i].querySelector('.mm-hint')) {
-                        items[i].classList.add('mm-item');
-                        sp.style.display = 'inline-block';
-                        sp.innerHTML = '<span class="mm-name">我的客户</span><span class="mm-hint">' + _myHint + '</span>';
-                    }
-                }
-            }
-            decorateMyCustomers();
-            // Vue 重渲染(点击 is-active/路由切换)会清掉 innerHTML 装饰 → MutationObserver 长期守护(幂等:已装饰则不动,老板 09-03:点击后提示乱跑/消失)
-            var mo = new MutationObserver(function () { decorateMyCustomers(); });
-            var host = document.querySelector('.menu') || document.querySelector('.el-aside') || document.body;
-            mo.observe(host, { childList: true, subtree: true });
-            setTimeout(function () { mo.disconnect(); }, 600000);
-        })();
+        // 我的客户:角色提示改为 Vue 模板级渲染(simpleui-x/js/menu.js sub-menu 模板:mm-item 类 + mm-hint span + window._mmHint)
+        // ——不再 JS 事后装饰 DOM,任何重渲染(is-active/路由切换/折叠)都不会清掉提示(老板 09-03 反馈:装饰版点击后提示整个消失)
+        window._mmHint = '{% if request.user.role == "admin" %}(您为总经办,可查看全部客户){% elif request.user.role == "sales_lead" %}(您为{{ request.user.team.name|default:"销售组" }}组长,可查看个人及所属组员客户){% elif request.user.role == "sales" %}(您为销售,可查看名下客户){% endif %}';
         // 工作台菜单已统一为「部门+数据总览」(总经办/销售/咨询/技术),全员一致,无需按角色改写
         // 移除 simpleui 前端 var home 兜底菜单项(金石管理系统):与顶部 logo 重复 + 与 工作台>总经办数据总览 同 URL 抢高亮(老板反馈 09-01)
         (function () {

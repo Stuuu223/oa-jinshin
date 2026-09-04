@@ -1,0 +1,65 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+{% block extrastyle %}<link rel="stylesheet" href="{% static 'admin/css/action_dialog.css' %}">{% endblock %}
+{% block content %}
+<form method="post">
+  {% csrf_token %}
+  {% for obj in queryset %}
+    <input type="hidden" name="{{ action_checkbox_name }}" value="{{ obj.pk }}">
+  {% endfor %}
+  <input type="hidden" name="action" value="mark_deal">
+  <input type="hidden" name="apply" value="1">
+
+  <div class="assign-pool-wrap">
+    <div class="assign-pool-card">
+      <div class="assign-pool-head">
+        <h2>转入成交 <span class="count-pill">{{ queryset|length }} 个</span></h2>
+        <p class="lead">确认成交信息后客户将转为「成交客户」,咨询主管(嘉茵)将收到通知并分配咨询师跟进办证</p>
+      </div>
+      <div class="assign-pool-body">
+        <table class="q-table">
+          <thead>
+            <tr><th>公司名称</th><th>报价金额</th><th>当前备注</th></tr>
+          </thead>
+          <tbody>
+            {% for obj in queryset %}
+            <tr>
+              <td>{{ obj.company }}</td>
+              <td>{{ obj.quote_amount|default:"—" }}</td>
+              <td>{{ obj.note|default:"—" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+
+        <div class="assign-row">
+          <label for="received_amount">已收金额（必填）</label>
+          <input type="number" name="received_amount" id="received_amount" step="0.01" min="0" placeholder="如 5000" required>
+          <div class="assign-hint">本次收款金额,将自动生成收款记录;如暂无收款填 0</div>
+        </div>
+
+        <div class="assign-row">
+          <label for="contract_entity">签约主体</label>
+          <select name="contract_entity" id="contract_entity">
+            <option value="">-- 不限 --</option>
+            <option value="company">公司签约</option>
+            <option value="personal">销售个人签约</option>
+          </select>
+          <div class="assign-hint">根据交易情况选择由公司还是销售个人签约</div>
+        </div>
+
+        <div class="assign-row">
+          <label for="deal_note">备注</label>
+          <input type="text" name="deal_note" id="deal_note" placeholder="补充成交备注（可选）">
+          <div class="assign-hint">将追加到客户现有备注后</div>
+        </div>
+
+        <div class="assign-actions">
+          <button type="submit" class="btn-primary">确认成交</button>
+          <a href="." class="btn-cancel">取消</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</form>
+{% endblock %}

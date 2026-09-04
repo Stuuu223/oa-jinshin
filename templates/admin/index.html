@@ -272,9 +272,10 @@
         {% endif %}
         // 空分组过滤:models 为空的 submenu 不显示(如技术视角'工作台'空壳)
         menus = menus.filter(function (m) { return !m.models || m.models.length > 0; });
-        // 成交管理仅销售序列+总经办保留——销售看自己成交/组长管组/总经办全盘;咨询师+咨询主管+技术移除(老板 09-02:咨询部暂撤回,办证走项目)
+        // 成交管理:咨询师+技术移除(老板 09-02:咨询师暂撤回,办证走项目;技术看不到客户与财务);
+        // 咨询主管保留(老板 09-04:需看待分配单子/分配咨询师/管理成交客户进度)
         var _role = '{{ request.user.role|default:"" }}';
-        if (_role === 'consultant' || _role === 'consultant_lead' || _role === 'tech') {
+        if (_role === 'consultant' || _role === 'tech') {
             menus = menus.filter(function (m) { return m.name !== '成交管理'; });
         }
         // 我的客户:角色提示改为 Vue 模板级渲染(simpleui-x/js/menu.js sub-menu 模板:mm-item 类 + mm-hint span + window._mmHint)

@@ -1,0 +1,59 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+{% block extrastyle %}<link rel="stylesheet" href="{% static 'admin/css/action_dialog.css' %}">{% endblock %}
+{% block content %}
+<form method="post">
+  {% csrf_token %}
+  {% for obj in queryset %}
+    <input type="hidden" name="{{ action_checkbox_name }}" value="{{ obj.pk }}">
+  {% endfor %}
+  <input type="hidden" name="action" value="assign_consultant">
+  <input type="hidden" name="apply" value="1">
+
+  <div class="assign-pool-wrap">
+    <div class="assign-pool-card">
+      <div class="assign-pool-head">
+        <h2>分配咨询师 <span class="count-pill">{{ queryset|length }} 个</span></h2>
+        <p class="lead">将成交客户分配给咨询师跟进办证,分配后咨询师可在「我的客户(咨询师)」中看到对应客户</p>
+      </div>
+      <div class="assign-pool-body">
+        <table class="q-table">
+          <thead>
+            <tr><th>公司名称</th><th>当前咨询师</th><th>成交业务</th><th>成交时间</th></tr>
+          </thead>
+          <tbody>
+            {% for obj in queryset %}
+            <tr>
+              <td>{{ obj.company }}</td>
+              <td>{% if obj.consultant %}{{ obj.consultant.real_name }}{% else %}<span class="tag tag-pool">待分配</span>{% endif %}</td>
+              <td>{{ obj.deal_business|default:"—" }}</td>
+              <td>{{ obj.deal_at|date:"Y-m-d"|default:"—" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+
+        <div class="assign-row">
+          <label for="consultant_id">选择咨询师</label>
+          <select name="consultant_id" id="consultant_id" required>
+            <option value="">-- 请选择 --</option>
+            {% for u in consultant_users %}<option value="{{ u.pk }}">{{ u.real_name }}</option>{% endfor %}
+          </select>
+          <div class="assign-hint">分配后该咨询师可在「我的客户」中看到这些客户,并负责办证跟进</div>
+        </div>
+
+        <div class="assign-row">
+          <label for="note">备注（可选）</label>
+          <input type="text" name="note" id="note" placeholder="如: 嘉茵亲自跟进建站业务">
+          <div class="assign-hint">备注将写入分配记录,供后续追溯</div>
+        </div>
+
+        <div class="assign-actions">
+          <button type="submit" class="btn-primary">确认分配</button>
+          <a href="." class="btn-cancel">取消</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</form>
+{% endblock %}

@@ -120,6 +120,7 @@ SIMPLEUI_CONFIG = {
             "icon": "fa fa-briefcase",
             "permission": "accounts.view_sales_workbench",
             "models": [
+                {"name": "待分配", "url": "/admin/customers/customer/?status__exact=deal&consultant__isnull=True", "icon": "fa fa-user-clock status-yellow", "permission": "accounts.view_sales_workbench"},
                 {"name": "全部", "url": "/admin/customers/customer/?status__exact=deal", "icon": "fa fa-circle-check", "permission": "accounts.view_sales_workbench"},
                 {"name": "进行中", "url": "/admin/customers/customer/?status__exact=deal&deal_status=active", "icon": "fa fa-circle status-yellow"},
                 {"name": "已完结", "url": "/admin/customers/customer/?status__exact=deal&deal_status=done", "icon": "fa fa-check-circle status-green"},

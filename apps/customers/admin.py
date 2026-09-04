@@ -172,7 +172,7 @@ class CustomerAttachmentInline(admin.TabularInline):
 
 
 # 成交客户管理动作(status=deal 列表):转入已完结/搁置 + 转回我的客户/公司客户池 + 复制
-_DEAL_ACTIONS = {"deal_to_done", "deal_to_on_hold", "deal_to_active", "deal_back_to_my", "deal_back_to_pool", "deal_copy_to_my", "deal_copy_to_pool"}
+_DEAL_ACTIONS = {"deal_to_done", "deal_to_on_hold", "deal_to_active", "deal_back_to_my", "deal_back_to_pool", "deal_copy_to_my", "deal_copy_to_pool", "assign_consultant"}
 
 # 各角色可用动作白名单——get_actions 按此过滤,默认 delete_selected(硬删)一并不再暴露
 _ROLE_ACTIONS = {
@@ -181,6 +181,7 @@ _ROLE_ACTIONS = {
                       "soft_delete", "assign_pool", "revoke_assignment"} | _DEAL_ACTIONS,
     Role.ADMIN: {"mark_deal", "mark_lost", "release_to_square",
                  "soft_delete", "assign_pool", "revoke_assignment"} | _DEAL_ACTIONS,
+    Role.CONSULTANT_LEAD: {"assign_consultant"} | _DEAL_ACTIONS,  # 咨询主管:分配咨询师 + 成交客户管理(已完结/搁置等)
 }
 
 # 按列表上下文区分的动作:
@@ -309,6 +310,7 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
     actions = [
         "mark_deal", "mark_lost",
         "claim_from_pool", "assign_pool",
+        "assign_consultant",
         "release_to_square", "revoke_assignment", "soft_delete",
         "deal_to_done", "deal_to_on_hold", "deal_to_active", "deal_back_to_my",
         "deal_back_to_pool", "deal_copy_to_my", "deal_copy_to_pool",
@@ -317,9 +319,9 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
     class Media:
         css = {"all": ("admin/css/change_form_inline_fix.css",)}
 
-    VIEW_ROLES = FIRST_PAGE_ROLES | {Role.CONSULTANT, Role.TECH}  # 咨询师看自己跟进的成交客户;技术走建站领取(readonly 限定字段)
+    VIEW_ROLES = FIRST_PAGE_ROLES | {Role.CONSULTANT, Role.CONSULTANT_LEAD, Role.TECH}  # 咨询主管看全部成交(分配用);咨询师看自己跟进的;技术走建站领取
     ADD_ROLES = FIRST_PAGE_ROLES
-    CHANGE_ROLES = FIRST_PAGE_ROLES | {Role.CONSULTANT, Role.TECH}  # 咨询师填建站信息/技术改进度(readonly 限定)
+    CHANGE_ROLES = FIRST_PAGE_ROLES | {Role.CONSULTANT, Role.CONSULTANT_LEAD, Role.TECH}  # 咨询主管改 consultant 字段(分配);咨询师填建站/技术改进度
     DELETE_ROLES = FIRST_PAGE_ROLES
 
     # ---------- 表单结构 ----------
@@ -414,6 +416,11 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
                             "site_contact_address", "site_contact_phone", "site_contact_email"}
                 ro = [f.name for f in Customer._meta.fields
                       if f.name not in editable and f.name not in ("id",)]
+                return base + ro
+            if role == Role.CONSULTANT_LEAD:
+                # 咨询主管:只可改 consultant(分配咨询师);其余全只读
+                ro = [f.name for f in Customer._meta.fields
+                      if f.name != "consultant" and f.name not in ("id",)]
                 return base + ro
             if role == Role.TECH:
                 # 技术部:只可改 site_progress(领取后更新进度);其余全只读
@@ -534,6 +541,9 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
                 return qs.filter(team_q | Q(status=CustomerStatus.POOL))
             return qs.filter(team_q)
         if role == Role.ADMIN:
+            return qs
+        # 咨询主管:看全部客户(与总经办同视角,用于"待分配单子"分配咨询师);不能释放(释放动作已限 SALES/SALES_LEAD/ADMIN)
+        if role == Role.CONSULTANT_LEAD:
             return qs
         # 咨询师:只看自己跟进的成交客户(一表化后 consultant 字段直挂客户;联系方式对其隐藏见 fieldsets)
         if role == Role.CONSULTANT:
@@ -910,8 +920,7 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
 
     @admin.action(description="转入成交")
     def mark_deal(self, request, queryset):
-        """成交：客户状态改 DEAL + 成交子状态=进行中 + 自动创建 Project（幂等,不会重复建项目）.
-        老板验收:公司客户池可「转入成交」——无归属的公海客户成交时归属给操作人,便于后续「转回我的客户」。"""
+        """成交：弹窗填写已收金额/签约主体/备注 → 状态改 DEAL + 创建 Project + 通知嘉茵分配咨询师."""
         from apps.projects.models import Project
         role = getattr(request.user, "role", None)
         if role not in (Role.SALES, Role.SALES_LEAD, Role.ADMIN):
@@ -920,54 +929,87 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
         candidates = list(queryset.filter(
             status__in=[CustomerStatus.LEAD, CustomerStatus.FOLLOWING, CustomerStatus.POOL]
         ))
-        cnt = 0
-        for customer in candidates:
-            claimed_from_pool = customer.status == CustomerStatus.POOL
-            customer.status = CustomerStatus.DEAL
-            customer.deal_status = DealStatus.ACTIVE
-            customer.updated_at = timezone.now()
-            update_fields = ["status", "deal_status", "updated_at"]
-            if claimed_from_pool and customer.owner_id is None:
-                customer.owner = request.user  # 公海直接成交:归属操作人
-                customer.pool_type = None
-                CustomerOwnerHistory.objects.create(
-                    customer=customer, from_user=None, to_user=request.user,
-                    source_type=OwnerHistorySourceType.SALES_CLAIM, operator=request.user,
-                    seq=_next_seq(customer.owner_history), source_note="公海直接成交",
-                )
-                update_fields += ["owner", "pool_type"]
-            customer.save(update_fields=update_fields)
-            project, created = Project.objects.get_or_create(
-                customer=customer,
-                defaults=dict(
-                    company_snapshot=customer.company,
-                    contact_name_snapshot=customer.contact_name,
-                    phone_snapshot=customer.phone,
-                    source_snapshot=customer.source_label,
-                    quote_amount=customer.quote_amount,
-                    sales=customer.owner,
-                    consultant=None,
-                ),
-            )
-            if created:
-                # 成交转立项 → 先通知咨询部主管(嘉茵),由主管分配具体咨询师后再通知该咨询师
-                try:
-                    leads = User.objects.filter(role=Role.CONSULTANT_LEAD, is_active=True)
-                    notify(
-                        category=NotificationCategory.DEAL_CONVERT,
-                        importance=Importance.HIGH,
-                        recipients=list(leads),
-                        title="新项目待分配咨询师",
-                        content=f"「{customer.company}」已成交转立项（成交人:{request.user.real_name}），请分配咨询师。",
-                        link=f"/admin/projects/project/{project.pk}/change/",
-                        actor=request.user,
-                        entity_type="project",
-                        entity_id=project.pk,
+        if not candidates:
+            self.message_user(request, "所选客户无可转成交的客户（需为线索/跟进/公司客户池状态）", messages.WARNING)
+            return
+        if "apply" in request.POST:
+            received_amount = request.POST.get("received_amount", "0").strip()
+            contract_entity = request.POST.get("contract_entity", "").strip()
+            deal_note = request.POST.get("deal_note", "").strip()
+            try:
+                received_amount = float(received_amount)
+            except (ValueError, TypeError):
+                received_amount = 0
+            now = timezone.now()
+            cnt = 0
+            for customer in candidates:
+                claimed_from_pool = customer.status == CustomerStatus.POOL
+                customer.status = CustomerStatus.DEAL
+                customer.deal_status = DealStatus.ACTIVE
+                customer.updated_at = now
+                update_fields = ["status", "deal_status", "updated_at"]
+                if contract_entity:
+                    customer.contract_entity = contract_entity
+                    update_fields.append("contract_entity")
+                if deal_note:
+                    customer.note = (customer.note + "\n" if customer.note else "") + f"[成交] {deal_note}"
+                    update_fields.append("note")
+                if claimed_from_pool and customer.owner_id is None:
+                    customer.owner = request.user
+                    customer.pool_type = None
+                    CustomerOwnerHistory.objects.create(
+                        customer=customer, from_user=None, to_user=request.user,
+                        source_type=OwnerHistorySourceType.SALES_CLAIM, operator=request.user,
+                        seq=_next_seq(customer.owner_history), source_note="公海直接成交",
                     )
-                except Exception:
-                    pass
-            cnt += 1
-        self.message_user(request, f"{cnt} 个客户已成交，已自动创建对应项目，等待嘉茵分配咨询师。", messages.SUCCESS)
+                    update_fields += ["owner", "pool_type"]
+                customer.save(update_fields=update_fields)
+                # 已收金额 > 0 时自动创建收款记录
+                if received_amount > 0:
+                    Receipt.objects.create(
+                        customer=customer, amount=received_amount,
+                        note="成交首笔收款", recorded_by=request.user, received_at=now.date(),
+                    )
+                # 创建 Project(幂等)
+                project, created = Project.objects.get_or_create(
+                    customer=customer,
+                    defaults=dict(
+                        company_snapshot=customer.company,
+                        contact_name_snapshot=customer.contact_name,
+                        phone_snapshot=customer.phone,
+                        source_snapshot=customer.source_label,
+                        quote_amount=customer.quote_amount,
+                        sales=customer.owner,
+                        consultant=None,
+                    ),
+                )
+                if created:
+                    try:
+                        leads = User.objects.filter(role=Role.CONSULTANT_LEAD, is_active=True)
+                        notify(
+                            category=NotificationCategory.DEAL_CONVERT,
+                            importance=Importance.HIGH,
+                            recipients=list(leads),
+                            title="新项目待分配咨询师",
+                            content=f"「{customer.company}」已成交转立项（成交人:{request.user.real_name}），请分配咨询师。",
+                            link=f"/admin/projects/project/{project.pk}/change/",
+                            actor=request.user,
+                            entity_type="project",
+                            entity_id=project.pk,
+                        )
+                    except Exception:
+                        pass
+                cnt += 1
+            self.message_user(request, f"{cnt} 个客户已成交,已创建收款记录,等待嘉茵分配咨询师。", messages.SUCCESS)
+            return
+        # 弹窗:填写已收金额/签约主体/备注
+        context = dict(
+            self.admin_site.each_context(request),
+            title="转入成交",
+            action_checkbox_name=admin.helpers.ACTION_CHECKBOX_NAME,
+            queryset=candidates,
+        )
+        return TemplateResponse(request, "admin/customers/mark_deal.html", context)
 
     # ---------- 成交客户信息管理(进行中/已完结/搁置)——老板验收新增 ----------
 
@@ -1263,6 +1305,67 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
             sales_users=sales_users,
         )
         return TemplateResponse(request, "admin/customers/assign_pool.html", context)
+
+    @admin.action(description="分配咨询师")
+    def assign_consultant(self, request, queryset):
+        """咨询主管/总经办:将成交客户分配给指定咨询师跟进办证."""
+        role = getattr(request.user, "role", None)
+        if role not in (Role.CONSULTANT_LEAD, Role.ADMIN):
+            self.message_user(request, "仅咨询主管/总经办可分配咨询师", messages.ERROR)
+            return None
+        candidates = queryset.filter(status=CustomerStatus.DEAL)
+        if not candidates.exists():
+            self.message_user(request, "所选客户中无成交客户", messages.WARNING)
+            return None
+        if "apply" in request.POST:
+            consultant_id = request.POST.get("consultant_id")
+            note = request.POST.get("note", "").strip()
+            if not consultant_id:
+                self.message_user(request, "请选择咨询师", messages.ERROR)
+                return None
+            consultant_user = User.objects.filter(
+                id=consultant_id, is_active=True, role=Role.CONSULTANT,
+            ).first()
+            if consultant_user is None:
+                self.message_user(request, "目标咨询师无效（需为在职咨询师）", messages.ERROR)
+                return None
+            now = timezone.now()
+            cnt = 0
+            for customer in candidates:
+                prev = customer.consultant
+                customer.consultant = consultant_user
+                customer.updated_at = now
+                customer.save(update_fields=["consultant", "updated_at"])
+                CustomerOwnerHistory.objects.create(
+                    customer=customer, from_user=prev, to_user=consultant_user,
+                    source_type=OwnerHistorySourceType.MANAGER_ASSIGN,
+                    source_note=f"咨询主管分配咨询师{(' — ' + note) if note else ''}",
+                    operator=request.user, seq=_next_seq(customer.owner_history),
+                )
+                cnt += 1
+            try:
+                notify(
+                    category=NotificationCategory.ASSIGN_CUSTOMER,
+                    importance=Importance.HIGH,
+                    recipients=consultant_user,
+                    title="新客户待跟进",
+                    content=f"{request.user.real_name} 将 {cnt} 个成交客户分配给你（{note or '办证跟进'}），请在「我的客户」中查看。",
+                    link="/admin/customers/customer/?status__exact=deal",
+                    actor=request.user,
+                )
+            except Exception:
+                pass
+            self.message_user(request, f"已将 {cnt} 个客户分配给咨询师 {consultant_user.real_name}", messages.SUCCESS)
+            return None
+        consultant_users = User.objects.filter(role=Role.CONSULTANT, is_active=True)
+        context = dict(
+            self.admin_site.each_context(request),
+            title="分配咨询师",
+            action_checkbox_name=admin.helpers.ACTION_CHECKBOX_NAME,
+            queryset=candidates,
+            consultant_users=consultant_users,
+        )
+        return TemplateResponse(request, "admin/customers/assign_consultant.html", context)
 
     @admin.action(description="释放到公司客户池")
     def release_to_square(self, request, queryset):

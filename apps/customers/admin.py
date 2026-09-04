@@ -181,7 +181,7 @@ _ROLE_ACTIONS = {
                       "soft_delete", "assign_pool", "revoke_assignment"} | _DEAL_ACTIONS,
     Role.ADMIN: {"mark_deal", "mark_lost", "release_to_square",
                  "soft_delete", "assign_pool", "revoke_assignment"} | _DEAL_ACTIONS,
-    Role.CONSULTANT_LEAD: {"assign_consultant"} | _DEAL_ACTIONS,  # 咨询主管:分配咨询师 + 成交客户管理(已完结/搁置等)
+    Role.CONSULTANT_LEAD: {"assign_consultant"},  # 咨询主管:只分配咨询师,其他成交管理动作(已完结/搁置/转回)不给
 }
 
 # 按列表上下文区分的动作:

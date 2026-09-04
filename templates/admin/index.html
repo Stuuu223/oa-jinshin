@@ -278,6 +278,10 @@
         if (_role === 'consultant' || _role === 'tech') {
             menus = menus.filter(function (m) { return m.name !== '成交管理'; });
         }
+        // 客户管理:咨询部(含主管)不显示——只给看成交管理(老板 09-04:咨询主管不需要客户管理/公司客户池/回收站)
+        if (_role === 'consultant' || _role === 'consultant_lead') {
+            menus = menus.filter(function (m) { return m.name !== '客户管理'; });
+        }
         // 我的客户:角色提示改为 Vue 模板级渲染(simpleui-x/js/menu.js sub-menu 模板:mm-item 类 + mm-hint span + window._mmHint)
         // ——不再 JS 事后装饰 DOM,任何重渲染(is-active/路由切换/折叠)都不会清掉提示(老板 09-03 反馈:装饰版点击后提示整个消失)
         window._mmHint = '{% if request.user.role == "admin" %}(您为总经办,可查看全部客户){% elif request.user.role == "sales_lead" %}(您为{{ request.user.team.name|default:"销售组" }}组长,可查看个人及所属组员客户){% elif request.user.role == "sales" %}(您为销售,可查看名下客户){% endif %}';

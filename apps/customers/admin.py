@@ -224,7 +224,7 @@ class CostInline(admin.TabularInline):
 
 @admin.register(Customer)
 class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
-    list_display = ("summary", "source_signature", "phone_masked", "contact_name", "wechat", "qq", "intention_display", "owner", "follow_staff_display", "quote_amount", "last_follow_at", "status_bar")
+    list_display = ("summary", "source_signature", "phone_masked", "contact_name", "wechat", "qq", "intention_display", "owner", "consultant", "quote_amount", "last_follow_at", "status_bar")
     empty_value_display = "—"
     list_filter = (OwnerFilter, StatusFilter, SourceFilter, QualificationFilter, "deal_status")
     search_fields = ("company", "contact_name", "phone")

@@ -349,10 +349,10 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
             fs += [
                 ("成交与签约", {
                     "fields": (
-                        ("deal_business", "contract_entity"),
+                        ("deal_business", "deal_total_amount"),
+                        ("contract_entity", "deal_at"),
                         ("is_invoiced", "is_tax_included"),
                         ("sales", "consultant"),
-                        "deal_at",
                     ),
                 }),
                 ("建站信息", {
@@ -937,9 +937,14 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
             self.message_user(request, "所选客户无可转成交的客户（需为线索/跟进/公司客户池状态）", messages.WARNING)
             return
         if "apply" in request.POST:
+            deal_total_amount = request.POST.get("deal_total_amount", "").strip()
             received_amount = request.POST.get("received_amount", "0").strip()
             contract_entity = request.POST.get("contract_entity", "").strip()
             deal_note = request.POST.get("deal_note", "").strip()
+            try:
+                deal_total_amount = float(deal_total_amount)
+            except (ValueError, TypeError):
+                deal_total_amount = None
             try:
                 received_amount = float(received_amount)
             except (ValueError, TypeError):
@@ -952,6 +957,9 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
                 customer.deal_status = DealStatus.ACTIVE
                 customer.updated_at = now
                 update_fields = ["status", "deal_status", "updated_at"]
+                if deal_total_amount is not None:
+                    customer.deal_total_amount = deal_total_amount
+                    update_fields.append("deal_total_amount")
                 if contract_entity:
                     customer.contract_entity = contract_entity
                     update_fields.append("contract_entity")

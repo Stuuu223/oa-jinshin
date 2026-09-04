@@ -33,6 +33,12 @@
         </table>
 
         <div class="assign-row">
+          <label for="deal_total_amount">成交总金额（必填）</label>
+          <input type="number" name="deal_total_amount" id="deal_total_amount" step="0.01" min="0.01" placeholder="如 15000" required>
+          <div class="assign-hint">实际签约金额,与报价金额独立——报价是初始报价,这是最终确认金额</div>
+        </div>
+
+        <div class="assign-row">
           <label for="received_amount">已收金额（必填）</label>
           <input type="number" name="received_amount" id="received_amount" step="0.01" min="0" placeholder="如 5000" required>
           <div class="assign-hint">本次收款金额,将自动生成收款记录;如暂无收款填 0</div>
@@ -40,12 +46,8 @@
 
         <div class="assign-row">
           <label for="contract_entity">签约主体</label>
-          <select name="contract_entity" id="contract_entity">
-            <option value="">-- 不限 --</option>
-            <option value="company">公司签约</option>
-            <option value="personal">销售个人签约</option>
-          </select>
-          <div class="assign-hint">根据交易情况选择由公司还是销售个人签约</div>
+          <input type="text" name="contract_entity" id="contract_entity" placeholder="如 金石企服 / XX科技" maxlength="128">
+          <div class="assign-hint">填写签约主体名称(公司主体以后可能变动,不固定选项)</div>
         </div>
 
         <div class="assign-row">

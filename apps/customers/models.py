@@ -85,6 +85,10 @@ class Customer(models.Model):
     quote_amount = models.DecimalField(
         "报价金额", max_digits=12, decimal_places=2, null=True, blank=True,
     )
+    deal_total_amount = models.DecimalField(
+        "成交总金额", max_digits=12, decimal_places=2, null=True, blank=True,
+        help_text="实际签约金额,独立于报价金额——报价是销售初始报价,成交总金额是最终确认金额",
+    )
     note = models.TextField("客户情况/备注", blank=True)
     consulted_at = models.DateField("咨询时间", null=True, blank=True)
 

@@ -103,7 +103,7 @@ class User(AbstractUser):
         ]
 
     def __str__(self) -> str:
-        return f"{self.real_name} ({self.get_role_display()})"
+        return self.real_name
 
 
 class NotificationCategory(models.TextChoices):

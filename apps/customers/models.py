@@ -243,7 +243,7 @@ class Customer(models.Model):
             parts.append(f"{who} {when}".rstrip())
         return " / ".join(parts) if parts else "—"
     # property 对象不能直接设 short_description,须在底层函数上设置
-    follow_staff_display.fget.short_description = "跟进人员"
+    follow_staff_display.fget.short_description = "咨询师"
 
     # ===== 财务派生(细则:收款/支出咨询师填,利润自动计算——SSOT 派生不落库) =====
     @property

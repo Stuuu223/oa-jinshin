@@ -172,7 +172,7 @@ class CustomerAttachmentInline(admin.TabularInline):
 
 
 # 成交客户管理动作(status=deal 列表):转入已完结/搁置 + 转回我的客户/公司客户池 + 复制
-_DEAL_ACTIONS = {"deal_to_done", "deal_to_on_hold", "deal_to_active", "deal_back_to_my", "deal_back_to_pool", "deal_copy_to_my", "deal_copy_to_pool", "assign_consultant"}
+_DEAL_ACTIONS = {"deal_to_done", "deal_to_on_hold", "deal_to_active", "deal_back_to_my", "deal_back_to_pool", "deal_copy_to_my", "deal_copy_to_pool"}
 
 # 各角色可用动作白名单——get_actions 按此过滤,默认 delete_selected(硬删)一并不再暴露
 _ROLE_ACTIONS = {
@@ -180,7 +180,7 @@ _ROLE_ACTIONS = {
     Role.SALES_LEAD: {"mark_deal", "mark_lost", "claim_from_pool", "release_to_square",
                       "soft_delete", "assign_pool", "revoke_assignment"} | _DEAL_ACTIONS,
     Role.ADMIN: {"mark_deal", "mark_lost", "release_to_square",
-                 "soft_delete", "assign_pool", "revoke_assignment"} | _DEAL_ACTIONS,
+                 "soft_delete", "assign_pool", "revoke_assignment", "assign_consultant"} | _DEAL_ACTIONS,
     Role.CONSULTANT_LEAD: {"assign_consultant"},  # 咨询主管:只分配咨询师,其他成交管理动作(已完结/搁置/转回)不给
 }
 
@@ -447,6 +447,10 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
             allowed = allowed & _DEAL_ACTIONS
         else:
             allowed = allowed & _OWNED_ACTIONS
+        # assign_consultant 只给总经办+咨询主管,不受 _DEAL_ACTIONS 上下文过滤限制
+        role = getattr(request.user, "role", None)
+        if role in (Role.ADMIN, Role.CONSULTANT_LEAD):
+            allowed = allowed | {"assign_consultant"}
         return {name: fn for name, fn in actions.items() if name in allowed}
 
     def _can_modify_pool(self, request, obj):

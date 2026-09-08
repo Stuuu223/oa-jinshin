@@ -75,11 +75,10 @@ class Customer(models.Model):
         "客户意向(1-5星)", null=True, blank=True,
         choices=[(1, "★"), (2, "★★"), (3, "★★★"), (4, "★★★★"), (5, "★★★★★")],
     )
-    qualification_interest = models.JSONField(
-        "需求资质(可多选)",
-        default=list,
+    qualification_interest = models.TextField(
+        "资质需求",
         blank=True,
-        help_text="客户可同时咨询多个资质,如 ICP + EDI",
+        help_text="多项资质需求用符号隔开",
     )
     source = models.CharField("来源", max_length=32, default="其他")
     quote_amount = models.DecimalField(
@@ -292,7 +291,7 @@ class Cost(models.Model):
     """支出/成本记录——挂成交客户(细则:支出由咨询师填写),成本申请需总经办审核通过才计入."""
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name="costs", verbose_name="成交客户")
     amount = models.DecimalField("支出金额", max_digits=12, decimal_places=2)
-    category = models.CharField("成本类型", max_length=16, choices=CostCategory.choices, default=CostCategory.OTHER)
+    category = models.CharField("支出事项", max_length=64, blank=True, help_text="自由填写,如'域名费'/'服务器费'/'技术费'")
     note = models.CharField("备注", max_length=128, blank=True, help_text="如'域名费'/'服务器费'/'技术费'")
     status = models.CharField("审核状态", max_length=16, choices=CostStatus.choices, default=CostStatus.PENDING)
     recorded_by = models.ForeignKey(

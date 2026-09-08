@@ -2,7 +2,7 @@
 {% load static %}
 {% block extrastyle %}<link rel="stylesheet" href="{% static 'admin/css/action_dialog.css' %}">{% endblock %}
 {% block content %}
-<form method="post">
+<form method="post" enctype="multipart/form-data">
   {% csrf_token %}
   {% for obj in queryset %}
     <input type="hidden" name="{{ action_checkbox_name }}" value="{{ obj.pk }}">
@@ -46,8 +46,20 @@
 
         <div class="assign-row">
           <label for="contract_entity">签约主体</label>
-          <input type="text" name="contract_entity" id="contract_entity" placeholder="如 金石企服 / XX科技" maxlength="128">
+          <input type="text" name="contract_entity" id="contract_entity" placeholder="珠海金石企服 / 深圳金石企服 / 南宁信诺达" maxlength="128">
           <div class="assign-hint">填写签约主体名称(公司主体以后可能变动,不固定选项)</div>
+        </div>
+
+        <div class="assign-row">
+          <label for="deal_qualification">资质需求（可修改）</label>
+          <input type="text" name="deal_qualification" id="deal_qualification" placeholder="多项资质需求用符号隔开" maxlength="255">
+          <div class="assign-hint">注意更正实际成交的资质业务</div>
+        </div>
+
+        <div class="assign-row">
+          <label for="deal_attachments">附件上传（合同/图片）</label>
+          <input type="file" name="deal_attachments" id="deal_attachments" multiple accept="image/*,.pdf,.doc,.docx">
+          <div class="assign-hint">可上传合同文件或图片文件,支持多选</div>
         </div>
 
         <div class="assign-row">

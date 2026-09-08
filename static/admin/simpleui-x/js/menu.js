@@ -12,9 +12,9 @@ Vue.component('sub-menu', {
     template: `
         <div>
             <template v-for="(item,i) in menus" :key="item.eid">
-                <el-menu-item  :index="item.eid" v-if="!item.models" @click="openTab(item,item.eid)" :class="{'mm-item': item.name === '我的客户'}">
+                <el-menu-item  :index="item.eid" v-if="!item.models" @click="openTab(item,item.eid)" :class="{'mm-item': item.name === '我的咨询客户'}">
                     <i :class="'menu-icon '+item.icon"></i>
-                    <span v-show="!fold">{{item.name}}<span v-if="item.name === '我的客户'" class="mm-hint">{{mmHint}}</span></span>
+                    <span v-show="!fold">{{item.name}}<span v-if="item.name === '我的咨询客户'" class="mm-hint">{{mmHint}}</span></span>
                 </el-menu-item>
                 <el-submenu :index="item.eid" v-else>
                     <template slot="title">

@@ -181,7 +181,8 @@ _ROLE_ACTIONS = {
                       "soft_delete", "assign_pool", "revoke_assignment"} | _DEAL_ACTIONS,
     Role.ADMIN: {"mark_deal", "mark_lost", "release_to_square",
                  "soft_delete", "assign_pool", "revoke_assignment", "assign_consultant"} | _DEAL_ACTIONS,
-    Role.CONSULTANT_LEAD: {"assign_consultant"},  # 咨询主管:只分配咨询师,其他成交管理动作(已完结/搁置/转回)不给
+    Role.CONSULTANT_LEAD: {"assign_consultant", "deal_to_done", "deal_to_on_hold"},  # 咨询主管:分配咨询师+转入已完结/搁置
+    Role.CONSULTANT: {"deal_to_done", "deal_to_on_hold"},  # 咨询师:转入已完结/搁置
 }
 
 # 按列表上下文区分的动作:
@@ -206,7 +207,7 @@ class ReceiptInline(admin.TabularInline):
     """收款记录——成交客户内联(细则:收款由咨询师填写,留痕不复核)."""
     model = Receipt
     extra = 0
-    fields = ("amount", "note", "received_at", "recorded_by", "created_at")
+    fields = ("amount", "note", "received_at", "created_at")
     readonly_fields = ("created_at",)
     can_delete = False
     verbose_name_plural = "收款记录"
@@ -216,7 +217,7 @@ class CostInline(admin.TabularInline):
     """支出/成本记录——成交客户内联(细则:支出咨询师申请,总经办审核通过才计入成本)."""
     model = Cost
     extra = 0
-    fields = ("amount", "category", "note", "status", "recorded_by", "created_at")
+    fields = ("amount", "category", "note", "status", "created_at")
     readonly_fields = ("status", "created_at")
     can_delete = False
     verbose_name_plural = "支出记录"
@@ -228,6 +229,21 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
     empty_value_display = "—"
     list_filter = (OwnerFilter, StatusFilter, SourceFilter, QualificationFilter, "deal_status")
     search_fields = ("company", "contact_name", "phone")
+
+    def get_list_display(self, request):
+        """不同列表视图展示不同列:跟进中不显示咨询师;进行中/已完结加跟进记录/资质/总金额/已支付."""
+        base = ["summary", "source_signature", "phone_masked", "contact_name", "wechat", "qq",
+                "intention_display", "owner"]
+        ctx = request.GET.get("status__exact")
+        if ctx == str(CustomerStatus.DEAL):
+            # 成交视图(进行中/已完结/搁置):加跟进记录+资质+总金额+已支付+咨询师
+            base += ["consultant", "last_follow_content", "qualification_display",
+                     "deal_total_amount", "paid_amount_display", "last_follow_at", "status_bar"]
+        else:
+            # 跟进中/公司客户池/回收站:加跟进记录+资质+报价,不显示咨询师
+            base += ["last_follow_content", "qualification_display",
+                     "quote_amount", "last_follow_at", "status_bar"]
+        return tuple(base)
 
     # 需求资质多选:JSONField 存列表,表单用多选复选框
     QUALIFICATION_CHOICES = (
@@ -243,22 +259,40 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
     )
 
     def add_view(self, request, form_url="", extra_context=None):
-        """从客户池进入添加客户:标题明确'增加 公司客户池客户'(而非笼统'增加 客户'),来源定位清晰."""
+        """从不同列表进入添加客户:标题+初始值随上下文变——
+        公司客户池→'增加 公司客户池客户';
+        咨询师在进行中/已完结页新增→自动预填 status=deal + 对应 deal_status."""
         extra_context = extra_context or {}
-        if "status__exact=pool" in request.GET.get("_changelist_filters", ""):
+        filters = request.GET.get("_changelist_filters", "")
+        if "status__exact=pool" in filters:
             extra_context.setdefault("title", "增加 公司客户池客户")
+        elif "deal_status=active" in filters:
+            extra_context.setdefault("title", "新增进行中客户")
+        elif "deal_status=done" in filters:
+            extra_context.setdefault("title", "新增已完结客户")
         return super().add_view(request, form_url, extra_context)
+
+    def get_changeform_initial_data(self, request):
+        """咨询师从进行中/已完结页进入新增→预填 status=deal + deal_status."""
+        initial = super().get_changeform_initial_data(request)
+        filters = request.GET.get("_changelist_filters", "")
+        if "deal_status=active" in filters:
+            initial["status"] = CustomerStatus.DEAL
+            initial["deal_status"] = DealStatus.ACTIVE
+        elif "deal_status=done" in filters:
+            initial["status"] = CustomerStatus.DEAL
+            initial["deal_status"] = DealStatus.DONE
+        return initial
 
     def formfield_for_dbfield(self, db_field, request=None, **kwargs):
         # 需求资质(可多选):JSONField 的 formfield 会传 encoder 参数给 MultipleChoiceField 导致 TypeError,
         # 因此不走 super() 路径,直接构造多选复选框字段
         if db_field.name == "qualification_interest":
-            return forms.MultipleChoiceField(
-                choices=self.QUALIFICATION_CHOICES,
-                widget=forms.CheckboxSelectMultiple,
+            return forms.CharField(
+                widget=forms.TextInput(attrs={"placeholder": "多项资质需求用符号隔开"}),
                 required=False,
                 label=db_field.verbose_name,
-                help_text=db_field.help_text,
+                help_text="多项资质需求用符号隔开",
             )
         # 客户意向(1-5星):模型 choices 会让表单渲染为 Select 下拉(★选项),按验收改为 input 数字 1-5
         if db_field.name == "intention":
@@ -320,7 +354,7 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
         css = {"all": ("admin/css/change_form_inline_fix.css",)}
 
     VIEW_ROLES = FIRST_PAGE_ROLES | {Role.CONSULTANT, Role.CONSULTANT_LEAD, Role.TECH}  # 咨询主管看全部成交(分配用);咨询师看自己跟进的;技术走建站领取
-    ADD_ROLES = FIRST_PAGE_ROLES
+    ADD_ROLES = FIRST_PAGE_ROLES | {Role.CONSULTANT}  # 咨询师可新增成交客户(迁移旧数据到系统)
     CHANGE_ROLES = FIRST_PAGE_ROLES | {Role.CONSULTANT, Role.CONSULTANT_LEAD, Role.TECH}  # 咨询主管改 consultant 字段(分配);咨询师填建站/技术改进度
     DELETE_ROLES = FIRST_PAGE_ROLES
 
@@ -577,6 +611,32 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
             return "—"
         return format_html('<span style="color:#EAB308;letter-spacing:1px">{}</span>', "★" * obj.intention)
 
+    @admin.display(description="跟进记录")
+    def last_follow_content(self, obj):
+        """最新一条跟进内容摘要(截断30字),列表快速了解跟进状态."""
+        latest = obj.follow_ups.order_by("-created_at").first()
+        if not latest or not latest.content:
+            return "—"
+        text = latest.content[:30] + "…" if len(latest.content) > 30 else latest.content
+        return text
+
+    @admin.display(description="资质需求")
+    def qualification_display(self, obj):
+        """资质需求:JSONField(列表)→逗号拼接展示."""
+        val = obj.qualification_interest
+        if not val:
+            return "—"
+        if isinstance(val, list):
+            return ", ".join(str(v) for v in val)
+        return str(val)
+
+    @admin.display(description="已收金额")
+    def paid_amount_display(self, obj):
+        """已收金额:该客户所有收款记录之和."""
+        from django.db.models import Sum
+        total = obj.receipts.aggregate(s=Sum("amount"))["s"] or 0
+        return total
+
     @admin.display(description="状态栏(客户意向/最近操作)")
     def status_bar(self, obj):
         """客户状态栏:客户意向(x星) + 最近一条 新建/转入/转回 操作(账号+操作+时间).
@@ -673,6 +733,10 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
         for obj in instances:
             if isinstance(obj, CustomerAttachment) and not obj.uploaded_by_id:
                 obj.uploaded_by = request.user
+            if isinstance(obj, Cost) and not obj.recorded_by_id:
+                obj.recorded_by = request.user
+            if isinstance(obj, Receipt) and not obj.recorded_by_id:
+                obj.recorded_by = request.user
             obj.save()
         formset.save_m2m()
         customer = form.instance
@@ -940,6 +1004,7 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
             deal_total_amount = request.POST.get("deal_total_amount", "").strip()
             received_amount = request.POST.get("received_amount", "0").strip()
             contract_entity = request.POST.get("contract_entity", "").strip()
+            deal_qualification = request.POST.get("deal_qualification", "").strip()
             deal_note = request.POST.get("deal_note", "").strip()
             try:
                 deal_total_amount = float(deal_total_amount)
@@ -966,6 +1031,9 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
                 if deal_note:
                     customer.note = (customer.note + "\n" if customer.note else "") + f"[成交] {deal_note}"
                     update_fields.append("note")
+                if deal_qualification:
+                    customer.qualification_interest = deal_qualification
+                    update_fields.append("qualification_interest")
                 if claimed_from_pool and customer.owner_id is None:
                     customer.owner = request.user
                     customer.pool_type = None
@@ -981,6 +1049,11 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
                     Receipt.objects.create(
                         customer=customer, amount=received_amount,
                         note="成交首笔收款", recorded_by=request.user, received_at=now.date(),
+                    )
+                # 附件上传(合同/图片)
+                for f in request.FILES.getlist("deal_attachments"):
+                    CustomerAttachment.objects.create(
+                        customer=customer, file=f, uploaded_by=request.user,
                     )
                 # 创建 Project(幂等)
                 project, created = Project.objects.get_or_create(
@@ -1040,7 +1113,7 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
     @admin.action(description="转入已完结")
     def deal_to_done(self, request, queryset):
         role = getattr(request.user, "role", None)
-        if role not in (Role.SALES, Role.SALES_LEAD, Role.ADMIN):
+        if role not in (Role.SALES, Role.SALES_LEAD, Role.ADMIN, Role.CONSULTANT, Role.CONSULTANT_LEAD):
             self.message_user(request, "无权限执行该操作", messages.ERROR)
             return
         updated = self._scope_deal_queryset(request, queryset).filter(
@@ -1051,7 +1124,7 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
     @admin.action(description="转入搁置")
     def deal_to_on_hold(self, request, queryset):
         role = getattr(request.user, "role", None)
-        if role not in (Role.SALES, Role.SALES_LEAD, Role.ADMIN):
+        if role not in (Role.SALES, Role.SALES_LEAD, Role.ADMIN, Role.CONSULTANT, Role.CONSULTANT_LEAD):
             self.message_user(request, "无权限执行该操作", messages.ERROR)
             return
         updated = self._scope_deal_queryset(request, queryset).filter(

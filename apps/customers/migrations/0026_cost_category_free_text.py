@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('customers', '0025_add_deal_total_amount'),
+        ('customers', '0025_customer_deal_total_amount_and_more'),
     ]
 
     operations = [

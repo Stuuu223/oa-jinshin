@@ -238,7 +238,8 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
         if ctx == str(CustomerStatus.DEAL):
             # 成交视图(进行中/已完结/搁置):加跟进记录+资质+总金额+已支付+咨询师
             base += ["consultant", "last_follow_content", "qualification_display",
-                     "deal_total_amount", "paid_amount_display", "last_follow_at", "status_bar"]
+                     "deal_total_amount", "paid_amount_display", "expense_amount_display",
+                     "profit_display", "last_follow_at", "status_bar"]
         else:
             # 跟进中/公司客户池/回收站:加跟进记录+资质+报价,不显示咨询师
             base += ["last_follow_content", "qualification_display",
@@ -636,6 +637,26 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
         from django.db.models import Sum
         total = obj.receipts.aggregate(s=Sum("amount"))["s"] or 0
         return total
+
+    @admin.display(description="支出金额")
+    def expense_amount_display(self, obj):
+        """支出金额:该客户已审核通过的成本支出之和(待审核/驳回不计入)."""
+        from django.db.models import Sum
+        total = obj.costs.filter(status=CostStatus.APPROVED).aggregate(s=Sum("amount"))["s"] or 0
+        return total
+
+    @admin.display(description="利润")
+    def profit_display(self, obj):
+        """利润(老板 09-08 第11条):自动计算 = 成交总金额 - 已审核支出金额.
+        未填成交总金额时显示 —;利润为负标红."""
+        if obj.deal_total_amount is None:
+            return "—"
+        from django.db.models import Sum
+        expense = obj.costs.filter(status=CostStatus.APPROVED).aggregate(s=Sum("amount"))["s"] or 0
+        profit = obj.deal_total_amount - expense
+        if profit < 0:
+            return format_html('<span style="color:#DC2626;font-weight:600">{}</span>', profit)
+        return profit
 
     @admin.display(description="状态栏(客户意向/最近操作)")
     def status_bar(self, obj):

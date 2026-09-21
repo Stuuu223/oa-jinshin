@@ -956,9 +956,12 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
     # ---------- 列表展示 ----------
 
     def summary(self, obj: Customer) -> str:
-        # 需求资质已改为 JSONField(list),多资质用顿号连接展示
-        qual_list = obj.qualification_interest or []
-        qual = "、".join(str(q).replace("（组合套餐）", "") for q in qual_list) or "未填"
+        # 需求资质已改为 TextField 自由填写(09-08),原 JSON 列表(迁移前旧数据)用顿号连接展示
+        qual_val = obj.qualification_interest or ""
+        if isinstance(qual_val, str):
+            qual = qual_val or "未填"
+        else:
+            qual = "、".join(str(q).replace("（组合套餐）", "") for q in qual_val) or "未填"
         badges = format_html(
             "<span style='padding:1px 7px;border-radius:6px;background:#E8EDFB;"
             "color:#3B5098;font-size:11px'>{}</span>"

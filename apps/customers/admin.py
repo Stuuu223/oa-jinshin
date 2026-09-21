@@ -12,7 +12,7 @@ import threading
 from django import forms
 from django.contrib import admin, messages
 from django.db.models import Q
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponseRedirect
 from django.template.response import TemplateResponse
 from django.urls import path
 from django.utils import timezone
@@ -232,9 +232,17 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
 
     def get_list_display(self, request):
         """不同列表视图展示不同列:跟进中不显示咨询师;进行中/已完结加跟进记录/资质/总金额/已支付."""
+        role = getattr(request.user, "role", None)
+        ctx = request.GET.get("status__exact")
+        # 财务视角(09-21 老板拍板):屏蔽来源/电话/微信/QQ/意愿度/跟进记录/跟进时间/咨询师,
+        # 显示公司名/联系人/资质/总金额/减免/坏账/已收分项/账户/待收余额/支出/利润/进度
+        if role == Role.FINANCE:
+            return ("summary", "contact_name", "qualification_display",
+                    "deal_total_amount", "paid_items_display", "pending_balance_display",
+                    "reduction_amount", "bad_debt_amount", "expense_amount_display",
+                    "profit_display", "status_bar")
         base = ["summary", "source_signature", "phone_masked", "contact_name", "wechat", "qq",
                 "intention_display", "owner"]
-        ctx = request.GET.get("status__exact")
         if ctx == str(CustomerStatus.DEAL):
             # 成交视图(进行中/已完结/搁置):加跟进记录+资质+总金额+已支付+咨询师
             base += ["consultant", "last_follow_content", "qualification_display",
@@ -349,6 +357,7 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
         "release_to_square", "revoke_assignment", "soft_delete",
         "deal_to_done", "deal_to_on_hold", "deal_to_active", "deal_back_to_my",
         "deal_back_to_pool", "deal_copy_to_my", "deal_copy_to_pool",
+        "confirm_all_receipts",
     ]
 
     class Media:
@@ -437,6 +446,31 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
                 if flat:
                     filtered.append((name, {"fields": tuple(flat)}))
             return tuple(filtered)
+        # 财务(09-21 老板拍板):屏蔽来源/电话/微信/QQ/意愿度/跟进(敏感性+跟进归销售咨询),
+        # 只显示公司名/联系人/资质/成交签约信息+财务字段(减免/坏账)
+        if role == Role.FINANCE:
+            keep = {"company", "contact_name", "qualification_interest",
+                    "deal_business", "deal_total_amount", "contract_entity", "deal_at",
+                    "is_invoiced", "is_tax_included", "sales", "consultant",
+                    "reduction_amount", "bad_debt_amount"}
+            filtered = []
+            for name, opts in fs:
+                fields = opts.get("fields", ())
+                flat = []
+                for f in fields:
+                    if isinstance(f, (tuple, list)):
+                        keep_t = tuple(x for x in f if x in keep)
+                        if keep_t:
+                            flat.append(keep_t)
+                    elif f in keep:
+                        flat.append(f)
+                if flat:
+                    filtered.append((name, {"fields": tuple(flat)}))
+            filtered.append(("财务扣减", {
+                "fields": (("reduction_amount", "bad_debt_amount"),),
+                "description": "减免/坏账从待收余额中扣减;收款确认在列表页逐笔操作",
+            }))
+            return tuple(filtered)
         return tuple(fs)
 
     def get_readonly_fields(self, request, obj=None):
@@ -461,6 +495,12 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
                 # 技术部:只可改 site_progress(领取后更新进度);其余全只读
                 ro = [f.name for f in Customer._meta.fields
                       if f.name != "site_progress" and f.name not in ("id",)]
+                return base + ro
+            if role == Role.FINANCE:
+                # 财务:只可改减免/坏账(09-21 老板拍板,扣减从待收余额);其余全只读
+                editable = {"reduction_amount", "bad_debt_amount"}
+                ro = [f.name for f in Customer._meta.fields
+                      if f.name not in editable and f.name not in ("id",)]
                 return base + ro
         return base
 
@@ -597,13 +637,68 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
             claimable = qs.filter(status=CustomerStatus.DEAL, tech_assigned__isnull=True)
             mine_q = qs.filter(status=CustomerStatus.DEAL, tech_assigned=user)
             return (claimable | mine_q).distinct()
-        # 财务不看客户表(财务搁置由总经办代行)
+        # 财务:只看成交客户(09-21 老板拍板——财务管理菜单),敏感字段屏蔽见 get_list_display/get_fieldsets;
+        # 无任何客户动作(分配/转完结/转回全部不注册,见 _ROLE_ACTIONS 无 FINANCE)
+        if role == Role.FINANCE:
+            if is_object_view:
+                return qs.filter(status=CustomerStatus.DEAL)
+            ctx = request.GET.get("status__exact")
+            if ctx == str(CustomerStatus.DEAL):
+                return qs.filter(status=CustomerStatus.DEAL)
+            return qs.filter(status=CustomerStatus.DEAL)
+        # 兜底:其余角色(财务以外无权限角色)不看客户表
         return qs.none()
 
     def get_changelist_instance(self, request):
         cl = super().get_changelist_instance(request)
         _request_local.request = request
+        # 注入当前角色供展示列判断(已确认收款链接只对财务/总经办渲染)
+        self._req_role = getattr(request.user, "role", None)
         return cl
+
+    def changelist_view(self, request, extra_context=None):
+        """列表页拦截 ?confirm_receipt=<pk> 单笔确认(09-21 老板拍板):
+        仅财务/总经办可确认;确认后回跳原列表(保留 status__exact 上下文)."""
+        receipt_id = request.GET.get("confirm_receipt")
+        role = getattr(request.user, "role", None)
+        if receipt_id and role in (Role.FINANCE, Role.ADMIN) and request.method == "GET":
+            try:
+                receipt = Receipt.objects.get(pk=receipt_id)
+            except Receipt.DoesNotExist:
+                pass
+            else:
+                receipt.confirmed_by = request.user
+                receipt.confirmed_at = timezone.now()
+                receipt.save(update_fields=["confirmed_by", "confirmed_at"])
+                Notification.objects.create(
+                    recipient=receipt.recorded_by,
+                    category=NotificationCategory.SYSTEM,
+                    importance=Importance.HIGH,
+                    title=f"收款已确认:{receipt.customer.company} {receipt.get_payment_type_display()} ¥{receipt.amount}",
+                    content=f"财务 {request.user} 已确认收款(账户:{receipt.account or '未填'})",
+                    link=f"/admin/customers/customer/{receipt.customer_id}/change/",
+                )
+            # 确认后去掉 confirm_receipt 参数回跳,避免刷新重复确认
+            params = request.GET.copy()
+            params.pop("confirm_receipt", None)
+            return HttpResponseRedirect(f"{request.path}?{params.urlencode()}")
+        return super().changelist_view(request, extra_context)
+
+    @admin.action(description="批量确认收款(选中客户的全部未确认笔)")
+    def confirm_all_receipts(self, request, queryset):
+        """财务批量确认:上线存量收款全灰(未确认)时一键处理;仅财务/总经办."""
+        if getattr(request.user, "role", None) not in (Role.FINANCE, Role.ADMIN):
+            self.message_user(request, "仅财务/总经办可确认收款", messages.ERROR)
+            return
+        now = timezone.now()
+        n = 0
+        for c in queryset:
+            for r in c.receipts.filter(confirmed_at__isnull=True):
+                r.confirmed_by = request.user
+                r.confirmed_at = now
+                r.save(update_fields=["confirmed_by", "confirmed_at"])
+                n += 1
+        self.message_user(request, f"已确认 {n} 笔收款")
 
     @admin.display(description="意愿度", ordering="intention")
     def intention_display(self, obj):
@@ -657,6 +752,50 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
         if profit < 0:
             return format_html('<span style="color:#DC2626;font-weight:600">{}</span>', profit)
         return profit
+
+    @admin.display(description="已收金额(分项)")
+    def paid_items_display(self, obj):
+        """已收金额分项垂直显示(09-21 老板拍板):每笔一行"类型:金额 账户",
+        后跟确认状态——未确认灰色"财务未确定",已确认"财务已确定";
+        财务/总经办看到可点击"已确认收款"链接(逐笔确认)."""
+        receipts = obj.receipts.order_by("-created_at")
+        if not receipts:
+            return "—"
+        from django.urls import reverse
+        is_finance = getattr(self, "_req_role", None) in (Role.FINANCE, Role.ADMIN)
+        rows = []
+        for r in receipts:
+            line = f"{r.get_payment_type_display()}:{r.amount}"
+            if r.account:
+                line += f"({r.account})"
+            if r.confirmed_at:
+                conf = f'<span style="color:#16A34A">财务已确定</span>'
+                if r.confirmed_by_id:
+                    conf += f'<small style="color:#6B7280">({r.confirmed_by})</small>'
+            else:
+                conf = '<span style="color:#9CA3AF">财务未确定</span>'
+                if is_finance:
+                    url = reverse("admin:customers_customer_changelist")
+                    conf += (f'<a style="color:#2563EB;margin-left:4px" '
+                             f'href="{url}?confirm_receipt={r.pk}&customer={obj.pk}" '
+                             f'onclick="return confirm(\'确认该笔收款已到账?\')">已确认收款</a>')
+            rows.append(format_html("{}<br/>{}", line, conf))
+        return format_html("".join(rows))
+
+    @admin.display(description="待收余额")
+    def pending_balance_display(self, obj):
+        """待收余额(09-21 老板拍板)= 成交总金额 − 已确认收款 − 减免 − 坏账,自动计算."""
+        bal = obj.pending_balance
+        if bal is None:
+            return "—"
+        if bal < 0:
+            return format_html('<span style="color:#DC2626;font-weight:600">{}</span>', bal)
+        return bal
+
+    @admin.display(description="待收余额")
+    def pending_balance_readonly(self, obj):
+        """销售/咨询视角的待收余额(不含减免/坏账明细,仅显示计算结果)."""
+        return self.pending_balance_display(obj)
 
     @admin.display(description="状态栏(客户意向/最近操作)")
     def status_bar(self, obj):
@@ -1072,6 +1211,8 @@ class CustomerAdmin(RolePermissionsMixin, SimpleHistoryAdmin):
                 if received_amount > 0:
                     Receipt.objects.create(
                         customer=customer, amount=received_amount,
+                        payment_type=Receipt.PaymentType.DEPOSIT,
+                        account=customer.contract_entity or "",
                         note="成交首笔收款", recorded_by=request.user, received_at=now.date(),
                     )
                 # 附件上传(合同/图片)

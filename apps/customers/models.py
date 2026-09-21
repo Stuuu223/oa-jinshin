@@ -88,6 +88,14 @@ class Customer(models.Model):
         "成交总金额", max_digits=12, decimal_places=2, null=True, blank=True,
         help_text="实际签约金额,独立于报价金额——报价是销售初始报价,成交总金额是最终确认金额",
     )
+    reduction_amount = models.DecimalField(
+        "减免金额", max_digits=12, decimal_places=2, null=True, blank=True,
+        help_text="财务专用:批准的减免,从待收余额中扣减",
+    )
+    bad_debt_amount = models.DecimalField(
+        "坏账金额", max_digits=12, decimal_places=2, null=True, blank=True,
+        help_text="财务专用:确认无法收回的坏账,从待收余额中扣减",
+    )
     note = models.TextField("客户情况/备注", blank=True)
     consulted_at = models.DateField("咨询时间", null=True, blank=True)
 
@@ -251,8 +259,22 @@ class Customer(models.Model):
     # ===== 财务派生(细则:收款/支出咨询师填,利润自动计算——SSOT 派生不落库) =====
     @property
     def total_received(self):
-        """累计收款(所有收款记录之和)."""
+        """累计收款(所有收款记录之和,含未确认)."""
         return self.receipts.aggregate(s=models.Sum("amount"))["s"] or 0
+
+    @property
+    def confirmed_received(self):
+        """已确认收款(仅财务确认过的——待收余额/利润口径,09-21 老板拍板)."""
+        return self.receipts.filter(confirmed_at__isnull=False).aggregate(s=models.Sum("amount"))["s"] or 0
+
+    @property
+    def pending_balance(self):
+        """待收余额 = 成交总金额 − 已确认收款 − 减免 − 坏账(财务口径 SSOT)."""
+        if self.deal_total_amount is None:
+            return None
+        reduction = self.reduction_amount or 0
+        bad_debt = self.bad_debt_amount or 0
+        return self.deal_total_amount - self.confirmed_received - reduction - bad_debt
 
     @property
     def total_cost(self):
@@ -266,15 +288,36 @@ class Customer(models.Model):
 
 
 class Receipt(models.Model):
-    """收款记录——挂成交客户(细则:收款由咨询师填写),留痕不复核,创建即知会总经办."""
+    """收款记录——挂成交客户,留痕不复核,创建即知会总经办.
+
+    财务口径(09-21 老板拍板):每笔收款独立确认——未确认=财务未确定(灰),
+    财务点"已确认收款"后计入待收余额;收款账户按每笔单独记录."""
+
+    class PaymentType(models.TextChoices):
+        DEPOSIT = "deposit", "定金"
+        FIRST = "first", "首期款"
+        MIDDLE = "middle", "中期款"
+        FINAL = "final", "尾款"
+        OTHER = "other", "其他"
+
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name="receipts", verbose_name="成交客户")
     amount = models.DecimalField("收款金额", max_digits=12, decimal_places=2)
+    payment_type = models.CharField(
+        "款项类型", max_length=16, choices=PaymentType.choices, default=PaymentType.OTHER,
+        help_text="定金/首期款/中期款/尾款/其他",
+    )
+    account = models.CharField("收款账户", max_length=64, blank=True, help_text="如'珠海金石企服',按每笔收款单独记录")
     note = models.CharField("备注", max_length=128, blank=True, help_text="如'定金'/'尾款'/'全款'")
     recorded_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True,
         related_name="recorded_receipts", verbose_name="填写人(咨询师)",
     )
     received_at = models.DateField("收款时间", null=True, blank=True, help_text="实际到账日期")
+    confirmed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="confirmed_receipts", verbose_name="确认人(财务)",
+    )
+    confirmed_at = models.DateTimeField("确认时间", null=True, blank=True)
     created_at = models.DateTimeField("录入时间", auto_now_add=True)
     history = HistoricalRecords()
 

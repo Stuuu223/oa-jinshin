@@ -100,6 +100,7 @@ class User(AbstractUser):
             ("view_sales_workbench", "可看销售数据总览"),
             ("view_consult_workbench", "可看咨询数据总览"),
             ("view_tech_workbench", "可看技术数据总览"),
+            ("view_finance_workbench", "可看财务管理菜单"),
         ]
 
     def __str__(self) -> str:
